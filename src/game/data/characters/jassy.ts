@@ -89,41 +89,50 @@ export const JASSY: WrestlerConfig = {
   },
 
   prop: {
-    name: 'THE BRIEFCASE',
-    mechanic: 'Signature swings the case; on hit it stamps a SOLD sign into the mat.',
-    shape: 'briefcase',
-    color: C.gold,
-    color2: C.ink,
+    // Documented in the performer's reference photography.
+    name: 'THE BRICK PHONE',
+    mechanic: 'Signature makes the call; on hit a SOLD overlay stamps into the mat.',
+    shape: 'brickphone',
+    color: 0xe8b33a,
+    color2: 0x2a2018,
   },
 
   rig: {
-    scale: 1.06, bulk: 1.1,
-    skin: 0xf2c9a8,
-    outfit: 0xff2d95,
-    outfitAlt: 0xff7a1a,
-    trim: 0xffd23f,
-    boots: 0x4a1440,
-    gloves: 0xffd23f,
-    hair: 0xffb3e0,
-    rim: 0xffd23f,
+    scale: 1.06, bulk: 1.12,
+
+    // Matched to performer-supplied reference photography (Balkan Beatdown 2026
+    // poster + studio stills). Reference images are NOT shipped or traced --
+    // colours and shapes were read off them by hand.
+    skin: 0xf3dcc8,        // pale foundation
+    outfit: 0x191220,      // black patent leotard
+    outfitAlt: 0xe8c9a0,   // nude tights (the jacket colour lives on the sleeves)
+    trim: 0xf48fc0,        // pink satin collar / sash
+    boots: 0x1d1526,       // black patent boots
+    gloves: 0x191220,      // black patent opera gloves
+    hair: 0xf2c14a,
+    rim: 0xff6bb5,
     aura: 0xffd23f,
 
-    // Corporate-villain drag silhouette: padded shoulders, cinched waist,
-    // huge hips and towering platforms. Reads as a landlord from across a room.
-    figure: { shoulders: 1.22, bust: 1.5, waist: 0.66, hips: 1.42, legs: 1.06, heel: 11 },
-    wig: { style: 'bouffant', volume: 1.2, color: 0xffb3e0, color2: 0xffd23f },
-    face: { kind: 'glam', lash: 0x2a1030, lip: 0xe01860, brow: 0x2a1030, shadow: 0xff7a1a },
+    // Padded shoulders, cinched waist, heavy bust, nude legs on patent boots.
+    figure: { shoulders: 1.18, bust: 1.55, waist: 0.68, hips: 1.3, legs: 1.06, heel: 9 },
+
+    // Two-tone flipped bob: golden blonde over a dark under-layer, choppy dark fringe.
+    wig: { style: 'flipbob', volume: 1.1, color: 0xf2c14a, color2: 0x3a2418, darkFringe: true },
+
+    // Hot pink shadow swept up and out, pale contoured face, big over-drawn lips.
+    face: { kind: 'glam', lash: 0x241820, lip: 0xb57c8c, brow: 0x2a1a22, shadow: 0xf0509a },
+
     costume: {
-      kind: 'blazer',
-      belt: 0xffd23f,
+      kind: 'leotard',
+      puffSleeves: 0xf261a9,   // leg-of-mutton pink patent sleeves
+      collar: 0xf48fc0,        // pink satin shirt collar
+      tie: 0x14101a,           // black satin necktie
+      sashKnot: 0xf48fc0,      // pink sash knotted at the hip
       longGloves: true,
       longBoots: true,
     },
 
-    flourishes: [
-      { kind: 'shoulderpads', color: 0xff7a1a, color2: 0xffd23f, scale: 1.3 },
-      { kind: 'sash', color: 0xffd23f },
-    ],
+    flourishes: [],
   },
 
   audio: { pitch: 1.06, grit: 0.25, hype: 0.8 },

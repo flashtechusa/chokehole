@@ -207,7 +207,9 @@ export class FighterView {
     const hipL = add(hip, rot(v(-hiW * 0.38, -1), p.spine));
     const hipR = add(hip, rot(v(hiW * 0.38, -1), p.spine));
     this.leg(g, hipL, p.legB, shade(r.outfit, -0.3), shade(r.boots, -0.18), A, col, inf, F, bulk, o);
-    this.arm(g, shoulder, p.armB, shade(r.skin, -0.26), shade(r.gloves, -0.2), A, col, inf, bulk, o);
+    const shL = add(shoulder, rot(v(-shW * 0.9, 1), p.spine));
+    const shR = add(shoulder, rot(v(shW * 0.9, 1), p.spine));
+    this.arm(g, shL, p.armB, shade(r.skin, -0.26), shade(r.gloves, -0.2), A, col, inf, bulk, o);
 
     // --- extra arms (insect personas) sit behind the torso -------------
     for (const fl of r.flourishes) {
@@ -218,6 +220,17 @@ export class FighterView {
         (8 * bulk + inf) * s, col(fl.color), A * 0.95, col(fl.color2 ?? fl.color), inf, flat);
       this.limb(g, anchor, [p.armF[0] * 0.7 - 26, p.armF[1] * 0.6 - 12], 24 * s, 21 * s,
         (8 * bulk + inf) * s, col(shade(fl.color, -0.15)), A * 0.95, col(fl.color2 ?? fl.color), inf, flat);
+    }
+
+    // --- neck, tucked behind the torso so the collar covers its base -----
+    // interior detail only -- the rim pass skips it so it cannot bulge out of
+    // the silhouette as a blob at the collarbone
+    const neckTop = add(shoulder, rot(v(1.5, -17), p.spine + p.head * 0.5));
+    if (!flat) {
+      g.lineStyle(9 * bulk + 3, INK, A);
+      g.lineBetween(shoulder.x, shoulder.y + 2, neckTop.x, neckTop.y);
+      g.lineStyle(9 * bulk, shade(r.skin, -0.12), A);
+      g.lineBetween(shoulder.x, shoulder.y + 2, neckTop.x, neckTop.y);
     }
 
     // --- torso: an hourglass, not a box --------------------------------
@@ -253,15 +266,6 @@ export class FighterView {
     }
 
     // --- head ----------------------------------------------------------
-    // neck, so the head is attached rather than floating above the collarbone
-    const neckTop = add(shoulder, rot(v(1.5, -18), p.spine + p.head * 0.5));
-    if (!flat) {
-      g.lineStyle(13 * bulk + 3.4, INK, A);
-      g.lineBetween(shoulder.x, shoulder.y - 2, neckTop.x, neckTop.y);
-    }
-    g.lineStyle(13 * bulk + inf, col(shade(r.skin, -0.12)), A);
-    g.lineBetween(shoulder.x, shoulder.y - 2, neckTop.x, neckTop.y);
-
     for (const fl of r.flourishes) {
       if (fl.kind === 'bighair') this.drawBigHair(g, headC, p, fl, col(fl.color), A, inf, flat);
     }
@@ -291,7 +295,7 @@ export class FighterView {
 
     // --- front limbs ---------------------------------------------------
     this.leg(g, hipR, p.legF, r.outfitAlt, r.boots, A, col, inf, F, bulk, o);
-    const handF = this.arm(g, shoulder, p.armF, r.skin, r.gloves, A, col, inf, bulk, o);
+    const handF = this.arm(g, shR, p.armF, r.skin, r.gloves, A, col, inf, bulk, o);
 
     // --- prop -----------------------------------------------------------
     if (this.cfg.prop && this.cfg.prop.shape !== 'none' && !flat
@@ -327,6 +331,18 @@ export class FighterView {
     // upper arm is skin, forearm is the glove when the costume has long gloves
     g.lineStyle(thick, col(skin), A);
     g.lineBetween(origin.x, origin.y, elbow.x, elbow.y);
+    // leg-of-mutton puff over the upper arm
+    if (this.costume.puffSleeves !== undefined) {
+      const puff = mix(origin, elbow, 0.14);
+      g.fillStyle(col(this.costume.puffSleeves), A);
+      g.fillCircle(puff.x, puff.y, thick * 1.15 + 2);
+      if (!flat) {
+        g.lineStyle(2.2, INK, A * 0.9);
+        g.strokeCircle(puff.x, puff.y, thick * 1.15 + 2);
+        g.fillStyle(0xffffff, A * 0.2);
+        g.fillCircle(puff.x - 2.5, puff.y - 2.5, thick * 0.45);
+      }
+    }
     g.lineStyle(thick, col(this.costume.longGloves ? glove : skin), A);
     g.lineBetween(elbow.x, elbow.y, hand.x, hand.y);
     g.fillStyle(col(skin), A);
@@ -451,6 +467,20 @@ export class FighterView {
       g.arc(c.x, c.y, rad, 0.15 * Math.PI, 0.85 * Math.PI, false);
       g.strokePath();
     }
+    // plunging neckline: bare chest between the cups
+    if (this.costume.kind === 'leotard' || this.costume.kind === 'bodysuit') {
+      const top = add(chest, rot(v(0, -rad * 1.15), p.spine));
+      const bot = add(chest, rot(v(1, rad * 0.85), p.spine));
+      g.fillStyle(r.skin, A);
+      g.fillTriangle(
+        top.x - rad * 0.62, top.y,
+        top.x + rad * 0.62, top.y,
+        bot.x, bot.y,
+      );
+      g.lineStyle(2, shade(r.outfit, 0.25), A * 0.7);
+      g.lineBetween(top.x - rad * 0.62, top.y, bot.x, bot.y);
+      g.lineBetween(top.x + rad * 0.62, top.y, bot.x, bot.y);
+    }
     // highlight
     const hl = add(chest, rot(v(buW * 0.42, -rad * 0.5), p.spine));
     g.fillStyle(0xffffff, A * 0.22);
@@ -499,6 +529,34 @@ export class FighterView {
       g.beginPath(); g.moveTo(l.x, l.y); g.lineTo(m.x, m.y); g.lineTo(rr.x, rr.y); g.strokePath();
     }
 
+    if (c.collar !== undefined) {
+      // shirt collar sitting on the shoulders, points turned down
+      for (const side of [-1, 1]) {
+        const a = at(n.shoulder, side * 8.5, -7);
+        const b = at(n.shoulder, side * 1.5, -8);
+        const cc = at(n.shoulder, side * 5, 2);
+        g.fillStyle(c.collar, A);
+        g.fillTriangle(a.x, a.y, b.x, b.y, cc.x, cc.y);
+        g.lineStyle(1.8, INK, A * 0.8);
+        g.strokeTriangle(a.x, a.y, b.x, b.y, cc.x, cc.y);
+      }
+    }
+    if (c.tie !== undefined) {
+      const knot = at(n.shoulder, 1, -4);
+      const tip = at(n.chest, 3, 8);
+      g.fillStyle(c.tie, A);
+      g.fillTriangle(knot.x - 3.5, knot.y, knot.x + 3.5, knot.y, tip.x, tip.y);
+      g.fillRect(knot.x - 3.5, knot.y - 4, 7, 5);
+      g.lineStyle(1.6, INK, A * 0.7);
+      g.strokeTriangle(knot.x - 3.5, knot.y, knot.x + 3.5, knot.y, tip.x, tip.y);
+    }
+    if (c.sashKnot !== undefined) {
+      const k = at(n.hip, 2, 2);
+      g.fillStyle(c.sashKnot, A);
+      g.fillCircle(k.x, k.y, 5);
+      g.fillTriangle(k.x - 1, k.y + 2, k.x + 7, k.y + 4, k.x + 2, k.y + 14);
+      g.fillTriangle(k.x + 1, k.y + 2, k.x - 6, k.y + 5, k.x - 2, k.y + 13);
+    }
     if (c.belt !== undefined) {
       const a = at(n.waist, -w.waW - 2, 2);
       const b = at(n.waist, w.waW + 2, 2);
@@ -640,6 +698,29 @@ export class FighterView {
         g.fillEllipse(c.x, c.y, (32 + inf * 2) * s, (32 + inf * 2) * s);
         break;
       }
+      case 'flipbob': {
+        // tall crown, heavy sides, ends flicked outward
+        if (wig.color2 !== undefined) {
+          g.fillStyle(wig.color2, A);
+          const u = at(-3, 4 * s);
+          g.fillEllipse(u.x, u.y, (44 + inf * 2) * s, (36 + inf * 2) * s);
+          g.fillStyle(color, A);
+        }
+        const crown = at(-2, -14 * s);
+        g.fillEllipse(crown.x, crown.y, (46 + inf * 2) * s, (34 + inf * 2) * s);
+        const mass = at(-3, 0);
+        g.fillEllipse(mass.x, mass.y, (44 + inf * 2) * s, (32 + inf * 2) * s);
+        // flicked ends at the jawline
+        for (const side of [-1, 1]) {
+          const tip = at(side * 19 * s, 12 * s);
+          g.fillTriangle(
+            tip.x, tip.y - 7 * s,
+            tip.x + side * (7 + inf * 0.5) * s, tip.y + 3 * s,
+            tip.x - side * 3, tip.y + 8 * s,
+          );
+        }
+        break;
+      }
       case 'ponytail': {
         const c = at(-4, -6 * s);
         g.fillEllipse(c.x, c.y, (28 + inf * 2) * s, (26 + inf * 2) * s);
@@ -690,7 +771,18 @@ export class FighterView {
       g.fillStyle(this.rig.skin, A);
       const face = at(4, 0);
       g.fillEllipse(face.x, face.y, 26, 26);
-      if (wig.color2 !== undefined) {
+
+      const fringeCol = wig.darkFringe && wig.color2 !== undefined ? wig.color2 : color;
+      // choppy fringe falling over the forehead, kept above the brow line
+      g.fillStyle(fringeCol, A);
+      for (let i = 0; i < 4; i++) {
+        const x = -9 + i * 6.5;
+        const tip = at(x, -5 + (i % 2) * 2.5);
+        const l = at(x - 4.5, -15);
+        const r = at(x + 4.5, -15);
+        g.fillTriangle(l.x, l.y, r.x, r.y, tip.x, tip.y);
+      }
+      if (wig.color2 !== undefined && !wig.darkFringe) {
         g.fillStyle(wig.color2, A * 0.8);
         const st = at(-8, -14);
         g.fillEllipse(st.x, st.y, 11 * s, 6 * s);
@@ -922,6 +1014,23 @@ export class FighterView {
         g.fillStyle(prop.color, a);
         g.fillCircle(c.x, c.y - 10, 9);
         g.strokeCircle(c.x, c.y - 10, 9);
+        break;
+      }
+      case 'brickphone': {
+        // chunky 1980s handset: body, keypad, aerial
+        const c = push(0, 12);
+        g.fillStyle(prop.color, a);
+        g.fillRect(c.x - 7, c.y - 16, 15, 32);
+        g.strokeRect(c.x - 7, c.y - 16, 15, 32);
+        g.fillStyle(prop.color2 ?? 0x2a2018, a);
+        g.fillRect(c.x - 4.5, c.y - 6, 10, 15);
+        g.fillStyle(shade(prop.color, 0.4), a);
+        g.fillRect(c.x - 4.5, c.y - 13, 10, 5);
+        g.lineStyle(3, prop.color2 ?? 0x2a2018, a);
+        g.lineBetween(c.x + 4, c.y - 16, c.x + 7, c.y - 30);
+        g.fillStyle(prop.color, a);
+        g.fillCircle(c.x + 7, c.y - 31, 2.6);
+        g.lineStyle(2.2, INK, 0.9);
         break;
       }
       case 'sign': {

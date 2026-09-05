@@ -55,8 +55,19 @@ Source URLs are stored per record in `venues.ts`.
 Both playable wrestlers are marked `TEAM CONFIRMATION REQUIRED`.
 
 - **JASSY** — founding performer; billionaire landlord / "SHE-E-O" heel persona;
-  documented on-stage rivalry with RAID. Costume specifics, catchphrases,
-  signature moves and the final spelling need performer sign-off.
+  documented on-stage rivalry with RAID. Catchphrases, signature moves and the
+  final spelling still need performer sign-off.
+  **Look is now reference-matched.** The team supplied reference photography (the
+  Balkan Beatdown 2026 Prishtina Queer Festival performer poster, plus studio
+  stills). Colours and shapes were read off those images by hand and encoded as
+  rig data — a two-tone golden-blonde-over-dark flipped bob with a choppy dark
+  fringe, hot-pink swept eyeshadow, pale contoured face with over-drawn lips,
+  pink patent leg-of-mutton puff sleeves, black patent leotard with a plunging
+  neckline, pink satin collar with a black necktie, pink hip sash, nude legs and
+  black patent boots. Her prop is a giant gold brick phone, which is what the
+  reference shows her performing with (it replaced a placeholder briefcase).
+  **The reference images themselves are not shipped, traced or embedded** — see
+  the non-negotiables below.
 - **RAID** — mutant bug created by laboratory experimentation; the tenant side of
   the anti-gentrification rivalry. Same open items.
 
@@ -89,7 +100,9 @@ much like a videogame." The signature/prop system is built directly on that.
 
 ## Non-negotiables encoded in the build
 
-- No scraped performer photography anywhere in the pipeline.
+- No scraped performer photography anywhere in the pipeline. Team-supplied
+  reference images are used only as a human reference for choosing rig colours
+  and proportions; they are never bundled, traced or converted into assets.
 - No commercial music or third-party samples; all audio is synthesised.
 - Third-party artworks appear only as original stylised stand-ins (the Times
   Square condiment rig).

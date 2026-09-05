@@ -103,22 +103,27 @@ export interface PropSpec {
   name: string;
   /** One line on what it does mechanically. Game fiction. */
   mechanic: string;
-  shape: 'briefcase' | 'canister' | 'syringe' | 'microphone' | 'sign' | 'none';
+  shape:
+    | 'briefcase' | 'canister' | 'syringe' | 'microphone'
+    | 'sign' | 'brickphone' | 'none';
   color: number;
   color2?: number;
 }
 
 /** Wig silhouette. The single biggest readability cue at phone size. */
 export type WigStyle =
-  | 'bouffant' | 'beehive' | 'longwaves' | 'bob' | 'mohawk' | 'ponytail' | 'none';
+  | 'bouffant' | 'beehive' | 'longwaves' | 'bob' | 'flipbob'
+  | 'mohawk' | 'ponytail' | 'none';
 
 export interface WigSpec {
   style: WigStyle;
   /** Multiplies the whole hair mass. Drag reads big. */
   volume: number;
   color: number;
-  /** Streaks / tips / roots. */
+  /** Under-layer, roots and fringe. Two-tone wigs read strongly at phone size. */
   color2?: number;
+  /** Draw the fringe in `color2` and let it fall over the forehead. */
+  darkFringe?: boolean;
 }
 
 /**
@@ -160,6 +165,14 @@ export interface CostumeSpec {
   /** Elbow-length gloves and thigh-high boots read as drag, not sportswear. */
   longGloves?: boolean;
   longBoots?: boolean;
+  /** Leg-of-mutton puffed sleeves, drawn as a mass on the upper arm. */
+  puffSleeves?: number;
+  /** Shirt collar behind the neck. */
+  collar?: number;
+  /** Necktie hanging down the chest. */
+  tie?: number;
+  /** Sash knotted at the hip. */
+  sashKnot?: number;
 }
 
 export interface RigSpec {

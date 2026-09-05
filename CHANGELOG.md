@@ -2,6 +2,27 @@
 
 Meaningful playable changes only.
 
+## 0.1.2 — Jassy matched to reference
+
+The team supplied reference photography for Jassy, so her placeholder is now
+built from what she actually wears rather than a guess.
+
+- Two-tone flipped bob: golden blonde over a dark under-layer with a choppy dark
+  fringe falling over the forehead (new `flipbob` wig style and `darkFringe`).
+- Pale contoured face, hot-pink eyeshadow swept up and out, over-drawn lips.
+- Pink patent leg-of-mutton puff sleeves, black patent leotard with a plunging
+  neckline, pink satin collar, black necktie, pink sash knotted at the hip, nude
+  legs over black patent boots (new `puffSleeves`, `collar`, `tie`, `sashKnot`).
+- Her prop is now the giant gold brick phone from the reference, replacing the
+  placeholder briefcase.
+
+Renderer fixes found along the way: arms now hang from the left and right
+shoulder instead of a single point at the sternum (which was stacking both puff
+sleeves into one blob on the chest), and the neck is interior detail that the
+rim pass skips so it cannot bulge out of the silhouette.
+
+Reference images are not shipped, traced or embedded — only read by hand.
+
 ## 0.1.1 — Character art pass
 
 The placeholder wrestlers now read as drag performers rather than articulated
