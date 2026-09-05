@@ -190,6 +190,8 @@ export interface CostumeSpec {
   sneakers?: number;
   sneakerStripe?: number;
   kneePads?: number;
+  /** Specular sheen for patent/latex, so dark outfits do not read as flat black. */
+  gloss?: number;
 }
 
 export interface RigSpec {

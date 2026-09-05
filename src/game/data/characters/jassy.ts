@@ -104,20 +104,21 @@ export const JASSY: WrestlerConfig = {
     // poster + studio stills). Reference images are NOT shipped or traced --
     // colours and shapes were read off them by hand.
     skin: 0xf3dcc8,        // pale foundation
-    outfit: 0x191220,      // black patent leotard
+    outfit: 0x241a2e,      // black patent leotard
     outfitAlt: 0xe8c9a0,   // nude tights (the jacket colour lives on the sleeves)
     trim: 0xf48fc0,        // pink satin collar / sash
     boots: 0x1d1526,       // black patent boots
-    gloves: 0x191220,      // black patent opera gloves
-    hair: 0xf2c14a,
+    gloves: 0x241a2e,      // black patent opera gloves
+    hair: 0x2b1d26,
     rim: 0xff6bb5,
     aura: 0xffd23f,
 
     // Padded shoulders, cinched waist, heavy bust, nude legs on patent boots.
     figure: { shoulders: 1.18, bust: 1.55, waist: 0.68, hips: 1.3, legs: 1.06, heel: 9 },
 
-    // Two-tone flipped bob: golden blonde over a dark under-layer, choppy dark fringe.
-    wig: { style: 'flipbob', volume: 1.1, color: 0xf2c14a, color2: 0x3a2418, darkFringe: true },
+    // Dark choppy flipped bob with a side-swept fringe. The lighter tone is a
+    // back-layer highlight for depth, not a blonde streak.
+    wig: { style: 'flipbob', volume: 0.98, color: 0x2b1d26, color2: 0x53394a },
 
     // Hot pink shadow swept up and out, pale contoured face, big over-drawn lips.
     face: { kind: 'glam', lash: 0x241820, lip: 0xb57c8c, brow: 0x2a1a22, shadow: 0xf0509a },
@@ -128,6 +129,7 @@ export const JASSY: WrestlerConfig = {
       collar: 0xf48fc0,        // pink satin shirt collar
       tie: 0x14101a,           // black satin necktie
       sashKnot: 0xf48fc0,      // pink sash knotted at the hip
+      gloss: 0xd9c2e8,         // latex sheen
       longGloves: true,
       longBoots: true,
     },

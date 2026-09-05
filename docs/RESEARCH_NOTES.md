@@ -60,8 +60,8 @@ Both playable wrestlers are marked `TEAM CONFIRMATION REQUIRED`.
   **Look is now reference-matched.** The team supplied reference photography (the
   Balkan Beatdown 2026 Prishtina Queer Festival performer poster, plus studio
   stills). Colours and shapes were read off those images by hand and encoded as
-  rig data — a two-tone golden-blonde-over-dark flipped bob with a choppy dark
-  fringe, hot-pink swept eyeshadow, pale contoured face with over-drawn lips,
+  rig data — a dark choppy flipped bob with a side-swept fringe, hot-pink swept
+  eyeshadow, pale contoured face with over-drawn lips,
   pink patent leg-of-mutton puff sleeves, black patent leotard with a plunging
   neckline, pink satin collar with a black necktie, pink hip sash, nude legs and
   black patent boots. Her prop is a giant gold brick phone, which is what the

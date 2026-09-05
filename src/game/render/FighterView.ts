@@ -447,6 +447,10 @@ export class FighterView {
       g.fillRect(ankle.x - 6 - inf, ankle.y - 2, 19 + inf * 2, h + 2);
       g.fillStyle(col(shade(boot, -0.4)), A);
       g.fillRect(ankle.x - 6 - inf, ankle.y + h - 1, 19 + inf * 2, 3.5);
+      if (!flat && this.costume.gloss !== undefined) {
+        g.lineStyle(2.4, this.costume.gloss, A * 0.5);
+        g.lineBetween(knee.x + 2, knee.y + 2, ankle.x + 1, ankle.y - 2);
+      }
       if (!flat) {
         // stiletto block at the back
         g.fillStyle(shade(boot, -0.25), A);
@@ -567,6 +571,26 @@ export class FighterView {
       g.beginPath(); g.moveTo(l.x, l.y); g.lineTo(m.x, m.y); g.lineTo(rr.x, rr.y); g.strokePath();
     }
 
+    if (c.gloss !== undefined) {
+      // patent/latex highlight running down the front edge of the torso
+      const a = at(n.shoulder, w.shW * 0.3, -1);
+      const b = at(n.chest, w.buW * 0.5, 0);
+      const cc = at(n.waist, w.waW * 0.42, 0);
+      const d = at(n.hip, w.hiW * 0.34, 4);
+      g.lineStyle(5.5, c.gloss, A * 0.5);
+      g.beginPath();
+      g.moveTo(a.x, a.y);
+      g.lineTo(b.x, b.y);
+      g.lineTo(cc.x, cc.y);
+      g.lineTo(d.x, d.y);
+      g.strokePath();
+      g.lineStyle(2, c.gloss, A * 0.85);
+      g.beginPath();
+      g.moveTo(a.x, a.y);
+      g.lineTo(b.x, b.y);
+      g.lineTo(cc.x, cc.y);
+      g.strokePath();
+    }
     if (c.scalePanel !== undefined) {
       // reptile-scale plate inset from the torso edge
       const pts = [

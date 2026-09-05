@@ -2,6 +2,15 @@
 
 Meaningful playable changes only.
 
+## 0.1.4 — Jassy's hair corrected
+
+- Jassy's wig is dark, not blonde. Corrected on the collective's direct
+  confirmation — the studio stills read as two-tone under the set lighting, but
+  the dark choppy flipped bob from the Balkan Beatdown poster is the real look.
+- Added a `gloss` costume field: a specular sheen on patent and latex, applied to
+  her leotard, gloves and boots. Without it a dark wig over a black patent
+  leotard collapsed into one flat silhouette in a dark arena.
+
 ## 0.1.3 — RAID matched to reference
 
 The team supplied reference photography for RAID, so his placeholder is now built
