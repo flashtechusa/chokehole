@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0410" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="CHOKE HOLE" />
+<meta name="description" content="CHOKE HOLE: NO HOLES BARRED — Extreme Drag Wrestling." />
+<link rel="icon" href="./assets/branding/favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="./assets/branding/icon-180.png" />
+<title>CHOKE HOLE: NO HOLES BARRED</title>
+<style>
+  :root{
+    --ch-bg:#0a0410;
+    --ch-pink:#ff2d95;
+    --ch-acid:#b6ff3a;
+    --ch-orange:#ff7a1a;
+    --ch-cyan:#31e7ff;
+    --safe-t:env(safe-area-inset-top,0px);
+    --safe-b:env(safe-area-inset-bottom,0px);
+    --safe-l:env(safe-area-inset-left,0px);
+    --safe-r:env(safe-area-inset-right,0px);
+  }
+  *{box-sizing:border-box}
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;
+    background:var(--ch-bg);color:#fff;overflow:hidden;
+    font-family:"Arial Black","Helvetica Neue",Impact,system-ui,sans-serif;
+    -webkit-user-select:none;user-select:none;
+    -webkit-touch-callout:none;
+    -webkit-tap-highlight-color:transparent;
+    overscroll-behavior:none;
+    touch-action:none;
+  }
+  #game{position:fixed;inset:0;overflow:hidden}
+  #game canvas{display:block;touch-action:none}
+
+  /* ---- Orientation gate: portrait rotate prompt ---- */
+  #rotate-gate{
+    position:fixed;inset:0;z-index:40;display:none;
+    align-items:center;justify-content:center;flex-direction:column;gap:18px;
+    background:radial-gradient(ellipse at 50% 40%,#2a0b23 0%,#0a0410 70%);
+    padding:calc(24px + var(--safe-t)) 24px calc(24px + var(--safe-b));
+    text-align:center;
+  }
+  body.is-portrait #rotate-gate{display:flex}
+  #rotate-gate .phone{
+    width:74px;height:120px;border:5px solid var(--ch-pink);border-radius:14px;
+    animation:tilt 1.9s ease-in-out infinite;box-shadow:0 0 34px rgba(255,45,149,.55);
+  }
+  @keyframes tilt{0%,42%{transform:rotate(0)}62%,100%{transform:rotate(-90deg)}}
+  #rotate-gate h1{margin:0;font-size:23px;letter-spacing:.14em;color:var(--ch-acid);text-shadow:0 0 16px rgba(182,255,58,.6)}
+  #rotate-gate p{margin:0;font-size:13px;letter-spacing:.24em;opacity:.8;font-family:ui-monospace,Menlo,monospace}
+
+  /* ---- Boot splash (before Phaser paints) ---- */
+  #boot-splash{
+    position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
+    background:#0a0410;transition:opacity .35s ease;
+  }
+  #boot-splash.hide{opacity:0;pointer-events:none}
+  #boot-splash .bars{display:flex;gap:6px}
+  #boot-splash .bars i{width:9px;height:44px;background:var(--ch-pink);display:block;animation:bar .9s infinite ease-in-out}
+  #boot-splash .bars i:nth-child(2){background:var(--ch-acid);animation-delay:.12s}
+  #boot-splash .bars i:nth-child(3){background:var(--ch-cyan);animation-delay:.24s}
+  #boot-splash .bars i:nth-child(4){background:var(--ch-orange);animation-delay:.36s}
+  @keyframes bar{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+
+  @media (prefers-reduced-motion:reduce){
+    #rotate-gate .phone,#boot-splash .bars i{animation:none}
+  }
+</style>
+</head>
+<body>
+  <div id="game" aria-label="CHOKE HOLE: NO HOLES BARRED game canvas"></div>
+
+  <div id="rotate-gate" role="dialog" aria-live="polite">
+    <div class="phone"></div>
+    <h1>TURN YOUR PHONE SIDEWAYS</h1>
+    <p>THE BROADCAST REQUIRES LANDSCAPE</p>
+  </div>
+
+  <div id="boot-splash"><div class="bars"><i></i><i></i><i></i><i></i></div></div>
+
+  <script>
+    // Portrait gate + iOS double-tap-zoom / pull-to-refresh suppression.
+    (function () {
+      function sync() {
+        var portrait = window.innerHeight > window.innerWidth;
+        document.body.classList.toggle('is-portrait', portrait);
+      }
+      window.addEventListener('resize', sync, { passive: true });
+      window.addEventListener('orientationchange', function () { setTimeout(sync, 120); });
+      sync();
+      document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
+      document.addEventListener('dblclick', function (e) { e.preventDefault(); }, { passive: false });
+      document.addEventListener('touchmove', function (e) {
+        if (e.touches.length > 1) e.preventDefault();
+      }, { passive: false });
+    })();
+  </script>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
