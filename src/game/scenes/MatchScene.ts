@@ -83,6 +83,7 @@ export class MatchScene extends Phaser.Scene {
   private pinNeeded = 0;
   private pinText!: Phaser.GameObjects.Text;
   private pinBacking!: Phaser.GameObjects.Graphics;
+  private pinPromptSlab!: Phaser.GameObjects.Graphics;
   private pinPrompt!: Phaser.GameObjects.Text;
 
   // stats
@@ -159,6 +160,7 @@ export class MatchScene extends Phaser.Scene {
       fontFamily: FONT.slam, fontSize: '120px', color: CSS.white,
       stroke: '#120a1a', strokeThickness: 12,
     }).setOrigin(0.5).setDepth(830).setAlpha(0);
+    this.pinPromptSlab = this.add.graphics().setDepth(829).setAlpha(0);
     this.pinPrompt = this.add.text(W / 2, 300, '', {
       fontFamily: FONT.slam, fontSize: '26px', color: CSS.gold,
       stroke: '#120a1a', strokeThickness: 6,
@@ -178,7 +180,8 @@ export class MatchScene extends Phaser.Scene {
 
     this.uiObjects = [
       this.hud.root, this.input_.pad.root, this.pinText, this.pinPrompt,
-      this.announceText, this.entranceLayer, this.pauseLayer, pauseBtn.container, this.pinBacking,
+      this.announceText, this.entranceLayer, this.pauseLayer, pauseBtn.container,
+      this.pinBacking, this.pinPromptSlab,
       ...this.fx.uiObjects,
     ];
 
@@ -616,6 +619,13 @@ export class MatchScene extends Phaser.Scene {
     this.pinPrompt.setAlpha(1).setText(
       defender === this.p1 ? 'MASH ANY BUTTON TO KICK OUT' : `${attacker.cfg.displayName} GOES FOR THE PIN`,
     );
+    const pw = this.pinPrompt.width + 44;
+    this.pinPromptSlab.clear();
+    this.pinPromptSlab.fillStyle(0x0d0612, 0.85);
+    this.pinPromptSlab.fillRect(W / 2 - pw / 2, 286, pw, 34);
+    this.pinPromptSlab.lineStyle(2, C.gold, 0.9);
+    this.pinPromptSlab.strokeRect(W / 2 - pw / 2, 286, pw, 34);
+    this.pinPromptSlab.setAlpha(1);
     Audio.play('crowdPop', 0.7);
     this.hud.showCallout(`${attacker.cfg.displayName} COVERS ${defender.cfg.displayName}`);
     this.cameras.main.zoomTo(1.1, 260);
@@ -656,6 +666,7 @@ export class MatchScene extends Phaser.Scene {
     // near-fall tension
     if (this.pinCount === 2) this.corrupt = 0.6;
     this.pinPrompt.setAlpha(0.55 + 0.45 * Math.sin(this.pinTimer / 60));
+    this.pinPromptSlab.setAlpha(0.9);
   }
 
   private endPin(pinned: boolean): void {
@@ -666,6 +677,7 @@ export class MatchScene extends Phaser.Scene {
     this.pinText.setAlpha(0);
     this.pinBacking.setAlpha(0);
     this.pinPrompt.setAlpha(0);
+    this.pinPromptSlab.setAlpha(0);
     this.cameras.main.zoomTo(1, 260);
     if (pinned || !attacker || !defender) return;
 
@@ -700,6 +712,7 @@ export class MatchScene extends Phaser.Scene {
     this.pinText.setAlpha(0);
     this.pinBacking.setAlpha(0);
     this.pinPrompt.setAlpha(0);
+    this.pinPromptSlab.setAlpha(0);
     this.input_.pad.setEnabled(false);
     this.cameras.main.zoomTo(1, 300);
 

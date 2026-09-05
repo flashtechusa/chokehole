@@ -41,6 +41,29 @@ const tap = async (dx, dy) => {
   await page.waitForTimeout(140);
 };
 const active = () => page.evaluate(() => window.__CHOKEHOLE__.scene.getScenes(true).map((s) => s.scene.key));
+
+/** Interactive hit-zones of a scene, in design coordinates. */
+const zones = (key) => page.evaluate((k) => {
+  const sc = window.__CHOKEHOLE__.scene.getScene(k);
+  const out = [];
+  const walk = (o) => {
+    if (o.type === 'Zone' && o.input) {
+      const m = o.getWorldTransformMatrix();
+      out.push({ x: Math.round(m.tx), y: Math.round(m.ty) });
+    }
+    if (o.type === 'Container') o.list.forEach(walk);
+  };
+  sc.children.list.forEach(walk);
+  return out;
+}, key);
+
+/** Taps the nth button of a scene by its real hit-zone, not a guessed pixel. */
+const tapZone = async (key, index) => {
+  const z = await zones(key);
+  if (!z[index]) { console.log('no zone', index, 'in', key, '(found', z.length + ')'); return false; }
+  await tap(z[index].x, z[index].y);
+  return true;
+};
 const waitScene = async (key, ms = 15000) => {
   const t0 = Date.now();
   for (;;) {
@@ -121,19 +144,22 @@ await shot('pin');
 await page.waitForTimeout(2600);
 console.log('end state', JSON.stringify(await st()));
 
-// ---- other screens ----
-await tap(S.w * 0.862, 486); await waitScene('Menu'); await page.waitForTimeout(400);
-await tap(S.w / 2, 258); await waitScene('Archive'); await page.waitForTimeout(500);
-await shot('archive');
-await tap(62, 512); await waitScene('Menu'); await page.waitForTimeout(400);
-await tap(S.w / 2, 318); await waitScene('Roster'); await page.waitForTimeout(500);
-await shot('roster');
-await tap(62, 512); await waitScene('Menu'); await page.waitForTimeout(400);
-await tap(S.w / 2 - 78, 378); await waitScene('HowTo'); await page.waitForTimeout(500);
-await shot('howto');
-await tap(190, 440); await waitScene('Menu'); await page.waitForTimeout(400);
-await tap(S.w / 2 + 78, 378); await waitScene('Settings'); await page.waitForTimeout(500);
-await shot('settings');
+// ---- other screens, driven by real hit-zones ----
+// Results buttons: 0 REMATCH, 1 CHANGE FIGHTER, 2 ARCHIVES, 3 HOME
+await tapZone('Results', 3);
+await waitScene('Menu'); await page.waitForTimeout(500);
+// Menu buttons: 0 QUICK MATCH, 1 ARCHIVES, 2 ROSTER, 3 HOW TO PLAY, 4 SETTINGS
+for (const [menuIndex, key] of [[1, 'Archive'], [2, 'Roster'], [3, 'HowTo'], [4, 'Settings']]) {
+  await tapZone('Menu', menuIndex);
+  if (!(await waitScene(key))) continue;
+  await page.waitForTimeout(700);
+  await shot(key.toLowerCase());
+  // every one of these screens has a BACK button as its last zone
+  const z = await zones(key);
+  await tap(z[z.length - 1].x, z[z.length - 1].y);
+  await waitScene('Menu');
+  await page.waitForTimeout(400);
+}
 
 console.log('=== ERRORS ===');
 console.log(errors.length ? errors.join('\n---\n') : 'none');

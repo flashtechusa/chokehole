@@ -189,7 +189,7 @@ export class SelectScene extends Phaser.Scene {
     const spacing = Math.min(292, (W - 100) / Math.max(1, list.length));
     const startX = W / 2 - ((list.length - 1) * spacing) / 2;
 
-    const detail = this.add.text(W / 2, 340, '', {
+    const detail = this.add.text(W / 2, 348, '', {
       fontFamily: FONT.mono, fontSize: '10px', color: CSS.bone,
       align: 'center', wordWrap: { width: 620 }, lineSpacing: 3,
     }).setOrigin(0.5, 0);
@@ -278,7 +278,7 @@ export class SelectScene extends Phaser.Scene {
     // locked arenas teaser
     const locked = ARENAS.filter((a) => !Save.isArenaUnlocked(a.id));
     if (locked.length > 0) {
-      const t = this.add.text(W / 2, 318,
+      const t = this.add.text(W / 2, 328,
         `LOCKED: ${locked.map((a) => `${a.displayName} (${a.unlock.label})`).join('  ·  ')}`, {
         fontFamily: FONT.mono, fontSize: '9px', color: CSS.gold,
       }).setOrigin(0.5).setAlpha(0.6);

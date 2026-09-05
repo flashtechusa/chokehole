@@ -491,9 +491,8 @@ export class ArenaView {
     // --- front ropes + posts (in front of fighters) ---
     const rf = this.scene.add.graphics();
     this.rope(rf, cx - fhw, frontY, cx + fhw, frontY, p, 1);
-    // side ropes
+    // side ropes running from the back corner posts to the front ones
     for (let i = 0; i < 3; i++) {
-      const t = 0.28 + i * 0.26;
       rf.lineStyle(4, p.ropes[i] ?? p.ropes[0], 0.85);
       rf.lineBetween(
         cx - bhw, backY - 18 - i * 22,
@@ -503,7 +502,6 @@ export class ArenaView {
         cx + bhw, backY - 18 - i * 22,
         cx + fhw, frontY - 20 - i * 26,
       );
-      void t;
     }
     this.post(rf, cx - fhw, frontY, p, 1.05);
     this.post(rf, cx + fhw, frontY, p, 1.05);

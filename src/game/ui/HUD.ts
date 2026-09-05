@@ -262,8 +262,8 @@ export class HUD {
     if (mirror) g.fillRect(x + w - fw, y, fw, h);
     else g.fillRect(x, y, fw, h);
 
-    // signature threshold marker
-    const mx = mirror ? x + w * 0.5 : x + w * 0.5;
+    // signature threshold marker (the halfway point either way round)
+    const mx = x + w * 0.5;
     g.lineStyle(2, 0xffffff, 0.8);
     g.lineBetween(mx, y - 2, mx, y + h + 2);
     if (full) {

@@ -28,15 +28,15 @@ export interface AIProfile {
 export const AI_PROFILES: Record<AIProfile['id'], AIProfile> = {
   EASY: {
     id: 'EASY', label: 'ROOKIE',
-    thinkMs: 520, reactionMs: 420, blockChance: 0.14, grappleChance: 0.22,
-    aggression: 0.55, specialEagerness: 0.35, pinEagerness: 0.5,
-    tauntChance: 0.18, mashRate: 0.3,
+    thinkMs: 600, reactionMs: 480, blockChance: 0.12, grappleChance: 0.18,
+    aggression: 0.48, specialEagerness: 0.3, pinEagerness: 0.45,
+    tauntChance: 0.22, mashRate: 0.25,
   },
   NORMAL: {
     id: 'NORMAL', label: 'CARD MATCH',
-    thinkMs: 320, reactionMs: 230, blockChance: 0.34, grappleChance: 0.42,
-    aggression: 0.75, specialEagerness: 0.7, pinEagerness: 0.8,
-    tauntChance: 0.1, mashRate: 0.6,
+    thinkMs: 380, reactionMs: 280, blockChance: 0.3, grappleChance: 0.38,
+    aggression: 0.66, specialEagerness: 0.62, pinEagerness: 0.78,
+    tauntChance: 0.14, mashRate: 0.55,
   },
   BRUTAL: {
     id: 'BRUTAL', label: 'MAIN EVENT',
