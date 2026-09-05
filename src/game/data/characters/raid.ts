@@ -95,21 +95,35 @@ export const RAID: WrestlerConfig = {
   },
 
   rig: {
-    scale: 1.0, bulk: 1.02,
+    scale: 1.0, bulk: 1.14,
     skin: 0x7be04a,
-    outfit: 0x1f7a3a,
+    outfit: 0x2fa84f,
     outfitAlt: 0x35d0a0,
     trim: 0xb6ff3a,
-    boots: 0x14261a,
+    boots: 0x1d4a2c,
     gloves: 0x31e7ff,
     hair: 0x0f3d20,
     rim: 0xb6ff3a,
     aura: 0xb6ff3a,
+
+    // Mutant-insect drag: a lower, wider, harder silhouette than Jassy --
+    // chitin plating, stompier boots, an actual bug head.
+    figure: { shoulders: 1.26, bust: 1.1, waist: 0.78, hips: 1.2, legs: 0.96, heel: 6 },
+    wig: { style: 'mohawk', volume: 0.95, color: 0xb6ff3a, color2: 0x31e7ff },
+    face: { kind: 'insect', lash: 0x0d1a08, lip: 0x0d1a08, brow: 0x0d1a08, shadow: 0xb6ff3a },
+    costume: {
+      kind: 'harness',
+      fringe: 0x35d0a0,
+      longGloves: false,
+      longBoots: true,
+    },
+
     flourishes: [
-      { kind: 'antennae', color: 0xb6ff3a, color2: 0x31e7ff, scale: 1.1 },
-      { kind: 'carapace', color: 0x1f7a3a, color2: 0xb6ff3a },
-      { kind: 'extraArms', color: 0x1f7a3a, color2: 0x7be04a, scale: 0.78 },
+      { kind: 'carapace', color: 0x2fa84f, color2: 0xb6ff3a },
+      { kind: 'extraArms', color: 0x2fa84f, color2: 0xb6ff3a, scale: 0.8 },
+      { kind: 'antennae', color: 0xb6ff3a, color2: 0x31e7ff, scale: 1.15 },
       { kind: 'mandibles', color: 0xb6ff3a },
+      { kind: 'wings', color: 0x35d0a0 },
     ],
   },
 

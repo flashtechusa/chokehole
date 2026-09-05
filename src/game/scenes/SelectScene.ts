@@ -122,8 +122,8 @@ export class SelectScene extends Phaser.Scene {
       this.layer.add([name, tag, arch]);
 
       // live rig, standing on the left half of the card
-      const p = new Portrait(this, w, L + 66, cardTop + 248, 0.74, 1);
-      p.setPose(i % 2 === 0 ? FS.WIN : FS.TAUNT);
+      const p = new Portrait(this, w, L + 70, cardTop + 262, 0.86, 1);
+      p.setPose(FS.IDLE);
       this.portraits.push(p);
       this.layer.add(p.root);
 

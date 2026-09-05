@@ -37,8 +37,8 @@ export class RosterScene extends Phaser.Scene {
       this.list.content.add(panel(this, 24, y, W - 76, cardH - 10,
         w.alignment === 'HEEL' ? C.pink : C.acid, 0.1));
 
-      const p = new Portrait(this, w, 112, y + 158, 0.76, 1);
-      p.setPose(FS.TAUNT);
+      const p = new Portrait(this, w, 116, y + 162, 0.8, 1);
+      p.setPose(FS.IDLE);
       this.portraits.push(p);
       this.list.content.add(p.root);
 

@@ -97,19 +97,31 @@ export const JASSY: WrestlerConfig = {
   },
 
   rig: {
-    scale: 1.06, bulk: 1.16,
+    scale: 1.06, bulk: 1.1,
     skin: 0xf2c9a8,
     outfit: 0xff2d95,
     outfitAlt: 0xff7a1a,
     trim: 0xffd23f,
-    boots: 0x2a1030,
+    boots: 0x4a1440,
     gloves: 0xffd23f,
-    hair: 0xff9ad1,
+    hair: 0xffb3e0,
     rim: 0xffd23f,
     aura: 0xffd23f,
+
+    // Corporate-villain drag silhouette: padded shoulders, cinched waist,
+    // huge hips and towering platforms. Reads as a landlord from across a room.
+    figure: { shoulders: 1.22, bust: 1.5, waist: 0.66, hips: 1.42, legs: 1.06, heel: 11 },
+    wig: { style: 'bouffant', volume: 1.2, color: 0xffb3e0, color2: 0xffd23f },
+    face: { kind: 'glam', lash: 0x2a1030, lip: 0xe01860, brow: 0x2a1030, shadow: 0xff7a1a },
+    costume: {
+      kind: 'blazer',
+      belt: 0xffd23f,
+      longGloves: true,
+      longBoots: true,
+    },
+
     flourishes: [
-      { kind: 'bighair', color: 0xff9ad1, color2: 0xffd23f, scale: 1.25 },
-      { kind: 'shoulderpads', color: 0xff7a1a, color2: 0xffd23f, scale: 1.2 },
+      { kind: 'shoulderpads', color: 0xff7a1a, color2: 0xffd23f, scale: 1.3 },
       { kind: 'sash', color: 0xffd23f },
     ],
   },

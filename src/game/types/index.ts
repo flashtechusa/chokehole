@@ -108,6 +108,60 @@ export interface PropSpec {
   color2?: number;
 }
 
+/** Wig silhouette. The single biggest readability cue at phone size. */
+export type WigStyle =
+  | 'bouffant' | 'beehive' | 'longwaves' | 'bob' | 'mohawk' | 'ponytail' | 'none';
+
+export interface WigSpec {
+  style: WigStyle;
+  /** Multiplies the whole hair mass. Drag reads big. */
+  volume: number;
+  color: number;
+  /** Streaks / tips / roots. */
+  color2?: number;
+}
+
+/**
+ * Exaggerated body proportions. These are what make a fighter recognisable in
+ * silhouette before any colour is read.
+ */
+export interface FigureSpec {
+  /** Shoulder width multiplier. */
+  shoulders: number;
+  /** Chest volume. 0 = flat, 1.6 = padded to the ceiling. */
+  bust: number;
+  /** Waist multiplier. Below 1 is cinched. */
+  waist: number;
+  /** Hip/pad width multiplier. */
+  hips: number;
+  /** Leg length multiplier. */
+  legs: number;
+  /** Platform/heel height in local pixels. */
+  heel: number;
+}
+
+/** Makeup, drawn large enough to read on a phone. */
+export interface FaceSpec {
+  lash: number;
+  lip: number;
+  brow: number;
+  /** Eyeshadow. */
+  shadow: number;
+  /** Set for non-human faces (compound eye, visor plate, muzzle). */
+  kind?: 'glam' | 'insect' | 'machine';
+}
+
+export interface CostumeSpec {
+  /** Silhouette of the outfit over the body. */
+  kind: 'blazer' | 'leotard' | 'harness' | 'bodysuit' | 'none';
+  /** Fringe / tassels along the hem. */
+  fringe?: number;
+  belt?: number;
+  /** Elbow-length gloves and thigh-high boots read as drag, not sportswear. */
+  longGloves?: boolean;
+  longBoots?: boolean;
+}
+
 export interface RigSpec {
   /** Overall body scale. */
   scale: number;
@@ -124,6 +178,11 @@ export interface RigSpec {
   rim: number;
   /** Aura/particle colour for specials. */
   aura: number;
+  /** Optional -- sensible defaults are filled in by the renderer. */
+  figure?: FigureSpec;
+  wig?: WigSpec;
+  face?: FaceSpec;
+  costume?: CostumeSpec;
   flourishes: Flourish[];
 }
 

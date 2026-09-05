@@ -7,6 +7,18 @@ runtime by `src/game/render/FighterView.ts` from the `rig` block in their data
 file. This is deliberate: gameplay never waited on artwork, and no performer
 photography exists anywhere in the pipeline.
 
+The rig draws a drag-wrestling figure, not a generic body: an exaggerated
+hourglass built from `figure`, a wig mass from `wig`, a painted face from `face`
+(glam / insect / machine), and an outfit silhouette from `costume` including
+elbow gloves, thigh-high boots and platform heels. See
+`docs/ADDING_A_CHARACTER.md` for the full field list.
+
+**These are still placeholders.** They are built to read at phone size and to be
+unmistakably two different performers -- not to resemble anyone. Actual likeness
+needs approved reference imagery from the performer, at which point either the
+rig colours/proportions get hand-matched or a sprite atlas replaces the rig
+entirely.
+
 ## Replacing the placeholders with approved art
 
 Drop the files here and set `useExternalAtlas: true` on the wrestler:

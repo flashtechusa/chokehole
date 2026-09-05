@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
-import type { ArenaConfig, Flourish, RigSpec, WrestlerConfig } from '@/game/types';
+import type {
+  ArenaConfig, CostumeSpec, FaceSpec, FigureSpec, Flourish, RigSpec, WigSpec, WrestlerConfig,
+} from '@/game/types';
 import { TUNING } from '@/game/config/tuning';
 import type { Fighter } from '@/game/combat/Fighter';
 import { FS } from '@/game/combat/states';
@@ -7,6 +9,7 @@ import { clipDuration, samplePose, type Pose } from './poses';
 import { shade } from '@/game/utils/math';
 
 const D = Math.PI / 180;
+const INK = 0x140a1c;
 
 interface Vec { x: number; y: number }
 const v = (x: number, y: number): Vec => ({ x, y });
@@ -18,6 +21,7 @@ function rot(p: Vec, deg: number): Vec {
   return v(p.x * c - p.y * s, p.x * s + p.y * c);
 }
 const add = (a: Vec, b: Vec): Vec => v(a.x + b.x, a.y + b.y);
+const mix = (a: Vec, b: Vec, t: number): Vec => v(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
 /** Unit vector for a limb angle: 0 = straight down, positive swings forward. */
 const dir = (deg: number): Vec => v(Math.sin(deg * D), Math.cos(deg * D));
 
@@ -27,15 +31,27 @@ const PROP_HIDDEN: ReadonlySet<string> = new Set([
   'hurt', 'down', 'getUp', 'pinned', 'pin', 'block', 'loss',
 ]);
 
+const DEFAULT_FIGURE: FigureSpec = {
+  shoulders: 1, bust: 1, waist: 0.82, hips: 1.25, legs: 1, heel: 7,
+};
+const DEFAULT_FACE: FaceSpec = {
+  lash: INK, lip: 0xd82b5c, brow: INK, shadow: 0x7a2bff, kind: 'glam',
+};
+const DEFAULT_COSTUME: CostumeSpec = { kind: 'leotard', longGloves: true, longBoots: true };
+
 interface DrawOpts {
   inflate: number;
+  /** When set, the whole figure is drawn flat in this colour (rim / flash pass). */
   color?: number;
   alpha: number;
 }
 
 /**
- * Draws a wrestler entirely from data — no bitmap assets, no photography.
- * Silhouette readability comes from a rim pass drawn behind an inked body pass.
+ * Draws a wrestler entirely from data -- no bitmap assets, no photography.
+ *
+ * The shapes are built to read as DRAG WRESTLERS at phone size: exaggerated
+ * hourglass, big wig volume, platform boots, elbow gloves and painted faces.
+ * Silhouette separation comes from a rim pass drawn behind an inked body pass.
  */
 export class FighterView {
   readonly root: Phaser.GameObjects.Container;
@@ -45,6 +61,10 @@ export class FighterView {
   private fxLayer: Phaser.GameObjects.Graphics;
   private cfg: WrestlerConfig;
   private rig: RigSpec;
+  private fig: FigureSpec;
+  private face: FaceSpec;
+  private costume: CostumeSpec;
+  private wig: WigSpec | null;
   private loopTime = 0;
   private currentClip = 'idle';
   private arena: ArenaConfig;
@@ -54,6 +74,10 @@ export class FighterView {
   constructor(scene: Phaser.Scene, cfg: WrestlerConfig, arena: ArenaConfig) {
     this.cfg = cfg;
     this.rig = cfg.rig;
+    this.fig = { ...DEFAULT_FIGURE, ...(cfg.rig.figure ?? {}) };
+    this.face = { ...DEFAULT_FACE, ...(cfg.rig.face ?? {}) };
+    this.costume = { ...DEFAULT_COSTUME, ...(cfg.rig.costume ?? {}) };
+    this.wig = cfg.rig.wig ?? null;
     this.arena = arena;
     this.shadow = scene.add.graphics();
     this.rim = scene.add.graphics();
@@ -108,7 +132,7 @@ export class FighterView {
     const rimColor = auraBuff ? (f.buffs[f.buffs.length - 1]!.tint ?? this.rig.rim) : this.rig.rim;
 
     if (!lowFx) {
-      this.drawFigure(this.rim, pose, { inflate: 4.5, color: rimColor, alpha: auraBuff ? 0.85 : 0.5 });
+      this.drawFigure(this.rim, pose, { inflate: 4, color: rimColor, alpha: auraBuff ? 0.85 : 0.42 });
     }
     this.drawFigure(this.body, pose, { inflate: 0, alpha: 1 });
 
@@ -147,90 +171,115 @@ export class FighterView {
   }
 
   /* ---------------------------------------------------------------- *
-   * figure drawing
+   * figure
    * ---------------------------------------------------------------- */
 
   private drawFigure(g: Phaser.GameObjects.Graphics, p: Pose, o: DrawOpts): void {
     const r = this.rig;
+    const F = this.fig;
     const bulk = r.bulk;
-    const ink = 0x140a1c;
-
-    const hip = v(0, -56 * p.crouch);
-    const shoulder = add(hip, rot(v(0, -46 * p.crouch), p.spine));
-    const chest = add(hip, rot(v(0, -26 * p.crouch), p.spine));
-    const headC = add(shoulder, rot(v(2, -22), p.spine + p.head));
-
+    const flat = o.color !== undefined;
     const col = (c: number): number => o.color ?? c;
     const A = o.alpha;
     const inf = o.inflate;
 
-    // --- back flourishes (wings / tail) ---
+    // --- skeleton -----------------------------------------------------
+    const hip = v(0, -58 * p.crouch * F.legs);
+    const up = (d: number): Vec => add(hip, rot(v(0, -d * p.crouch), p.spine));
+    const waist = up(16);
+    const chest = up(34);
+    const shoulder = up(48);
+    const headC = add(shoulder, rot(v(2, -29), p.spine + p.head));
+
+    const shW = 14 * bulk * F.shoulders;
+    const buW = 15.5 * bulk * F.bust;
+    const waW = 10 * bulk * F.waist;
+    const hiW = 13 * bulk * F.hips;
+
+    // --- behind everything --------------------------------------------
     for (const fl of r.flourishes) {
       if (fl.kind === 'wings') this.drawWings(g, chest, fl, col(fl.color), A * 0.8, inf);
       if (fl.kind === 'tailStinger') this.drawTail(g, hip, fl, col(fl.color), A, inf);
     }
+    if (this.wig) this.drawWigBack(g, headC, p, this.wig, col(this.wig.color), A, inf, flat);
 
-    // --- back leg / back arm ---
-    this.limb(g, hip, p.legB, 30, 28, 11 * bulk + inf, col(shade(r.outfit, -0.28)), A, col(r.boots), inf);
-    this.limb(g, shoulder, p.armB, 25, 23, 9 * bulk + inf, col(shade(r.skin, -0.25)), A, col(shade(r.gloves, -0.2)), inf);
+    // --- back limbs ----------------------------------------------------
+    const hipL = add(hip, rot(v(-hiW * 0.38, -1), p.spine));
+    const hipR = add(hip, rot(v(hiW * 0.38, -1), p.spine));
+    this.leg(g, hipL, p.legB, shade(r.outfit, -0.3), shade(r.boots, -0.18), A, col, inf, F, bulk, o);
+    this.arm(g, shoulder, p.armB, shade(r.skin, -0.26), shade(r.gloves, -0.2), A, col, inf, bulk, o);
 
-    // --- extra arms (RAID) drawn behind the torso ---
+    // --- extra arms (insect personas) sit behind the torso -------------
     for (const fl of r.flourishes) {
       if (fl.kind !== 'extraArms') continue;
       const s = fl.scale ?? 0.8;
       const anchor = add(chest, rot(v(-2, 6), p.spine));
       this.limb(g, anchor, [p.armB[0] * 0.7 + 34, p.armB[1] * 0.6 - 18], 25 * s, 22 * s,
-        (8 * bulk + inf) * s, col(fl.color), A * 0.95, col(fl.color2 ?? fl.color), inf);
+        (8 * bulk + inf) * s, col(fl.color), A * 0.95, col(fl.color2 ?? fl.color), inf, flat);
       this.limb(g, anchor, [p.armF[0] * 0.7 - 26, p.armF[1] * 0.6 - 12], 24 * s, 21 * s,
-        (8 * bulk + inf) * s, col(shade(fl.color, -0.15)), A * 0.95, col(fl.color2 ?? fl.color), inf);
+        (8 * bulk + inf) * s, col(shade(fl.color, -0.15)), A * 0.95, col(fl.color2 ?? fl.color), inf, flat);
     }
 
-    // --- torso ---
-    const halfW = (13.5 * bulk) + inf;
-    const hipW = (11 * bulk) + inf;
-    const tp = [
-      add(shoulder, rot(v(-halfW, -4), p.spine)),
-      add(shoulder, rot(v(halfW, -4), p.spine)),
-      add(hip, rot(v(hipW, 6), p.spine)),
-      add(hip, rot(v(-hipW, 6), p.spine)),
+    // --- torso: an hourglass, not a box --------------------------------
+    const side = (w: number, node: Vec, dx: number): Vec =>
+      add(node, rot(v(dx * (w + inf), 0), p.spine));
+    const outline: Vec[] = [
+      side(shW, shoulder, -1), side(shW, shoulder, 1),
+      side(buW, chest, 1), side(waW, waist, 1), side(hiW, hip, 1),
+      add(hip, rot(v(0, 8 + inf), p.spine)),
+      side(hiW, hip, -1), side(waW, waist, -1), side(buW, chest, -1),
     ];
     g.fillStyle(col(r.outfit), A);
     g.beginPath();
-    g.moveTo(tp[0]!.x, tp[0]!.y);
-    for (let i = 1; i < tp.length; i++) g.lineTo(tp[i]!.x, tp[i]!.y);
+    g.moveTo(outline[0]!.x, outline[0]!.y);
+    for (let i = 1; i < outline.length; i++) g.lineTo(outline[i]!.x, outline[i]!.y);
     g.closePath();
     g.fillPath();
-    if (!o.color) {
-      g.lineStyle(2.2, ink, 0.9);
+    if (!flat) {
+      g.lineStyle(2.4, INK, 0.92);
       g.strokePath();
-      // trim stripe
-      const s1 = add(hip, rot(v(-hipW * 0.8, -2), p.spine));
-      const s2 = add(shoulder, rot(v(halfW * 0.55, -2), p.spine));
-      g.lineStyle(4.5, r.trim, 0.9);
-      g.lineBetween(s1.x, s1.y, s2.x, s2.y);
     }
 
-    // --- torso flourishes ---
+    if (!flat) {
+      this.drawCostume(g, { hip, waist, chest, shoulder }, { shW, buW, waW, hiW }, p, A);
+      if (F.bust > 0.15) this.drawBust(g, chest, p, buW, A);
+    }
+
+    // --- torso flourishes ---------------------------------------------
     for (const fl of r.flourishes) {
       if (fl.kind === 'carapace') this.drawCarapace(g, hip, shoulder, p, fl, col(fl.color), A, inf);
       if (fl.kind === 'sash') this.drawSash(g, hip, shoulder, p, col(fl.color), A);
-      if (fl.kind === 'shoulderpads') this.drawPads(g, shoulder, p, fl, col(fl.color), A, inf);
+      if (fl.kind === 'shoulderpads') this.drawPads(g, shoulder, p, fl, col(fl.color), A, inf, flat);
     }
 
-    // --- head ---
-    for (const fl of r.flourishes) {
-      if (fl.kind === 'bighair') this.drawBigHair(g, headC, p, fl, col(fl.color), A, inf);
+    // --- head ----------------------------------------------------------
+    // neck, so the head is attached rather than floating above the collarbone
+    const neckTop = add(shoulder, rot(v(1.5, -18), p.spine + p.head * 0.5));
+    if (!flat) {
+      g.lineStyle(13 * bulk + 3.4, INK, A);
+      g.lineBetween(shoulder.x, shoulder.y - 2, neckTop.x, neckTop.y);
     }
+    g.lineStyle(13 * bulk + inf, col(shade(r.skin, -0.12)), A);
+    g.lineBetween(shoulder.x, shoulder.y - 2, neckTop.x, neckTop.y);
+
+    for (const fl of r.flourishes) {
+      if (fl.kind === 'bighair') this.drawBigHair(g, headC, p, fl, col(fl.color), A, inf, flat);
+    }
+    const headR = 14.5 + inf;
     g.fillStyle(col(r.skin), A);
-    g.fillCircle(headC.x, headC.y, 13.5 + inf);
-    if (!o.color) {
-      g.lineStyle(2.2, ink, 0.9);
-      g.strokeCircle(headC.x, headC.y, 13.5);
-      // face beat: a single hard shadow so the head reads at phone size
-      g.fillStyle(shade(r.skin, -0.35), 0.55);
-      g.fillEllipse(headC.x - 5, headC.y + 1, 9, 13);
-      g.fillStyle(r.trim, 0.95);
-      g.fillEllipse(headC.x + 5.5, headC.y - 2, 4.5, 3);
+    if (this.face.kind === 'insect') {
+      // wider, lower skull with a heavy brow
+      g.fillEllipse(headC.x, headC.y, headR * 2.15, headR * 1.85);
+    } else {
+      g.fillCircle(headC.x, headC.y, headR);
+      g.fillEllipse(headC.x + 1, headC.y + headR * 0.74, headR * 1.1, headR * 0.66);
+    }
+    if (this.wig) this.drawWigCap(g, headC, p, this.wig, col(this.wig.color), A, inf, flat);
+    if (!flat) {
+      g.lineStyle(2.4, INK, 0.92);
+      if (this.face.kind === 'insect') g.strokeEllipse(headC.x, headC.y, 14.5 * 2.15, 14.5 * 1.85);
+      else g.strokeCircle(headC.x, headC.y, 14.5);
+      this.drawFace(g, headC, p, A);
     }
     for (const fl of r.flourishes) {
       if (fl.kind === 'antennae') this.drawAntennae(g, headC, p, fl, col(fl.color), A, inf);
@@ -238,24 +287,129 @@ export class FighterView {
       if (fl.kind === 'visor') this.drawVisor(g, headC, p, col(fl.color), A);
       if (fl.kind === 'crown') this.drawCrown(g, headC, p, fl, col(fl.color), A, inf);
     }
+    if (this.wig) this.drawWigFront(g, headC, p, this.wig, col(this.wig.color), A, inf, flat);
 
-    // --- front leg / front arm ---
-    this.limb(g, hip, p.legF, 30, 28, 11 * bulk + inf, col(r.outfitAlt), A, col(r.boots), inf);
-    const handF = this.limb(g, shoulder, p.armF, 25, 23, 9 * bulk + inf, col(r.skin), A, col(r.gloves), inf);
+    // --- front limbs ---------------------------------------------------
+    this.leg(g, hipR, p.legF, r.outfitAlt, r.boots, A, col, inf, F, bulk, o);
+    const handF = this.arm(g, shoulder, p.armF, r.skin, r.gloves, A, col, inf, bulk, o);
 
-    // --- prop in the front hand ---
-    // Hidden in clinches and on the mat, where the hand sits over the face.
-    if (this.cfg.prop && this.cfg.prop.shape !== 'none' && !o.color
+    // --- prop -----------------------------------------------------------
+    if (this.cfg.prop && this.cfg.prop.shape !== 'none' && !flat
         && !PROP_HIDDEN.has(this.currentClip)) {
       this.drawProp(g, handF, p.armF[0] + p.armF[1] + p.prop, A);
     }
   }
 
-  /** Two-bone limb. Returns the hand/foot position. */
+  /* ---------------------------------------------------------------- *
+   * limbs
+   * ---------------------------------------------------------------- */
+
+  /** Arm with an elbow-length glove. */
+  private arm(
+    g: Phaser.GameObjects.Graphics, origin: Vec, angles: [number, number],
+    skin: number, glove: number, A: number,
+    col: (c: number) => number, inf: number, bulk: number, o: DrawOpts,
+  ): Vec {
+    const flat = o.color !== undefined;
+    const thick = 8.4 * bulk + inf;
+    const a1 = angles[0];
+    const a2 = angles[0] + angles[1];
+    const d1 = dir(a1);
+    const elbow = v(origin.x + d1.x * 25, origin.y + d1.y * 25);
+    const d2 = dir(a2);
+    const hand = v(elbow.x + d2.x * 24, elbow.y + d2.y * 24);
+
+    if (!flat) {
+      g.lineStyle(thick + 3.6, INK, Math.min(1, A));
+      g.lineBetween(origin.x, origin.y, elbow.x, elbow.y);
+      g.lineBetween(elbow.x, elbow.y, hand.x, hand.y);
+    }
+    // upper arm is skin, forearm is the glove when the costume has long gloves
+    g.lineStyle(thick, col(skin), A);
+    g.lineBetween(origin.x, origin.y, elbow.x, elbow.y);
+    g.lineStyle(thick, col(this.costume.longGloves ? glove : skin), A);
+    g.lineBetween(elbow.x, elbow.y, hand.x, hand.y);
+    g.fillStyle(col(skin), A);
+    g.fillCircle(elbow.x, elbow.y, thick * 0.5);
+    g.fillStyle(col(glove), A);
+    g.fillCircle(hand.x, hand.y, thick * 0.62 + 1.6);
+    if (!flat && this.costume.longGloves) {
+      // glove cuff
+      const cuff = mix(elbow, hand, 0.08);
+      g.lineStyle(2.4, shade(glove, 0.35), A);
+      g.lineBetween(cuff.x - 5, cuff.y, cuff.x + 5, cuff.y);
+    }
+    return hand;
+  }
+
+  /** Leg with a thigh-high boot and a platform heel. */
+  private leg(
+    g: Phaser.GameObjects.Graphics, origin: Vec, angles: [number, number],
+    tights: number, boot: number, A: number,
+    col: (c: number) => number, inf: number, F: FigureSpec, bulk: number, o: DrawOpts,
+  ): Vec {
+    const flat = o.color !== undefined;
+    const thighLen = 30 * F.legs;
+    const shinLen = 28 * F.legs;
+    const thick = 10.6 * bulk + inf;
+    const a1 = angles[0];
+    const a2 = angles[0] + angles[1];
+    const d1 = dir(a1);
+    const knee = v(origin.x + d1.x * thighLen, origin.y + d1.y * thighLen);
+    const d2 = dir(a2);
+    const ankle = v(knee.x + d2.x * shinLen, knee.y + d2.y * shinLen);
+
+    if (!flat) {
+      g.lineStyle(thick + 3.6, INK, Math.min(1, A));
+      g.lineBetween(origin.x, origin.y, knee.x, knee.y);
+      g.lineBetween(knee.x, knee.y, ankle.x, ankle.y);
+    }
+    const longBoots = this.costume.longBoots;
+    // upper thigh is bare/tights; the boot starts partway down and runs to the foot
+    const bootTop = longBoots ? 0.42 : 1;
+    const cuff = mix(origin, knee, bootTop);
+    g.lineStyle(thick, col(tights), A);
+    g.lineBetween(origin.x, origin.y, cuff.x, cuff.y);
+    g.lineStyle(thick * 1.02, col(boot), A);
+    g.lineBetween(cuff.x, cuff.y, knee.x, knee.y);
+    g.lineStyle(thick * 0.94, col(boot), A);
+    g.lineBetween(knee.x, knee.y, ankle.x, ankle.y);
+    g.fillStyle(col(boot), A);
+    g.fillCircle(knee.x, knee.y, thick * 0.48);
+    if (!flat && longBoots) {
+      // bright cuff line so the boot top reads against a dark arena
+      g.lineStyle(3, shade(boot, 0.5), A * 0.95);
+      g.lineBetween(cuff.x - thick * 0.5, cuff.y, cuff.x + thick * 0.5, cuff.y);
+    }
+
+    // platform + heel, drawn flat to the ground so the stance reads
+    const h = F.heel + inf * 0.5;
+    if (h > 0.5) {
+      if (!flat) {
+        g.fillStyle(INK, A);
+        g.fillRect(ankle.x - 7.5 - inf, ankle.y - 2, 22 + inf * 2, h + 4.5);
+      }
+      g.fillStyle(col(boot), A);
+      g.fillRect(ankle.x - 6 - inf, ankle.y - 2, 19 + inf * 2, h + 2);
+      g.fillStyle(col(shade(boot, -0.4)), A);
+      g.fillRect(ankle.x - 6 - inf, ankle.y + h - 1, 19 + inf * 2, 3.5);
+      if (!flat) {
+        // stiletto block at the back
+        g.fillStyle(shade(boot, -0.25), A);
+        g.fillRect(ankle.x - 6, ankle.y + h * 0.4, 4.5, h * 0.9);
+      }
+    } else {
+      g.fillStyle(col(boot), A);
+      g.fillEllipse(ankle.x + 3, ankle.y + 2, 20 + inf * 2, 9 + inf);
+    }
+    return ankle;
+  }
+
+  /** Generic two-bone limb, used by the extra-arm flourish. */
   private limb(
     g: Phaser.GameObjects.Graphics, origin: Vec, angles: [number, number],
     len1: number, len2: number, thick: number, color: number, alpha: number,
-    endColor: number, inflate: number,
+    endColor: number, inflate: number, flat: boolean,
   ): Vec {
     const a1 = angles[0];
     const a2 = angles[0] + angles[1];
@@ -264,8 +418,8 @@ export class FighterView {
     const d2 = dir(a2);
     const end = v(joint.x + d2.x * len2, joint.y + d2.y * len2);
 
-    if (inflate === 0) {
-      g.lineStyle(thick + 3.4, 0x140a1c, Math.min(1, alpha));
+    if (!flat && inflate === 0) {
+      g.lineStyle(thick + 3.4, INK, Math.min(1, alpha));
       g.lineBetween(origin.x, origin.y, joint.x, joint.y);
       g.lineBetween(joint.x, joint.y, end.x, end.y);
     }
@@ -279,11 +433,298 @@ export class FighterView {
     return end;
   }
 
-  /* ------------------------- flourishes --------------------------- */
+  /* ---------------------------------------------------------------- *
+   * body detail
+   * ---------------------------------------------------------------- */
 
-  private drawBigHair(g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, fl: Flourish,
-    color: number, a: number, inf: number): void {
-    const s = (fl.scale ?? 1) * 1;
+  private drawBust(
+    g: Phaser.GameObjects.Graphics, chest: Vec, p: Pose, buW: number, A: number,
+  ): void {
+    const r = this.rig;
+    const rad = buW * 0.52;
+    for (const s of [-1, 1]) {
+      const c = add(chest, rot(v(s * buW * 0.42, -2), p.spine));
+      g.fillStyle(shade(r.outfit, 0.14), A);
+      g.fillCircle(c.x, c.y, rad);
+      g.lineStyle(2, shade(r.outfit, -0.35), A * 0.85);
+      g.beginPath();
+      g.arc(c.x, c.y, rad, 0.15 * Math.PI, 0.85 * Math.PI, false);
+      g.strokePath();
+    }
+    // highlight
+    const hl = add(chest, rot(v(buW * 0.42, -rad * 0.5), p.spine));
+    g.fillStyle(0xffffff, A * 0.22);
+    g.fillCircle(hl.x, hl.y, rad * 0.32);
+  }
+
+  private drawCostume(
+    g: Phaser.GameObjects.Graphics,
+    n: { hip: Vec; waist: Vec; chest: Vec; shoulder: Vec },
+    w: { shW: number; buW: number; waW: number; hiW: number },
+    p: Pose, A: number,
+  ): void {
+    const r = this.rig;
+    const c = this.costume;
+    const at = (node: Vec, dx: number, dy = 0): Vec => add(node, rot(v(dx, dy), p.spine));
+
+    if (c.kind === 'blazer') {
+      // open jacket: two lapel panels down the sides over the leotard
+      for (const s of [-1, 1]) {
+        g.fillStyle(shade(r.outfitAlt, -0.05), A);
+        g.beginPath();
+        const a = at(n.shoulder, s * (w.shW + 1), -4);
+        const b = at(n.shoulder, s * w.shW * 0.62, -4);
+        const cc = at(n.chest, s * w.buW * 0.86, 2);
+        const d = at(n.hip, s * w.hiW * 1.0, 4);
+        g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.lineTo(cc.x, cc.y); g.lineTo(d.x, d.y);
+        g.closePath(); g.fillPath();
+        g.lineStyle(2, INK, 0.8); g.strokePath();
+        // lapel flash
+        g.lineStyle(3, r.trim, A * 0.9);
+        g.lineBetween(b.x, b.y, cc.x, cc.y);
+      }
+    } else if (c.kind === 'harness') {
+      for (const s of [-1, 1]) {
+        const a = at(n.shoulder, s * w.shW * 0.6, -2);
+        const b = at(n.waist, -s * w.waW * 0.5, 0);
+        g.lineStyle(5, r.trim, A * 0.95);
+        g.lineBetween(a.x, a.y, b.x, b.y);
+      }
+    } else if (c.kind === 'leotard' || c.kind === 'bodysuit') {
+      // high-cut leg line
+      g.lineStyle(3, shade(r.outfit, -0.3), A * 0.8);
+      const l = at(n.hip, -w.hiW * 0.9, -2);
+      const m = at(n.waist, 0, 6);
+      const rr = at(n.hip, w.hiW * 0.9, -2);
+      g.beginPath(); g.moveTo(l.x, l.y); g.lineTo(m.x, m.y); g.lineTo(rr.x, rr.y); g.strokePath();
+    }
+
+    if (c.belt !== undefined) {
+      const a = at(n.waist, -w.waW - 2, 2);
+      const b = at(n.waist, w.waW + 2, 2);
+      g.lineStyle(7, c.belt, A);
+      g.lineBetween(a.x, a.y, b.x, b.y);
+      const mid = at(n.waist, 0, 2);
+      g.fillStyle(r.trim, A);
+      g.fillCircle(mid.x, mid.y, 3.6);
+    }
+    if (c.fringe !== undefined) {
+      for (let i = -3; i <= 3; i++) {
+        const a = at(n.hip, (i / 3) * w.hiW, 6);
+        g.lineStyle(2.2, c.fringe, A * 0.9);
+        g.lineBetween(a.x, a.y, a.x + Math.sin(this.loopTime * 4 + i) * 2, a.y + 11);
+      }
+    }
+  }
+
+  /* ---------------------------------------------------------------- *
+   * face + hair
+   * ---------------------------------------------------------------- */
+
+  private drawFace(g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, A: number): void {
+    const f = this.face;
+    const ang = p.spine + p.head;
+    const at = (dx: number, dy: number): Vec => add(h, rot(v(dx, dy), ang));
+
+    if (f.kind === 'insect') {
+      // compound eye + brow ridge
+      const eye = at(6, -3);
+      g.fillStyle(0x0d1a08, A);
+      g.fillEllipse(eye.x, eye.y, 15, 13);
+      g.fillStyle(f.shadow, A * 0.95);
+      g.fillEllipse(eye.x, eye.y, 12.5, 10.5);
+      g.fillStyle(0xffffff, A * 0.5);
+      g.fillCircle(eye.x + 3, eye.y - 3, 2.6);
+      for (let i = -1; i <= 1; i++) {
+        g.lineStyle(1.2, 0x0d1a08, A * 0.6);
+        g.lineBetween(eye.x - 6, eye.y + i * 3.2, eye.x + 6, eye.y + i * 3.2);
+      }
+      const back = at(-8, -2);
+      g.fillStyle(0x0d1a08, A * 0.85);
+      g.fillEllipse(back.x, back.y, 8, 7);
+      return;
+    }
+    if (f.kind === 'machine') {
+      const bar = at(2, -2);
+      g.fillStyle(f.shadow, A);
+      g.fillRect(bar.x - 12, bar.y - 4, 22, 7);
+      g.fillStyle(0xffffff, A * 0.8);
+      g.fillRect(bar.x + 4, bar.y - 3, 4, 5);
+      return;
+    }
+
+    // --- glam ---
+    const eye = at(5.5, -2.5);
+    // eyeshadow sweep
+    g.fillStyle(f.shadow, A * 0.55);
+    g.fillEllipse(eye.x - 0.5, eye.y - 3.5, 13, 7);
+    // eye white + iris
+    g.fillStyle(0xffffff, A);
+    g.fillEllipse(eye.x, eye.y, 8.4, 6);
+    g.fillStyle(0x1a1020, A);
+    g.fillCircle(eye.x + 1.4, eye.y, 2.5);
+    g.fillStyle(0xffffff, A * 0.9);
+    g.fillCircle(eye.x + 2.4, eye.y - 1.2, 0.9);
+    // lash line + flick
+    g.lineStyle(2.6, f.lash, A);
+    g.beginPath();
+    g.arc(eye.x, eye.y, 4.6, Math.PI * 1.05, Math.PI * 1.95, false);
+    g.strokePath();
+    const flick = at(11, -5.5);
+    g.lineStyle(2.4, f.lash, A);
+    g.lineBetween(eye.x + 4, eye.y - 2.4, flick.x, flick.y);
+    // brow
+    g.lineStyle(2.4, f.brow, A);
+    const b1 = at(1, -9);
+    const b2 = at(9.5, -8);
+    g.beginPath();
+    g.moveTo(b1.x, b1.y);
+    g.lineTo((b1.x + b2.x) / 2, (b1.y + b2.y) / 2 - 2.4);
+    g.lineTo(b2.x, b2.y);
+    g.strokePath();
+    // lips
+    const lip = at(9.5, 6.5);
+    g.fillStyle(f.lip, A);
+    g.fillEllipse(lip.x, lip.y, 9, 6);
+    g.fillStyle(shade(f.lip, -0.35), A * 0.8);
+    g.fillRect(lip.x - 4.5, lip.y - 0.5, 9, 1.2);
+    g.fillStyle(0xffffff, A * 0.35);
+    g.fillEllipse(lip.x + 1, lip.y - 1.8, 3.4, 1.4);
+    // blush + contour
+    const blush = at(4, 3.5);
+    g.fillStyle(f.lip, A * 0.28);
+    g.fillEllipse(blush.x, blush.y, 8, 5);
+  }
+
+  /** Hair mass behind the head. */
+  private drawWigBack(
+    g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, wig: WigSpec,
+    color: number, A: number, inf: number, flat: boolean,
+  ): void {
+    if (wig.style === 'none') return;
+    const s = wig.volume;
+    const ang = p.spine + p.head;
+    const at = (dx: number, dy: number): Vec => add(h, rot(v(dx, dy), ang));
+    const sway = Math.sin(this.loopTime * 2.2) * 2;
+
+    g.fillStyle(color, A);
+    switch (wig.style) {
+      case 'bouffant': {
+        const c = at(-3, -9 * s);
+        g.fillEllipse(c.x, c.y, (40 + inf * 2) * s, (34 + inf * 2) * s);
+        const b = at(-13 * s, 4 * s);
+        g.fillEllipse(b.x, b.y, (26 + inf * 2) * s, (30 + inf * 2) * s);
+        break;
+      }
+      case 'beehive': {
+        const c = at(-2, -22 * s);
+        g.fillEllipse(c.x, c.y, (26 + inf * 2) * s, (40 + inf * 2) * s);
+        const c2 = at(-2, -4 * s);
+        g.fillEllipse(c2.x, c2.y, (34 + inf * 2) * s, (26 + inf * 2) * s);
+        break;
+      }
+      case 'longwaves': {
+        const c = at(-4, -8 * s);
+        g.fillEllipse(c.x, c.y, (34 + inf * 2) * s, (30 + inf * 2) * s);
+        for (const side of [-1, 1]) {
+          let cur = at(side * 11 * s, 2);
+          for (let i = 0; i < 4; i++) {
+            g.fillCircle(cur.x, cur.y, (9 - i * 0.9 + inf) * s);
+            cur = v(cur.x + Math.sin(i * 1.6 + sway * 0.4) * 3 * side, cur.y + 11 * s);
+          }
+        }
+        break;
+      }
+      case 'bob': {
+        const c = at(-2, 0);
+        g.fillEllipse(c.x, c.y, (32 + inf * 2) * s, (32 + inf * 2) * s);
+        break;
+      }
+      case 'ponytail': {
+        const c = at(-4, -6 * s);
+        g.fillEllipse(c.x, c.y, (28 + inf * 2) * s, (26 + inf * 2) * s);
+        let cur = at(-14 * s, -4);
+        for (let i = 0; i < 5; i++) {
+          g.fillCircle(cur.x, cur.y, (8 - i + inf) * s);
+          cur = v(cur.x - 6 * s, cur.y + 8 * s + Math.sin(i + sway) * 2);
+        }
+        break;
+      }
+      case 'mohawk': {
+        for (let i = -2; i <= 2; i++) {
+          const c = at(i * 5 * s, -14 * s - Math.abs(i) * -2);
+          g.fillTriangle(
+            c.x - 4 * s, c.y + 10 * s,
+            c.x, c.y - (16 - Math.abs(i) * 3 + inf) * s,
+            c.x + 4 * s, c.y + 10 * s,
+          );
+        }
+        break;
+      }
+    }
+    if (!flat && wig.color2 !== undefined) {
+      const c = at(-6, -12 * s);
+      g.fillStyle(wig.color2, A * 0.85);
+      g.fillEllipse(c.x, c.y, 12 * s, 8 * s);
+    }
+  }
+
+  /**
+   * The hairline crescent. Drawn BEFORE the makeup, then the face oval is
+   * punched back over it, so hair frames the face instead of covering it.
+   */
+  private drawWigCap(
+    g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, wig: WigSpec,
+    color: number, A: number, inf: number, flat: boolean,
+  ): void {
+    if (wig.style === 'none' || wig.style === 'mohawk') return;
+    const s = Math.min(1.2, wig.volume);
+    const ang = p.spine + p.head;
+    const at = (dx: number, dy: number): Vec => add(h, rot(v(dx, dy), ang));
+
+    g.fillStyle(color, A);
+    const cap = at(-2, -6);
+    g.fillEllipse(cap.x, cap.y, (34 + inf * 2) * s, (30 + inf * 2) * s);
+    if (!flat) {
+      // punch the face back out so the hair reads as a frame
+      g.fillStyle(this.rig.skin, A);
+      const face = at(4, 0);
+      g.fillEllipse(face.x, face.y, 26, 26);
+      if (wig.color2 !== undefined) {
+        g.fillStyle(wig.color2, A * 0.8);
+        const st = at(-8, -14);
+        g.fillEllipse(st.x, st.y, 11 * s, 6 * s);
+      }
+    }
+  }
+
+  /** Side sweep falling past the cheek, drawn over the head. */
+  private drawWigFront(
+    g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, wig: WigSpec,
+    color: number, A: number, inf: number, flat: boolean,
+  ): void {
+    if (wig.style === 'none' || wig.style === 'mohawk') return;
+    const s = wig.volume;
+    const ang = p.spine + p.head;
+    const at = (dx: number, dy: number): Vec => add(h, rot(v(dx, dy), ang));
+    g.fillStyle(color, A);
+    const sw = at(-15 * s, 2);
+    g.fillEllipse(sw.x, sw.y, (12 + inf) * s, (28 + inf) * s);
+    if (!flat) {
+      g.lineStyle(1.6, shade(color, -0.28), A * 0.6);
+      g.strokeEllipse(sw.x, sw.y, (12 + inf) * s, (28 + inf) * s);
+    }
+  }
+
+  /* ---------------------------------------------------------------- *
+   * flourishes
+   * ---------------------------------------------------------------- */
+
+  private drawBigHair(
+    g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, fl: Flourish,
+    color: number, a: number, inf: number, flat: boolean,
+  ): void {
+    const s = (fl.scale ?? 1);
     const up = rot(v(0, -14 * s), p.spine + p.head);
     const c = add(h, up);
     g.fillStyle(color, a);
@@ -292,58 +733,65 @@ export class FighterView {
     g.fillCircle(c.x - 2 * s, c.y - 8 * s, (13 + inf) * s);
     g.fillCircle(c.x - 16 * s, c.y + 12 * s, (8 + inf) * s);
     g.fillCircle(c.x + 14 * s, c.y + 12 * s, (8 + inf) * s);
-    if (inf === 0 && fl.color2 !== undefined) {
+    if (!flat && fl.color2 !== undefined) {
       g.fillStyle(fl.color2, 0.9);
       g.fillCircle(c.x - 2 * s, c.y - 12 * s, 4 * s);
       g.fillCircle(c.x + 13 * s, c.y - 1 * s, 3 * s);
     }
   }
 
-  private drawPads(g: Phaser.GameObjects.Graphics, sh: Vec, p: Pose, fl: Flourish,
-    color: number, a: number, inf: number): void {
+  private drawPads(
+    g: Phaser.GameObjects.Graphics, sh: Vec, p: Pose, fl: Flourish,
+    color: number, a: number, inf: number, flat: boolean,
+  ): void {
     const s = fl.scale ?? 1;
     for (const side of [-1, 1]) {
-      const c = add(sh, rot(v(side * 15 * s, -3), p.spine));
+      const c = add(sh, rot(v(side * 18 * s, 1), p.spine));
       g.fillStyle(color, a);
       g.beginPath();
-      g.moveTo(c.x - (12 + inf) * s, c.y + (8 + inf) * s);
-      g.lineTo(c.x, c.y - (12 + inf) * s);
-      g.lineTo(c.x + (12 + inf) * s, c.y + (8 + inf) * s);
+      g.moveTo(c.x - (13 + inf) * s, c.y + (9 + inf) * s);
+      g.lineTo(c.x - (5 + inf) * s, c.y - (13 + inf) * s);
+      g.lineTo(c.x + (5 + inf) * s, c.y - (13 + inf) * s);
+      g.lineTo(c.x + (13 + inf) * s, c.y + (9 + inf) * s);
       g.closePath();
       g.fillPath();
-      if (inf === 0) {
-        g.lineStyle(2, 0x140a1c, 0.9);
+      if (!flat) {
+        g.lineStyle(2.2, INK, 0.9);
         g.strokePath();
         if (fl.color2 !== undefined) {
           g.fillStyle(fl.color2, 0.95);
-          g.fillCircle(c.x, c.y - 2 * s, 3 * s);
+          g.fillRect(c.x - 8 * s, c.y - 4 * s, 16 * s, 3 * s);
         }
       }
     }
   }
 
-  private drawCarapace(g: Phaser.GameObjects.Graphics, hip: Vec, sh: Vec, p: Pose,
-    fl: Flourish, color: number, a: number, inf: number): void {
-    for (let i = 0; i < 3; i++) {
-      const t = 0.2 + i * 0.3;
+  private drawCarapace(
+    g: Phaser.GameObjects.Graphics, hip: Vec, sh: Vec, _p: Pose,
+    fl: Flourish, color: number, a: number, inf: number,
+  ): void {
+    for (let i = 0; i < 4; i++) {
+      const t = 0.14 + i * 0.24;
       const c = v(hip.x + (sh.x - hip.x) * t, hip.y + (sh.y - hip.y) * t);
-      const w = (16 - i * 2.2) + inf;
+      const w = (18 - i * 2.4) + inf;
       g.fillStyle(i % 2 === 0 ? color : (fl.color2 ?? color), a * 0.95);
-      const e = rot(v(0, 0), p.spine);
-      g.fillEllipse(c.x + e.x, c.y + e.y, w * 2, 9 + inf);
+      g.fillEllipse(c.x, c.y, w * 2, 10 + inf);
     }
   }
 
-  private drawSash(g: Phaser.GameObjects.Graphics, hip: Vec, sh: Vec, p: Pose,
-    color: number, a: number): void {
-    const p1 = add(sh, rot(v(-12, 0), p.spine));
-    const p2 = add(hip, rot(v(12, 4), p.spine));
-    g.lineStyle(7, color, a * 0.95);
+  private drawSash(
+    g: Phaser.GameObjects.Graphics, hip: Vec, sh: Vec, p: Pose, color: number, a: number,
+  ): void {
+    const p1 = add(sh, rot(v(-13, 0), p.spine));
+    const p2 = add(hip, rot(v(13, 4), p.spine));
+    g.lineStyle(8, color, a * 0.95);
     g.lineBetween(p1.x, p1.y, p2.x, p2.y);
   }
 
-  private drawAntennae(g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, fl: Flourish,
-    color: number, a: number, inf: number): void {
+  private drawAntennae(
+    g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, fl: Flourish,
+    color: number, a: number, inf: number,
+  ): void {
     const s = fl.scale ?? 1;
     const sway = Math.sin(this.loopTime * 5) * 6;
     for (const side of [-1, 1]) {
@@ -358,25 +806,30 @@ export class FighterView {
     }
   }
 
-  private drawMandibles(g: Phaser.GameObjects.Graphics, h: Vec, p: Pose,
-    color: number, a: number, inf: number): void {
+  private drawMandibles(
+    g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, color: number, a: number, inf: number,
+  ): void {
     for (const side of [-1, 1]) {
-      const base = add(h, rot(v(9, side * 4), p.spine + p.head));
-      const tip = add(base, rot(v(9, side * 7), p.spine + p.head));
-      g.lineStyle(3 + inf, color, a);
+      const base = add(h, rot(v(11, side * 4), p.spine + p.head));
+      const tip = add(base, rot(v(10, side * 8), p.spine + p.head));
+      g.lineStyle(3.4 + inf, color, a);
       g.lineBetween(base.x, base.y, tip.x, tip.y);
     }
   }
 
-  private drawVisor(g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, color: number, a: number): void {
+  private drawVisor(
+    g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, color: number, a: number,
+  ): void {
     const c = add(h, rot(v(2, -2), p.spine + p.head));
     g.fillStyle(color, a * 0.95);
     g.fillRect(c.x - 12, c.y - 4, 22, 7);
   }
 
-  private drawCrown(g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, fl: Flourish,
-    color: number, a: number, inf: number): void {
-    const c = add(h, rot(v(0, -13), p.spine + p.head));
+  private drawCrown(
+    g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, fl: Flourish,
+    color: number, a: number, inf: number,
+  ): void {
+    const c = add(h, rot(v(0, -15), p.spine + p.head));
     g.fillStyle(color, a);
     for (let i = -1; i <= 1; i++) {
       g.beginPath();
@@ -389,8 +842,9 @@ export class FighterView {
     void fl;
   }
 
-  private drawWings(g: Phaser.GameObjects.Graphics, c: Vec, fl: Flourish,
-    color: number, a: number, inf: number): void {
+  private drawWings(
+    g: Phaser.GameObjects.Graphics, c: Vec, fl: Flourish, color: number, a: number, inf: number,
+  ): void {
     const flap = Math.sin(this.loopTime * 9) * 8;
     for (const side of [-1, 1]) {
       g.fillStyle(color, a * 0.45);
@@ -399,8 +853,9 @@ export class FighterView {
     void fl;
   }
 
-  private drawTail(g: Phaser.GameObjects.Graphics, hip: Vec, fl: Flourish,
-    color: number, a: number, inf: number): void {
+  private drawTail(
+    g: Phaser.GameObjects.Graphics, hip: Vec, fl: Flourish, color: number, a: number, inf: number,
+  ): void {
     const sway = Math.sin(this.loopTime * 3.4) * 10;
     let cur = v(hip.x - 8, hip.y + 2);
     let ang = 120 + sway;
@@ -416,23 +871,27 @@ export class FighterView {
     g.fillCircle(cur.x, cur.y, 5 + inf);
   }
 
-  /* ------------------------- prop ---------------------------------- */
+  /* ---------------------------------------------------------------- *
+   * prop + tells
+   * ---------------------------------------------------------------- */
 
-  private drawProp(g: Phaser.GameObjects.Graphics, hand: Vec, angle: number, a: number): void {
+  private drawProp(
+    g: Phaser.GameObjects.Graphics, hand: Vec, angle: number, a: number,
+  ): void {
     const prop = this.cfg.prop!;
     const A = angle * D;
     const push = (x: number, y: number): Vec => v(
       hand.x + x * Math.cos(A) - y * Math.sin(A),
       hand.y + x * Math.sin(A) + y * Math.cos(A),
     );
-    g.lineStyle(2.2, 0x140a1c, 0.9);
+    g.lineStyle(2.2, INK, 0.9);
     switch (prop.shape) {
       case 'briefcase': {
         const c = push(0, 12);
         g.fillStyle(prop.color, a);
         g.fillRect(c.x - 15, c.y - 10, 30, 21);
         g.strokeRect(c.x - 15, c.y - 10, 30, 21);
-        g.fillStyle(prop.color2 ?? 0x140a1c, a);
+        g.fillStyle(prop.color2 ?? INK, a);
         g.fillRect(c.x - 15, c.y - 1, 30, 4);
         g.fillRect(c.x - 4, c.y - 13, 8, 4);
         break;
@@ -467,7 +926,7 @@ export class FighterView {
       }
       case 'sign': {
         const c = push(0, 14);
-        g.fillStyle(prop.color2 ?? 0x140a1c, a);
+        g.fillStyle(prop.color2 ?? INK, a);
         g.fillRect(c.x - 2, c.y - 4, 4, 24);
         g.fillStyle(prop.color, a);
         g.fillRect(c.x - 16, c.y - 20, 32, 18);
@@ -477,25 +936,23 @@ export class FighterView {
     }
   }
 
-  /* ------------------------- tells --------------------------------- */
-
   private drawChargeTell(ratio: number, p: Pose): void {
-    const c = v(0, -74 * p.crouch);
+    const c = v(0, -78 * p.crouch);
     const g = this.fxLayer;
     g.lineStyle(3, 0xffffff, 0.25 + ratio * 0.5);
-    g.strokeCircle(c.x, c.y, 34 + (1 - ratio) * 26);
+    g.strokeCircle(c.x, c.y, 36 + (1 - ratio) * 26);
     g.lineStyle(5, this.rig.aura, 0.35 + ratio * 0.6);
     g.beginPath();
-    g.arc(c.x, c.y, 34, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ratio, false);
+    g.arc(c.x, c.y, 36, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ratio, false);
     g.strokePath();
   }
 
   private drawGuard(p: Pose, blockAge: number): void {
     const g = this.fxLayer;
     const fresh = blockAge <= TUNING.combat.reversalWindow;
-    const c = v(4, -62 * p.crouch);
+    const c = v(4, -64 * p.crouch);
     g.lineStyle(fresh ? 4 : 2.2, fresh ? 0xffffff : 0x8fa6c9, fresh ? 0.85 : 0.4);
-    g.strokeCircle(c.x, c.y, 30);
+    g.strokeCircle(c.x, c.y, 32);
   }
 
   setVisible(vis: boolean): void {

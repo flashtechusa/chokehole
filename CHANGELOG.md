@@ -2,6 +2,31 @@
 
 Meaningful playable changes only.
 
+## 0.1.1 — Character art pass
+
+The placeholder wrestlers now read as drag performers rather than articulated
+stick figures.
+
+- The rig draws an exaggerated hourglass built from a new `figure` block
+  (shoulders, bust, waist, hips, leg length, heel height) instead of a box torso.
+- New `wig` block with real silhouettes — bouffant, beehive, long waves, bob,
+  mohawk, ponytail — drawn as a hairline that frames the face rather than
+  covering it, plus a side sweep.
+- New `face` block: glam (lashes, brow, lips, eyeshadow, blush), insect
+  (compound eye, brow ridge) and machine (visor).
+- New `costume` block: blazer / leotard / harness / bodysuit silhouettes, belts,
+  fringe, elbow gloves and thigh-high boots over platform heels.
+- Legs attach either side of the hip and the boot runs from the foot up, so the
+  stance reads instead of merging into one column. Heads sit on an actual neck.
+- JASSY: padded shoulders, cinched waist, pink bouffant, power-blazer panels,
+  gold trim, towering platforms. RAID: lower and wider, chitin plating, four
+  arms, mandibles, antennae, brighter greens so he holds up in a dark arena.
+- Character cards and the roster use a standing pose, so the costume reads at
+  card size.
+
+Still placeholders: these are built to be legible and unmistakably two different
+performers, not to resemble anyone. Likeness needs approved reference imagery.
+
 ## 0.1.0 — Vertical slice
 
 The first playable build: **JASSY vs RAID in the original New Orleans
