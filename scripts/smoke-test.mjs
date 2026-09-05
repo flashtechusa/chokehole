@@ -42,18 +42,27 @@ const tap = async (dx, dy) => {
 };
 const active = () => page.evaluate(() => window.__CHOKEHOLE__.scene.getScenes(true).map((s) => s.scene.key));
 
-/** Interactive hit-zones of a scene, in design coordinates. */
+/**
+ * Interactive hit-zones of a scene, in design coordinates, each tagged with the
+ * label of the button it belongs to. Buttons are Containers holding a Text and
+ * a Zone, so the label comes from the Container's first Text child.
+ */
 const zones = (key) => page.evaluate((k) => {
   const sc = window.__CHOKEHOLE__.scene.getScene(k);
   const out = [];
-  const walk = (o) => {
+  const walk = (o, label) => {
+    if (o.type === 'Container') {
+      const own = o.list.find((c) => c.type === 'Text' && c.text);
+      const next = own ? own.text : label;
+      o.list.forEach((c) => walk(c, next));
+      return;
+    }
     if (o.type === 'Zone' && o.input) {
       const m = o.getWorldTransformMatrix();
-      out.push({ x: Math.round(m.tx), y: Math.round(m.ty) });
+      out.push({ x: Math.round(m.tx), y: Math.round(m.ty), label: label || '' });
     }
-    if (o.type === 'Container') o.list.forEach(walk);
   };
-  sc.children.list.forEach(walk);
+  sc.children.list.forEach((o) => walk(o, ''));
   return out;
 }, key);
 
@@ -62,6 +71,18 @@ const tapZone = async (key, index) => {
   const z = await zones(key);
   if (!z[index]) { console.log('no zone', index, 'in', key, '(found', z.length + ')'); return false; }
   await tap(z[index].x, z[index].y);
+  return true;
+};
+
+/** Taps the button whose label matches, so layout changes cannot break the test. */
+const tapLabel = async (key, label) => {
+  const z = await zones(key);
+  const hit = z.find((b) => b.label === label);
+  if (!hit) {
+    console.log('no button', label, 'in', key, '— saw', z.map((b) => b.label).join(' | '));
+    return false;
+  }
+  await tap(hit.x, hit.y);
   return true;
 };
 const waitScene = async (key, ms = 15000) => {
@@ -141,23 +162,33 @@ for (let i = 0; i < 40; i++) {
 console.log('pin?', JSON.stringify(await st()));
 await page.waitForTimeout(900);
 await shot('pin');
-await page.waitForTimeout(2600);
 console.log('end state', JSON.stringify(await st()));
 
+// the 1-2-3 count plus the post-match beat has to finish before Results exists
+if (!(await waitScene('Results', 25000))) {
+  errors.push('Results scene never opened after the pin');
+}
+await page.waitForTimeout(1200);
+await shot('results');
+console.log('scenes', await active());
+
 // ---- other screens, driven by real hit-zones ----
-// Results buttons: 0 REMATCH, 1 CHANGE FIGHTER, 2 ARCHIVES, 3 HOME
-await tapZone('Results', 3);
-await waitScene('Menu'); await page.waitForTimeout(500);
-// Menu buttons: 0 QUICK MATCH, 1 ARCHIVES, 2 ROSTER, 3 HOW TO PLAY, 4 SETTINGS
-for (const [menuIndex, key] of [[1, 'Archive'], [2, 'Roster'], [3, 'HowTo'], [4, 'Settings']]) {
-  await tapZone('Menu', menuIndex);
-  if (!(await waitScene(key))) continue;
+if (!(await tapLabel('Results', 'HOME'))) errors.push('Results: no HOME button');
+if (!(await waitScene('Menu'))) errors.push('HOME did not return to the menu');
+await page.waitForTimeout(500);
+
+for (const [menuLabel, key] of [
+  ['CHOKE HOLE ARCHIVES', 'Archive'],
+  ['ROSTER', 'Roster'],
+  ['HOW TO PLAY', 'HowTo'],
+  ['SETTINGS', 'Settings'],
+]) {
+  if (!(await tapLabel('Menu', menuLabel))) { errors.push(`Menu: no ${menuLabel} button`); continue; }
+  if (!(await waitScene(key))) { errors.push(`${menuLabel} did not open ${key}`); continue; }
   await page.waitForTimeout(700);
   await shot(key.toLowerCase());
-  // every one of these screens has a BACK button as its last zone
-  const z = await zones(key);
-  await tap(z[z.length - 1].x, z[z.length - 1].y);
-  await waitScene('Menu');
+  if (!(await tapLabel(key, 'BACK'))) errors.push(`${key}: no BACK button`);
+  if (!(await waitScene('Menu'))) errors.push(`${key}: BACK did not return to the menu`);
   await page.waitForTimeout(400);
 }
 
