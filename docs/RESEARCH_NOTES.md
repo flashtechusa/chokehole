@@ -69,7 +69,20 @@ Both playable wrestlers are marked `TEAM CONFIRMATION REQUIRED`.
   **The reference images themselves are not shipped, traced or embedded** — see
   the non-negotiables below.
 - **RAID** — mutant bug created by laboratory experimentation; the tenant side of
-  the anti-gentrification rivalry. Same open items.
+  the anti-gentrification rivalry. Catchphrases, signature moves and the final
+  spelling still need performer sign-off.
+  **Look is now reference-matched.** The team supplied reference photography.
+  Colours and shapes were read off those images by hand and encoded as rig data —
+  a sculpted creature head with a huge lipsticked maw of jagged teeth and blue
+  skull patches, a fan of salmon spines sweeping back off the skull, neon lime
+  limbs, a grey reptile-scale torso plate carrying a yellow lightning bolt,
+  shiny amber trunks, grey knee pads, and yellow-green trainers with black side
+  stripes. His signature silhouette is **four extra clawed arms at the waist**
+  with yellow claws, on top of the usual two.
+  **OPEN:** no prop is visible in the supplied reference, so his prop is set to
+  `none` and "THE CANISTER" is retained in the data as a placeholder name only —
+  TEAM CONFIRMATION REQUIRED on what RAID actually carries.
+  **The reference images themselves are not shipped, traced or embedded.**
 
 Public sources vary on several spellings (Jocelyn/Jocylene; Nicole's Revenge /
 Nicoles Revenge; Ivana Dickie/Dickic). The game uses stable internal ids that are

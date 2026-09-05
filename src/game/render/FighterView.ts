@@ -214,23 +214,32 @@ export class FighterView {
     // --- extra arms (insect personas) sit behind the torso -------------
     for (const fl of r.flourishes) {
       if (fl.kind !== 'extraArms') continue;
-      const s = fl.scale ?? 0.8;
-      const anchor = add(chest, rot(v(-2, 6), p.spine));
-      this.limb(g, anchor, [p.armB[0] * 0.7 + 34, p.armB[1] * 0.6 - 18], 25 * s, 22 * s,
-        (8 * bulk + inf) * s, col(fl.color), A * 0.95, col(fl.color2 ?? fl.color), inf, flat);
-      this.limb(g, anchor, [p.armF[0] * 0.7 - 26, p.armF[1] * 0.6 - 12], 24 * s, 21 * s,
-        (8 * bulk + inf) * s, col(shade(fl.color, -0.15)), A * 0.95, col(fl.color2 ?? fl.color), inf, flat);
-    }
-
-    // --- neck, tucked behind the torso so the collar covers its base -----
-    // interior detail only -- the rim pass skips it so it cannot bulge out of
-    // the silhouette as a blob at the collarbone
-    const neckTop = add(shoulder, rot(v(1.5, -17), p.spine + p.head * 0.5));
-    if (!flat) {
-      g.lineStyle(9 * bulk + 3, INK, A);
-      g.lineBetween(shoulder.x, shoulder.y + 2, neckTop.x, neckTop.y);
-      g.lineStyle(9 * bulk, shade(r.skin, -0.12), A);
-      g.lineBetween(shoulder.x, shoulder.y + 2, neckTop.x, neckTop.y);
+      const sc = fl.scale ?? 0.8;
+      const n = fl.count ?? 2;
+      const anchor = add(waist, rot(v(-1, 4), p.spine));
+      for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 0.5 : i / (n - 1);
+        // fan them out to both sides, lower ones reaching further down
+        const swing = -104 + t * 208;
+        const droop = 16 + Math.sin(t * Math.PI) * 16;
+        const wobble = Math.sin(this.loopTime * 3 + i * 1.3) * 5;
+        const end = this.limb(
+          g, anchor, [swing + wobble, droop], 30 * sc, 27 * sc,
+          (6.6 * bulk + inf) * sc,
+          col(i % 2 === 0 ? fl.color : shade(fl.color, -0.12)), A * 0.95,
+          col(fl.color2 ?? fl.color), inf, flat,
+        );
+        // claw
+        if (!flat) {
+          const cd = dir(swing + wobble + droop);
+          g.lineStyle(3.2 * sc, fl.color2 ?? fl.color, A);
+          for (const off of [-26, 0, 26]) {
+            const d2 = dir(swing + wobble + droop + off);
+            g.lineBetween(end.x, end.y, end.x + d2.x * 11 * sc, end.y + d2.y * 11 * sc);
+          }
+          void cd;
+        }
+      }
     }
 
     // --- torso: an hourglass, not a box --------------------------------
@@ -268,10 +277,12 @@ export class FighterView {
     // --- head ----------------------------------------------------------
     for (const fl of r.flourishes) {
       if (fl.kind === 'bighair') this.drawBigHair(g, headC, p, fl, col(fl.color), A, inf, flat);
+      if (fl.kind === 'crest') this.drawCrest(g, headC, p, fl, col(fl.color), A, inf);
     }
     const headR = 14.5 + inf;
     g.fillStyle(col(r.skin), A);
-    if (this.face.kind === 'insect') {
+    const wideSkull = this.face.kind === 'insect' || this.face.kind === 'maw';
+    if (wideSkull) {
       // wider, lower skull with a heavy brow
       g.fillEllipse(headC.x, headC.y, headR * 2.15, headR * 1.85);
     } else {
@@ -281,7 +292,7 @@ export class FighterView {
     if (this.wig) this.drawWigCap(g, headC, p, this.wig, col(this.wig.color), A, inf, flat);
     if (!flat) {
       g.lineStyle(2.4, INK, 0.92);
-      if (this.face.kind === 'insect') g.strokeEllipse(headC.x, headC.y, 14.5 * 2.15, 14.5 * 1.85);
+      if (wideSkull) g.strokeEllipse(headC.x, headC.y, 14.5 * 2.15, 14.5 * 1.85);
       else g.strokeCircle(headC.x, headC.y, 14.5);
       this.drawFace(g, headC, p, A);
     }
@@ -396,6 +407,33 @@ export class FighterView {
       // bright cuff line so the boot top reads against a dark arena
       g.lineStyle(3, shade(boot, 0.5), A * 0.95);
       g.lineBetween(cuff.x - thick * 0.5, cuff.y, cuff.x + thick * 0.5, cuff.y);
+    }
+
+    if (this.costume.kneePads !== undefined && !flat) {
+      g.fillStyle(this.costume.kneePads, A);
+      g.fillEllipse(knee.x, knee.y + 1, thick * 1.25, thick * 1.45);
+      g.lineStyle(1.8, INK, A * 0.8);
+      g.strokeEllipse(knee.x, knee.y + 1, thick * 1.25, thick * 1.45);
+    }
+
+    // trainers instead of heels for the wrestlers who fight in sneakers
+    if (this.costume.sneakers !== undefined) {
+      const sole = this.costume.sneakerStripe ?? 0x1a1a1a;
+      if (!flat) {
+        g.fillStyle(INK, A);
+        g.fillRoundedRect(ankle.x - 8 - inf, ankle.y - 5, 26 + inf * 2, 15 + inf, 5);
+      }
+      g.fillStyle(col(this.costume.sneakers), A);
+      g.fillRoundedRect(ankle.x - 7 - inf, ankle.y - 4, 24 + inf * 2, 12 + inf, 4);
+      if (!flat) {
+        g.fillStyle(0xf4f4f4, A);
+        g.fillRect(ankle.x - 7, ankle.y + 6, 24, 3.5);
+        g.lineStyle(2.2, sole, A);
+        for (let i = 0; i < 3; i++) {
+          g.lineBetween(ankle.x + 1 + i * 4, ankle.y - 3, ankle.x + 4 + i * 4, ankle.y + 5);
+        }
+      }
+      return ankle;
     }
 
     // platform + heel, drawn flat to the ground so the stance reads
@@ -529,6 +567,51 @@ export class FighterView {
       g.beginPath(); g.moveTo(l.x, l.y); g.lineTo(m.x, m.y); g.lineTo(rr.x, rr.y); g.strokePath();
     }
 
+    if (c.scalePanel !== undefined) {
+      // reptile-scale plate inset from the torso edge
+      const pts = [
+        at(n.shoulder, -w.shW * 0.72, -2), at(n.shoulder, w.shW * 0.72, -2),
+        at(n.chest, w.buW * 0.62, 0), at(n.waist, w.waW * 0.8, 0),
+        at(n.hip, w.hiW * 0.7, 4), at(n.hip, -w.hiW * 0.7, 4),
+        at(n.waist, -w.waW * 0.8, 0), at(n.chest, -w.buW * 0.62, 0),
+      ];
+      g.fillStyle(c.scalePanel, A);
+      g.beginPath();
+      g.moveTo(pts[0]!.x, pts[0]!.y);
+      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i]!.x, pts[i]!.y);
+      g.closePath();
+      g.fillPath();
+      // scale texture
+      g.fillStyle(shade(c.scalePanel, -0.28), A * 0.6);
+      for (let row = 0; row < 6; row++) {
+        for (let colI = -2; colI <= 2; colI++) {
+          const q = at(n.hip, colI * 5 + (row % 2) * 2.5, -6 - row * 7);
+          g.fillCircle(q.x, q.y, 1.5);
+        }
+      }
+    }
+    if (c.bolt !== undefined) {
+      const a1 = at(n.shoulder, -6, 2);
+      const a2 = at(n.chest, 5, 0);
+      const a3 = at(n.waist, -3, 0);
+      const a4 = at(n.hip, 7, 2);
+      g.lineStyle(7, c.bolt, A);
+      g.beginPath();
+      g.moveTo(a1.x, a1.y);
+      g.lineTo(a2.x, a2.y);
+      g.lineTo(a3.x, a3.y);
+      g.lineTo(a4.x, a4.y);
+      g.strokePath();
+    }
+    if (c.trunks !== undefined) {
+      const l = at(n.hip, -w.hiW - 1, -6);
+      g.fillStyle(c.trunks, A);
+      g.fillRoundedRect(l.x, l.y, (w.hiW + 1) * 2, 17, 5);
+      g.lineStyle(2, INK, A * 0.8);
+      g.strokeRoundedRect(l.x, l.y, (w.hiW + 1) * 2, 17, 5);
+      g.fillStyle(0xffffff, A * 0.16);
+      g.fillRoundedRect(l.x + 3, l.y + 2, (w.hiW + 1) * 2 - 6, 5, 3);
+    }
     if (c.collar !== undefined) {
       // shirt collar sitting on the shoulders, points turned down
       for (const side of [-1, 1]) {
@@ -600,6 +683,35 @@ export class FighterView {
       const back = at(-8, -2);
       g.fillStyle(0x0d1a08, A * 0.85);
       g.fillEllipse(back.x, back.y, 8, 7);
+      return;
+    }
+    if (f.kind === 'maw') {
+      // blue skull patches
+      g.fillStyle(0x3f7fd0, A * 0.75);
+      const patch = at(-4, -9);
+      g.fillEllipse(patch.x, patch.y, 15, 9);
+      // small eyes riding above the mouth
+      for (const dx of [2, 11]) {
+        const e = at(dx, -6);
+        g.fillStyle(0xf7f2d8, A);
+        g.fillEllipse(e.x, e.y, 6.5, 5.5);
+        g.fillStyle(0x1b2410, A);
+        g.fillCircle(e.x + 0.8, e.y, 2.1);
+      }
+      // the mouth: dark cavern, jagged teeth top and bottom, thick lips round it
+      const m = at(5, 6);
+      const mw = 30;
+      const mh = 15;
+      g.fillStyle(f.maw ?? 0x2a1420, A);
+      g.fillEllipse(m.x, m.y, mw, mh);
+      g.fillStyle(f.teeth ?? 0xf2e8c0, A);
+      for (let i = 0; i < 6; i++) {
+        const x = m.x - mw / 2 + 3 + i * (mw - 6) / 5;
+        g.fillTriangle(x - 2.6, m.y - mh / 2 + 1, x + 2.6, m.y - mh / 2 + 1, x, m.y + 2.5);
+        g.fillTriangle(x - 2.2, m.y + mh / 2 - 1, x + 2.2, m.y + mh / 2 - 1, x, m.y - 1.5);
+      }
+      g.lineStyle(5, f.lip, A);
+      g.strokeEllipse(m.x, m.y, mw, mh);
       return;
     }
     if (f.kind === 'machine') {
@@ -932,6 +1044,30 @@ export class FighterView {
       g.fillPath();
     }
     void fl;
+  }
+
+  /** Fan of soft spines sweeping back off the skull. */
+  private drawCrest(
+    g: Phaser.GameObjects.Graphics, h: Vec, p: Pose, fl: Flourish,
+    color: number, a: number, inf: number,
+  ): void {
+    const n = fl.count ?? 7;
+    const s = fl.scale ?? 1;
+    const ang = p.spine + p.head;
+    const sway = Math.sin(this.loopTime * 2.6) * 3;
+    for (let i = 0; i < n; i++) {
+      const t = n === 1 ? 0.5 : i / (n - 1);
+      // fan from above the brow round to the back of the skull
+      const a0 = 168 + t * 104 + sway;
+      const d0 = dir(a0);
+      const base = add(h, rot(v(d0.x * 12, d0.y * 12), ang));
+      const len = (14 + Math.sin(t * Math.PI) * 10 + inf) * s;
+      const tip = add(base, rot(v(d0.x * len, d0.y * len), ang));
+      g.lineStyle((5.5 + inf) * s, color, a);
+      g.lineBetween(base.x, base.y, tip.x, tip.y);
+      g.fillStyle(fl.color2 ?? color, a);
+      g.fillCircle(tip.x, tip.y, (2.6 + inf * 0.5) * s);
+    }
   }
 
   private drawWings(

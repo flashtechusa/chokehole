@@ -89,41 +89,61 @@ export const RAID: WrestlerConfig = {
   prop: {
     name: 'THE CANISTER',
     mechanic: 'Vents pressurised mutagen during MUTATION SURGE; extends reach and armour.',
-    shape: 'canister',
+    // Placeholder prop -- no prop is visible in the supplied reference.
+    // TEAM CONFIRMATION REQUIRED on what RAID actually carries.
+    shape: 'none',
     color: C.acid,
     color2: 0x1c3a12,
   },
 
   rig: {
-    scale: 1.0, bulk: 1.14,
-    skin: 0x7be04a,
-    outfit: 0x2fa84f,
-    outfitAlt: 0x35d0a0,
-    trim: 0xb6ff3a,
-    boots: 0x1d4a2c,
-    gloves: 0x31e7ff,
-    hair: 0x0f3d20,
-    rim: 0xb6ff3a,
+    scale: 1.0, bulk: 1.1,
+
+    // Matched to performer-supplied reference photography. The reference images
+    // are NOT shipped or traced -- colours and shapes were read off them by hand.
+    skin: 0x9bef2b,        // neon lime bodysuit / limbs
+    outfit: 0x9aa0a8,      // grey reptile-scale torso plate
+    outfitAlt: 0x8ce60f,   // neon green legs
+    trim: 0xf5d020,        // yellow claws and trim
+    boots: 0x8ce60f,       // legs stay green down to the trainers
+    gloves: 0xf5d020,      // yellow claws
+    hair: 0xf09a7a,
+    rim: 0xc8ff3a,
     aura: 0xb6ff3a,
 
-    // Mutant-insect drag: a lower, wider, harder silhouette than Jassy --
-    // chitin plating, stompier boots, an actual bug head.
-    figure: { shoulders: 1.26, bust: 1.1, waist: 0.78, hips: 1.2, legs: 0.96, heel: 6 },
-    wig: { style: 'mohawk', volume: 0.95, color: 0xb6ff3a, color2: 0x31e7ff },
-    face: { kind: 'insect', lash: 0x0d1a08, lip: 0x0d1a08, brow: 0x0d1a08, shadow: 0xb6ff3a },
+    // Lower and wider than Jassy, and flat-footed in trainers rather than heels.
+    figure: { shoulders: 1.26, bust: 0.32, waist: 0.86, hips: 1.12, legs: 1.0, heel: 0 },
+
+    // No wig: the head is a sculpted creature mask.
+    wig: { style: 'none', volume: 1, color: 0xf09a7a },
+
+    // Huge lipsticked maw full of jagged teeth, small eyes riding above it.
+    face: {
+      kind: 'maw',
+      lash: 0x1b2410, brow: 0x1b2410,
+      lip: 0xe8607a,       // heavy pink lips around the mouth
+      shadow: 0x3f7fd0,    // blue skull patches
+      teeth: 0xf2e8c0,
+      maw: 0x2a1420,
+    },
+
     costume: {
-      kind: 'harness',
-      fringe: 0x35d0a0,
+      kind: 'bodysuit',
+      scalePanel: 0x9aa0a8,     // grey snakeskin plate
+      bolt: 0xf5e31b,           // yellow lightning bolt across it
+      trunks: 0xe89a2b,         // shiny amber trunks over the suit
+      kneePads: 0x5a5f66,
+      sneakers: 0xc8f03a,       // yellow-green trainers
+      sneakerStripe: 0x141414,
       longGloves: false,
-      longBoots: true,
+      longBoots: false,
     },
 
     flourishes: [
-      { kind: 'carapace', color: 0x2fa84f, color2: 0xb6ff3a },
-      { kind: 'extraArms', color: 0x2fa84f, color2: 0xb6ff3a, scale: 0.8 },
-      { kind: 'antennae', color: 0xb6ff3a, color2: 0x31e7ff, scale: 1.15 },
-      { kind: 'mandibles', color: 0xb6ff3a },
-      { kind: 'wings', color: 0x35d0a0 },
+      // fan of soft salmon spines off the skull
+      { kind: 'crest', color: 0xf09a7a, color2: 0xf5c0a8, count: 8, scale: 1.05 },
+      // four extra clawed arms at the waist -- the signature silhouette
+      { kind: 'extraArms', color: 0x8ce60f, color2: 0xf5d020, scale: 0.92, count: 4 },
     ],
   },
 

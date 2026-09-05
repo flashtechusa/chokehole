@@ -2,6 +2,27 @@
 
 Meaningful playable changes only.
 
+## 0.1.3 — RAID matched to reference
+
+The team supplied reference photography for RAID, so his placeholder is now built
+from the real costume.
+
+- Sculpted creature head: a huge lipsticked maw packed with jagged teeth, small
+  eyes riding above it and blue skull patches (new `maw` face kind).
+- A fan of salmon spines sweeping back off the skull (new `crest` flourish).
+- Neon lime limbs, a grey reptile-scale torso plate carrying a yellow lightning
+  bolt, shiny amber trunks, grey knee pads (new `scalePanel`, `bolt`, `trunks`,
+  `kneePads`).
+- Yellow-green trainers with black side stripes instead of heeled boots (new
+  `sneakers` / `sneakerStripe`) — he fights flat-footed.
+- Four extra clawed arms fanning out from the waist, on top of the usual two.
+  `extraArms` now takes a `count` and the limbs reach and claw properly.
+- Chest flattened; he is broader in the shoulders and lower than Jassy.
+- His prop is set to `none`: no prop appears in the supplied reference, and what
+  he actually carries needs team confirmation.
+
+Reference images are not shipped, traced or embedded — only read by hand.
+
 ## 0.1.2 — Jassy matched to reference
 
 The team supplied reference photography for Jassy, so her placeholder is now

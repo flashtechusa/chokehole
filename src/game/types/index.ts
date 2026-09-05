@@ -89,13 +89,17 @@ export interface FighterBuff {
 
 export type FlourishKind =
   | 'bighair' | 'shoulderpads' | 'antennae' | 'carapace' | 'extraArms'
-  | 'wings' | 'visor' | 'mandibles' | 'tailStinger' | 'crown' | 'sash';
+  | 'wings' | 'visor' | 'mandibles' | 'tailStinger' | 'crown' | 'sash'
+  /** Fan of soft spines / tendrils sweeping back off the skull. */
+  | 'crest';
 
 export interface Flourish {
   kind: FlourishKind;
   color: number;
   color2?: number;
   scale?: number;
+  /** How many to draw, where the flourish supports it (extraArms, crest). */
+  count?: number;
 }
 
 export interface PropSpec {
@@ -152,8 +156,11 @@ export interface FaceSpec {
   brow: number;
   /** Eyeshadow. */
   shadow: number;
-  /** Set for non-human faces (compound eye, visor plate, muzzle). */
-  kind?: 'glam' | 'insect' | 'machine';
+  /** Set for non-human faces. */
+  kind?: 'glam' | 'insect' | 'machine' | 'maw';
+  /** `maw` only: teeth and gum colours. */
+  teeth?: number;
+  maw?: number;
 }
 
 export interface CostumeSpec {
@@ -173,6 +180,16 @@ export interface CostumeSpec {
   tie?: number;
   /** Sash knotted at the hip. */
   sashKnot?: number;
+  /** Reptile-scale plate over the torso. */
+  scalePanel?: number;
+  /** Lightning bolt across the torso plate. */
+  bolt?: number;
+  /** Shiny trunks worn over the suit at the hip. */
+  trunks?: number;
+  /** Trainers instead of heeled boots; `sneakerStripe` draws the side stripes. */
+  sneakers?: number;
+  sneakerStripe?: number;
+  kneePads?: number;
 }
 
 export interface RigSpec {
