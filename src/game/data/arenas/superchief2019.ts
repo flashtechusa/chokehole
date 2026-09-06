@@ -51,7 +51,7 @@ export const SUPERCHIEF_2019: ArenaConfig = {
     { kind: 'banners', parallax: 0.28, y: 120, density: 2, tint: 0x7a2bff, tint2: 0xff2d95 },
     { kind: 'crowd', parallax: 0.56, y: 258, density: 46, tint: 0x22131f, tint2: 0xff5fb0 },
   ],
-  ringHalfWidth: 352,
+  ringHalfWidth: 308,
   ringDepth: 84,
   crowdIntensity: 1.25,
   event: {

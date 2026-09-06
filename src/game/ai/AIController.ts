@@ -77,7 +77,11 @@ export class AIController {
         this.reactTimer = this.profile.reactionMs * (0.75 + Math.random() * 0.5);
       }
       this.reactTimer -= dtMs;
-      const wantsBlock = Math.random() < this.profile.blockChance + 0.4;
+      // The profile's blockChance is the whole probability. A flat bonus used to
+      // be added here, which put NORMAL at 0.7 and made the reactive block an
+      // effectively automatic reversal: measured at 17% of the player's attacks
+      // being reversed, each costing 680ms of stun.
+      const wantsBlock = Math.random() < this.profile.blockChance;
       if (this.reactTimer <= 0 && wantsBlock && dist < 150 && threat.remaining < 240) {
         it.block = true;
         it.strikeHeld = true;
@@ -186,7 +190,7 @@ export class AIController {
       const r = Math.random();
       if (r < 0.5 * p.aggression) return 'STRIKE';
       if (r < 0.72 * p.aggression) return 'HEAVY';
-      if (r < 0.85) return 'BLOCK';
+      if (r < 0.72) return 'BLOCK';
       return 'SPACE';
     }
     if (dist > 300 && Math.random() < p.tauntChance) return 'TAUNT';

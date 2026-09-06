@@ -3,6 +3,7 @@ import { C, CSS, FONT } from '@/game/config/palette';
 import { Audio } from '@/game/audio/AudioManager';
 import { clamp } from '@/game/utils/math';
 import { TUNING } from '@/game/config/tuning';
+import { fs } from '@/game/config/type';
 
 /** Touch-friendly horizontal slider (48px+ grab area). */
 export function makeSlider(
@@ -12,11 +13,11 @@ export function makeSlider(
 ): Phaser.GameObjects.Container {
   const c = scene.add.container(x, y);
   const g = scene.add.graphics();
-  const lab = scene.add.text(0, -20, label, {
-    fontFamily: FONT.mono, fontSize: '11px', color: CSS.bone,
+  const lab = scene.add.text(0, -26, label, {
+    fontFamily: FONT.mono, fontSize: fs(11), color: CSS.bone,
   });
-  const val = scene.add.text(w, -20, format(value), {
-    fontFamily: FONT.slam, fontSize: '13px', color: CSS.acid,
+  const val = scene.add.text(w, -28, format(value), {
+    fontFamily: FONT.slam, fontSize: fs(13), color: CSS.acid,
   }).setOrigin(1, 0);
   c.add([g, lab, val]);
 
@@ -56,10 +57,10 @@ export function makeToggle(
   const c = scene.add.container(x, y);
   const g = scene.add.graphics();
   const lab = scene.add.text(0, -8, label, {
-    fontFamily: FONT.mono, fontSize: '11px', color: CSS.bone,
+    fontFamily: FONT.mono, fontSize: fs(11), color: CSS.bone,
   });
   const state = scene.add.text(w, -9, '', {
-    fontFamily: FONT.slam, fontSize: '14px', color: CSS.acid,
+    fontFamily: FONT.slam, fontSize: fs(14), color: CSS.acid,
   }).setOrigin(1, 0);
   c.add([g, lab, state]);
 

@@ -10,10 +10,10 @@
  */
 import { chromium } from 'playwright';
 const browser = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium',
   args: ['--no-sandbox','--disable-dev-shm-usage','--use-gl=swiftshader','--enable-unsafe-swiftshader'],
 });
-const ctx = await browser.newContext({ viewport:{width:844,height:390}, deviceScaleFactor:2, isMobile:true, hasTouch:true });
+const ctx = await browser.newContext({ viewport:{width:844,height:390}, deviceScaleFactor:1, isMobile:true, hasTouch:true });
 const page = await ctx.newPage();
 const errs = [], net = [];
 page.on('pageerror', e => errs.push('PAGEERROR ' + e.message));

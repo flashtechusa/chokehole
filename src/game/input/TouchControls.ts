@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { C, FONT } from '@/game/config/palette';
 import { readSafeArea } from '@/game/utils/safeArea';
 import { clamp } from '@/game/utils/math';
+import { fs } from '@/game/config/type';
 
 export interface PadState {
   moveX: number;
@@ -77,10 +78,10 @@ export class TouchControls {
   private makeButton(key: Btn['key'], label: string, sub: string, fill: number): void {
     const gfx = this.scene.add.graphics();
     const text = this.scene.add
-      .text(0, 0, label, { fontFamily: FONT.slam, fontSize: '17px', color: '#ffffff' })
+      .text(0, 0, label, { fontFamily: FONT.slam, fontSize: fs(17), color: '#ffffff' })
       .setOrigin(0.5);
     const subText = this.scene.add
-      .text(0, 0, sub, { fontFamily: FONT.mono, fontSize: '9px', color: '#ffffff' })
+      .text(0, 0, sub, { fontFamily: FONT.mono, fontSize: fs(9), color: '#ffffff' })
       .setOrigin(0.5)
       .setAlpha(0.65);
     this.root.add([gfx, text, subText]);

@@ -20,6 +20,7 @@ import { makeButton, panel } from '@/game/ui/Kit';
 import { Audio } from '@/game/audio/AudioManager';
 import { Save } from '@/game/save/SaveManager';
 import { clamp, pick } from '@/game/utils/math';
+import { fs } from '@/game/config/type';
 
 const W = TUNING.view.width;
 const H = TUNING.view.height;
@@ -157,16 +158,16 @@ export class MatchScene extends Phaser.Scene {
     this.pinBacking.lineStyle(5, C.gold, 0.9);
     this.pinBacking.strokeCircle(W / 2, 200, 82);
     this.pinText = this.add.text(W / 2, 200, '', {
-      fontFamily: FONT.slam, fontSize: '120px', color: CSS.white,
+      fontFamily: FONT.slam, fontSize: fs(120), color: CSS.white,
       stroke: '#120a1a', strokeThickness: 12,
     }).setOrigin(0.5).setDepth(830).setAlpha(0);
     this.pinPromptSlab = this.add.graphics().setDepth(829).setAlpha(0);
     this.pinPrompt = this.add.text(W / 2, 300, '', {
-      fontFamily: FONT.slam, fontSize: '26px', color: CSS.gold,
+      fontFamily: FONT.slam, fontSize: fs(26), color: CSS.gold,
       stroke: '#120a1a', strokeThickness: 6,
     }).setOrigin(0.5).setDepth(830).setAlpha(0);
     this.announceText = this.add.text(W / 2, 214, '', {
-      fontFamily: FONT.slam, fontSize: '54px', color: CSS.pink,
+      fontFamily: FONT.slam, fontSize: fs(54), color: CSS.pink,
       stroke: '#120a1a', strokeThickness: 10,
     }).setOrigin(0.5).setDepth(828).setAlpha(0);
 
@@ -228,23 +229,23 @@ export class MatchScene extends Phaser.Scene {
     layer.add(g);
 
     layer.add(this.add.text(W / 2, 68, `${BRANDING.network} ARCHIVE TAPE`, {
-      fontFamily: FONT.mono, fontSize: '11px', color: CSS.gold,
+      fontFamily: FONT.mono, fontSize: fs(11), color: CSS.gold,
     }).setOrigin(0.5));
     layer.add(this.add.text(W / 2, 92, a.displayName, {
-      fontFamily: FONT.slam, fontSize: '30px', color: CSS.white,
+      fontFamily: FONT.slam, fontSize: fs(30), color: CSS.white,
       align: 'center', wordWrap: { width: W - 240 },
     }).setOrigin(0.5, 0));
     layer.add(this.add.text(W / 2, 136,
       `${a.history.venue} · ${a.history.city} · ${a.history.date}`, {
-      fontFamily: FONT.mono, fontSize: '11px', color: CSS.acid,
+      fontFamily: FONT.mono, fontSize: fs(11), color: CSS.acid,
     }).setOrigin(0.5, 0));
     layer.add(this.add.text(W / 2, 158, a.history.note, {
-      fontFamily: FONT.mono, fontSize: '10px', color: CSS.bone,
+      fontFamily: FONT.mono, fontSize: fs(10), color: CSS.bone,
       align: 'center', wordWrap: { width: W - 260 }, lineSpacing: 3,
     }).setOrigin(0.5, 0).setAlpha(0.8));
     layer.add(this.add.text(W / 2, 232,
       `REAL HISTORY [${a.history.research}] — THE MATCH ITSELF IS GAME FICTION`, {
-      fontFamily: FONT.mono, fontSize: '9px', color: CSS.gold,
+      fontFamily: FONT.mono, fontSize: fs(9), color: CSS.gold,
     }).setOrigin(0.5, 0).setAlpha(0.75));
 
     const band = this.add.graphics();
@@ -256,23 +257,23 @@ export class MatchScene extends Phaser.Scene {
     layer.add(band);
 
     const nameL = this.add.text(150, 320, this.playerCfg.displayName, {
-      fontFamily: FONT.slam, fontSize: '44px', color: CSS.pink,
+      fontFamily: FONT.slam, fontSize: fs(44), color: CSS.pink,
       stroke: '#120a1a', strokeThickness: 8,
     }).setOrigin(0.5).setAngle(-5).setAlpha(0);
     const quoteL = this.add.text(150, 360, `“${this.playerCfg.quotes.entrance}”`, {
-      fontFamily: FONT.mono, fontSize: '10px', color: CSS.bone,
+      fontFamily: FONT.mono, fontSize: fs(10), color: CSS.bone,
       align: 'center', wordWrap: { width: 260 },
     }).setOrigin(0.5).setAlpha(0);
     const vs = this.add.text(W / 2, 336, 'VS', {
-      fontFamily: FONT.slam, fontSize: '52px', color: CSS.gold,
+      fontFamily: FONT.slam, fontSize: fs(52), color: CSS.gold,
       stroke: '#120a1a', strokeThickness: 8,
     }).setOrigin(0.5).setAlpha(0);
     const nameR = this.add.text(W - 150, 320, this.oppCfg.displayName, {
-      fontFamily: FONT.slam, fontSize: '44px', color: CSS.acid,
+      fontFamily: FONT.slam, fontSize: fs(44), color: CSS.acid,
       stroke: '#120a1a', strokeThickness: 8,
     }).setOrigin(0.5).setAngle(5).setAlpha(0);
     const quoteR = this.add.text(W - 150, 360, `“${this.oppCfg.quotes.entrance}”`, {
-      fontFamily: FONT.mono, fontSize: '10px', color: CSS.bone,
+      fontFamily: FONT.mono, fontSize: fs(10), color: CSS.bone,
       align: 'center', wordWrap: { width: 260 },
     }).setOrigin(0.5).setAlpha(0);
     layer.add([nameL, quoteL, vs, nameR, quoteR]);
@@ -336,7 +337,7 @@ export class MatchScene extends Phaser.Scene {
     this.pauseLayer.add(bg);
     this.pauseLayer.add(panel(this, W / 2 - 200, 120, 400, 300, C.pink, 0.12));
     this.pauseLayer.add(this.add.text(W / 2, 146, 'BROADCAST PAUSED', {
-      fontFamily: FONT.slam, fontSize: '28px', color: CSS.white,
+      fontFamily: FONT.slam, fontSize: fs(28), color: CSS.white,
     }).setOrigin(0.5));
     this.pauseLayer.add(makeButton(this, W / 2, 216, 'RESUME', () => this.togglePause(),
       { w: 300, h: 50, color: C.acid }).container);
@@ -609,10 +610,15 @@ export class MatchScene extends Phaser.Scene {
     this.pinTimer = TUNING.combat.pinCountMs;
     this.pinTaps = 0;
 
+    // Pins are a finish, not an opener. The old linear curve let a knockdown at
+    // two thirds health end the match in 20 seconds, which skipped the meters,
+    // the crowd arc and the finisher entirely. Squaring it makes a healthy
+    // opponent kick out on reflex and keeps the near-fall where it belongs:
+    // around and below pinDangerHealth.
     const hurt = defender.healthFrac;
     this.pinNeeded = defender.exhausted
       ? 999
-      : Math.max(2, Math.round(TUNING.combat.pinEscapeTapsBase * (0.35 + hurt * 1.15)));
+      : Math.max(3, Math.round(TUNING.combat.pinEscapeTapsBase * (0.6 + hurt * hurt * 5.4)));
 
     this.pinText.setAlpha(1).setText('');
     this.pinBacking.setAlpha(0);

@@ -17,12 +17,15 @@ const SHOT = process.env.SHOT_DIR || '/tmp/shots';
 const URL = process.env.GAME_URL || 'http://localhost:5173/';
 const errors = [];
 const browser = await chromium.launch({
-  ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
+  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium',
   args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=swiftshader',
          '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'],
 });
 const ctx = await browser.newContext({
-  viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+  // deviceScaleFactor 1 == true phone CSS pixels. Capturing at 2 is what hid
+  // the unreadable type: 9 design px looked fine in a 2x screenshot and was
+  // 6.5 CSS px on the device.
+  viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true,
 });
 const page = await ctx.newPage();
 page.on('console', (m) => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });

@@ -24,7 +24,7 @@ export const RAID: WrestlerConfig = {
   alignment: 'FACE',
 
   stats: {
-    health: 132,
+    health: 440,
     speed: 172,
     power: 0.94,
     grapple: 1.34,
@@ -36,16 +36,16 @@ export const RAID: WrestlerConfig = {
     light: {
       id: 'raid_light', name: 'BUG SWIPE', kind: 'light',
       startup: 88, active: 90, recovery: 130,
-      damage: 5.2, reach: 78, depthTolerance: 34, knockback: 70, hitstun: 210,
-      squelsh: 4.6, heat: 2.4, lunge: 26, shake: 0.0018,
+      damage: 5.2, reach: 90, depthTolerance: 44, knockback: 70, hitstun: 210,
+      squelsh: 4.6, heat: 2.4, lunge: 80, shake: 0.0022,
       impactTint: C.acid, callout: 'BUG SWIPE',
     },
     heavy: {
       id: 'raid_heavy', name: 'EXOSKELETON BASH', kind: 'heavy',
       startup: 265, active: 120, recovery: 300,
-      damage: 13, reach: 84, depthTolerance: 38, knockback: 240, hitstun: 480,
+      damage: 13, reach: 98, depthTolerance: 48, knockback: 240, hitstun: 480,
       knockdown: true, launch: 180,
-      squelsh: 10, heat: 7, lunge: 150, shake: 0.007,
+      squelsh: 10, heat: 7, lunge: 200, shake: 0.007,
       impactTint: C.acid, callout: 'EXOSKELETON BASH',
     },
     grapple: {
@@ -81,8 +81,8 @@ export const RAID: WrestlerConfig = {
   lightAlt: {
     id: 'raid_light2', name: 'MANDIBLE SNAP', kind: 'light',
     startup: 96, active: 95, recovery: 165,
-    damage: 6.4, reach: 82, depthTolerance: 34, knockback: 130, hitstun: 280,
-    squelsh: 5.4, heat: 3.2, lunge: 40, shake: 0.0026,
+    damage: 6.4, reach: 94, depthTolerance: 44, knockback: 130, hitstun: 280,
+    squelsh: 5.4, heat: 3.2, lunge: 95, shake: 0.003,
     impactTint: C.cyan, callout: 'MANDIBLE SNAP',
   },
 

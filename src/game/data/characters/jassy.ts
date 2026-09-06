@@ -26,7 +26,7 @@ export const JASSY: WrestlerConfig = {
   alignment: 'HEEL',
 
   stats: {
-    health: 118,
+    health: 400,
     speed: 158,
     power: 1.22,
     grapple: 1.14,
@@ -38,16 +38,16 @@ export const JASSY: WrestlerConfig = {
     light: {
       id: 'jassy_light', name: 'EXECUTIVE SLAP', kind: 'light',
       startup: 105, active: 80, recovery: 155,
-      damage: 6.5, reach: 62, depthTolerance: 26, knockback: 92, hitstun: 240,
-      squelsh: 4, heat: 2.2, lunge: 40, shake: 0.0022,
+      damage: 6.5, reach: 76, depthTolerance: 38, knockback: 92, hitstun: 240,
+      squelsh: 4, heat: 2.2, lunge: 95, shake: 0.0026,
       impactTint: C.pink, callout: 'EXECUTIVE SLAP',
     },
     heavy: {
       id: 'jassy_heavy', name: 'MARKET CRASH', kind: 'heavy',
       startup: 300, active: 110, recovery: 330,
-      damage: 16, reach: 76, depthTolerance: 30, knockback: 280, hitstun: 520,
+      damage: 16, reach: 92, depthTolerance: 44, knockback: 280, hitstun: 520,
       knockdown: true, launch: 210,
-      squelsh: 9, heat: 7, lunge: 120, shake: 0.008,
+      squelsh: 9, heat: 7, lunge: 180, shake: 0.008,
       impactTint: C.orange, callout: 'MARKET CRASH!!',
     },
     grapple: {
@@ -83,8 +83,8 @@ export const JASSY: WrestlerConfig = {
   lightAlt: {
     id: 'jassy_light2', name: 'PORTFOLIO BACKHAND', kind: 'light',
     startup: 120, active: 85, recovery: 190,
-    damage: 8, reach: 68, depthTolerance: 26, knockback: 150, hitstun: 300,
-    squelsh: 5, heat: 3, lunge: 55, shake: 0.003,
+    damage: 8, reach: 82, depthTolerance: 38, knockback: 150, hitstun: 300,
+    squelsh: 5, heat: 3, lunge: 110, shake: 0.0034,
     impactTint: C.pink, callout: 'PORTFOLIO BACKHAND',
   },
 

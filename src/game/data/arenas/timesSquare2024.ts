@@ -53,7 +53,7 @@ export const TIMES_SQUARE_2024: ArenaConfig = {
     { kind: 'barricade', parallax: 0.6, y: 286, density: 20, tint: 0x3a4064, tint2: 0xffd23f },
     { kind: 'crowd', parallax: 0.58, y: 260, density: 52, tint: 0x151a30, tint2: 0xffd23f },
   ],
-  ringHalfWidth: 392,
+  ringHalfWidth: 336,
   ringDepth: 96,
   crowdIntensity: 1.35,
   event: {

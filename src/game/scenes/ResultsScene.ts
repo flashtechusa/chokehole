@@ -11,6 +11,7 @@ import { Audio } from '@/game/audio/AudioManager';
 import { formatClock, pick } from '@/game/utils/math';
 import type { MatchResult } from './MatchScene';
 import { BRANDING } from '@/game/config/branding';
+import { fs, fsn } from '@/game/config/type';
 
 const W = TUNING.view.width;
 const H = TUNING.view.height;
@@ -46,10 +47,10 @@ export class ResultsScene extends Phaser.Scene {
 
     if (winner) {
       this.add.text(W / 2, 96, winner.displayName, {
-        fontFamily: FONT.slam, fontSize: '34px', color: CSS.white,
+        fontFamily: FONT.slam, fontSize: fs(34), color: CSS.white,
       }).setOrigin(0.5);
       this.add.text(W / 2, 128, `“${pick(winner.quotes.win)}”`, {
-        fontFamily: FONT.mono, fontSize: '11px', color: CSS.gold,
+        fontFamily: FONT.mono, fontSize: fs(11), color: CSS.gold,
       }).setOrigin(0.5).setAlpha(0.85);
 
       const wp = new Portrait(this, winner, 158, 402, 1.4, 1);
@@ -64,7 +65,7 @@ export class ResultsScene extends Phaser.Scene {
     }
 
     // --- stat card ---
-    panel(this, W / 2 - 190, 158, 380, 208, C.gold, 0.1);
+    panel(this, W / 2 - 190, 158, 380, 7 * (fsn(13) + 6) + 26, C.gold, 0.1);
     const methodLabel = { PIN: 'PINFALL', KO: 'KNOCKOUT', TIME: 'TIME LIMIT', DRAW: 'DRAW' }[r.method];
     const rows: [string, string][] = [
       ['METHOD', methodLabel],
@@ -75,19 +76,22 @@ export class ResultsScene extends Phaser.Scene {
       ['FINISHER LANDED', r.finisherHit ? 'YES' : 'NO'],
       ['VENUE', arena.displayName],
     ];
+    // row pitch tracks the larger of the two type sizes so the readability
+    // floor cannot squeeze the key and value into each other
+    const rowPitch = fsn(13) + 6;
     rows.forEach(([k, val], i) => {
-      const y = 176 + i * 22;
+      const y = 174 + i * rowPitch;
       this.add.text(W / 2 - 172, y, k, {
-        fontFamily: FONT.mono, fontSize: '10px', color: CSS.bone,
+        fontFamily: FONT.mono, fontSize: fs(10), color: CSS.bone,
       }).setAlpha(0.7);
       this.add.text(W / 2 + 172, y, val, {
-        fontFamily: FONT.slam, fontSize: '13px', color: CSS.white,
+        fontFamily: FONT.slam, fontSize: fs(13), color: CSS.white,
       }).setOrigin(1, 0);
     });
 
     // --- SQUELSH rating ---
     this.add.text(W / 2, 380, `${BRANDING.sponsor} RATING`, {
-      fontFamily: FONT.mono, fontSize: '10px', color: CSS.acid,
+      fontFamily: FONT.mono, fontSize: fs(10), color: CSS.acid,
     }).setOrigin(0.5);
     const stars = this.add.graphics();
     for (let i = 0; i < 5; i++) {
@@ -107,7 +111,7 @@ export class ResultsScene extends Phaser.Scene {
     const unlocked = this.processUnlocks();
     if (unlocked.length > 0) {
       const t = this.add.text(W / 2, 440, `NEW ARENA UNLOCKED — ${unlocked.join(', ')}`, {
-        fontFamily: FONT.slam, fontSize: '16px', color: CSS.gold,
+        fontFamily: FONT.slam, fontSize: fs(16), color: CSS.gold,
       }).setOrigin(0.5);
       this.tweens.add({ targets: t, alpha: 0.4, duration: 500, yoyo: true, repeat: -1 });
       Audio.play('crowdPop', 0.7);

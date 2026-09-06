@@ -54,7 +54,7 @@ export const NOLA_WAREHOUSE_2018: ArenaConfig = {
     { kind: 'banners', parallax: 0.3, y: 150, density: 2, tint: 0xff2d95, tint2: 0xffd23f },
     { kind: 'crowd', parallax: 0.52, y: 262, density: 34, tint: 0x1b1020, tint2: 0xff2d95 },
   ],
-  ringHalfWidth: 372,
+  ringHalfWidth: 320,
   ringDepth: 92,
   crowdIntensity: 1.0,
   event: {

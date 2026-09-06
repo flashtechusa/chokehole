@@ -4,6 +4,7 @@ import { C, CSS, FONT } from '@/game/config/palette';
 import { TUNING } from '@/game/config/tuning';
 import { Audio } from '@/game/audio/AudioManager';
 import { crtOverlay, slam } from '@/game/ui/Kit';
+import { fs } from '@/game/config/type';
 
 const W = TUNING.view.width;
 const H = TUNING.view.height;
@@ -26,7 +27,7 @@ export class TitleScene extends Phaser.Scene {
     this.noise = this.add.graphics().setDepth(2);
 
     const interrupt = this.add.text(W / 2, H / 2, BRANDING.interrupt, {
-      fontFamily: FONT.mono, fontSize: '15px', color: CSS.acid,
+      fontFamily: FONT.mono, fontSize: fs(15), color: CSS.acid,
       align: 'center', wordWrap: { width: 620 },
     }).setOrigin(0.5).setAlpha(0).setDepth(20);
 
@@ -70,17 +71,17 @@ export class TitleScene extends Phaser.Scene {
     this.tweens.add({ targets: bar, alpha: 1, duration: 200, delay: 320 });
 
     const sub = this.add.text(W / 2, 309, BRANDING.subtitle, {
-      fontFamily: FONT.slam, fontSize: '30px', color: CSS.white,
+      fontFamily: FONT.slam, fontSize: fs(30), color: CSS.white,
     }).setOrigin(0.5).setDepth(11).setAlpha(0);
     this.tweens.add({ targets: sub, alpha: 1, duration: 200, delay: 380 });
 
     const tag = this.add.text(W / 2, 356, BRANDING.tagline, {
-      fontFamily: FONT.mono, fontSize: '13px', color: CSS.acid,
+      fontFamily: FONT.mono, fontSize: fs(13), color: CSS.acid,
     }).setOrigin(0.5).setDepth(11).setAlpha(0);
     this.tweens.add({ targets: tag, alpha: 0.9, duration: 300, delay: 520 });
 
     const tap = this.add.text(W / 2, 442, 'TAP TO ENTER THE BROADCAST', {
-      fontFamily: FONT.slam, fontSize: '20px', color: CSS.gold,
+      fontFamily: FONT.slam, fontSize: fs(20), color: CSS.gold,
     }).setOrigin(0.5).setDepth(11).setAlpha(0);
     this.tweens.add({ targets: tap, alpha: 1, duration: 260, delay: 700 });
     this.tweens.add({
@@ -89,7 +90,7 @@ export class TitleScene extends Phaser.Scene {
     });
 
     this.add.text(W / 2, 508, BRANDING.buildLabel, {
-      fontFamily: FONT.mono, fontSize: '9px', color: CSS.bone,
+      fontFamily: FONT.mono, fontSize: fs(9), color: CSS.bone,
     }).setOrigin(0.5).setAlpha(0.45).setDepth(11);
 
     this.started = true;

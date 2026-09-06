@@ -9,6 +9,7 @@ import { RAID } from '@/game/data/characters/raid';
 import { FS } from '@/game/combat/states';
 import { Save } from '@/game/save/SaveManager';
 import { pick } from '@/game/utils/math';
+import { fs } from '@/game/config/type';
 
 const W = TUNING.view.width;
 const H = TUNING.view.height;
@@ -49,7 +50,7 @@ export class MenuScene extends Phaser.Scene {
     bg.fillStyle(C.ink, 0.5);
     bg.fillRect(0, 0, W, H);
     bg.fillStyle(0x000000, 0.35);
-    bg.fillRect(W / 2 - 240, 150, 480, 300);
+    bg.fillRect(W / 2 - 232, 158, 464, 292);
 
     // flanking wrestlers
     const p1 = new Portrait(this, JASSY, 132, 468, 1.12, 1);
@@ -60,29 +61,30 @@ export class MenuScene extends Phaser.Scene {
 
     slam(this, W / 2 - 92, 62, BRANDING.titleLine1, 54, CSS.pink, -5);
     slam(this, W / 2 + 84, 100, BRANDING.titleLine2, 54, CSS.acid, -5);
-    this.add.text(W / 2, 142, BRANDING.subtitle, {
-      fontFamily: FONT.slam, fontSize: '19px', color: CSS.white,
+    this.add.text(W / 2, 146, BRANDING.subtitle, {
+      fontFamily: FONT.slam, fontSize: fs(19), color: CSS.white,
     }).setOrigin(0.5);
 
     const save = Save.get();
     const rec = `${save.totalWins}W / ${Math.max(0, save.totalMatches - save.totalWins)}L`;
 
     const bx = W / 2;
-    let by = 194;
-    const gap = 64;
+    const bw = 396;
+    let by = 202;
+    const gap = 70;
     makeButton(this, bx, by, 'QUICK MATCH', () => this.go('Select', { mode: 'quick' }),
-      { w: 300, h: 54, color: C.pink, sub: 'JASSY vs RAID — FIGHT NOW' });
+      { w: bw, h: 58, color: C.pink, sub: 'JASSY vs RAID — FIGHT NOW' });
     by += gap;
     makeButton(this, bx, by, 'CHOKE HOLE ARCHIVES', () => this.go('Archive'),
-      { w: 300, h: 50, color: C.gold, size: 20, sub: 'REAL VENUES / REAL HISTORY' });
-    by += gap - 4;
+      { w: bw, h: 54, color: C.gold, size: 20, sub: 'REAL VENUES / REAL HISTORY' });
+    by += gap;
     makeButton(this, bx, by, 'ROSTER', () => this.go('Roster'),
-      { w: 300, h: 50, color: C.cyan, size: 20, sub: `YOUR RECORD: ${rec}` });
+      { w: bw, h: 54, color: C.cyan, size: 20, sub: `YOUR RECORD: ${rec}` });
     by += gap - 4;
-    makeButton(this, bx - 78, by, 'HOW TO PLAY', () => this.go('HowTo'),
-      { w: 144, h: 46, color: C.acid, size: 15 });
-    makeButton(this, bx + 78, by, 'SETTINGS', () => this.go('Settings'),
-      { w: 144, h: 46, color: C.steel, size: 15 });
+    makeButton(this, bx - 102, by, 'HOW TO PLAY', () => this.go('HowTo'),
+      { w: 190, h: 46, color: C.acid, size: 15 });
+    makeButton(this, bx + 102, by, 'SETTINGS', () => this.go('Settings'),
+      { w: 190, h: 46, color: C.steel, size: 15 });
 
     const s = pick(SPONSORS);
     ticker(this, H - 14, `${BRANDING.network} // ${s.name}: ${s.line} // ${BRANDING.buildLabel}`);

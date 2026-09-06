@@ -5,6 +5,7 @@ import { mulberry32, seedFromString } from '@/game/utils/rng';
 import { shade } from '@/game/utils/math';
 import { C, FONT } from '@/game/config/palette';
 import { SPONSORS } from '@/game/config/branding';
+import { fs, fsn } from '@/game/config/type';
 
 const W = TUNING.view.width;
 const H = TUNING.view.height;
@@ -256,11 +257,11 @@ export class ArenaView {
       g.strokeRect(x - w / 2, def.y, w, h);
       const s = SPONSORS[i % SPONSORS.length]!;
       const t1 = this.scene.add.text(x, def.y + 22, s.name, {
-        fontFamily: FONT.slam, fontSize: '19px',
+        fontFamily: FONT.slam, fontSize: fs(19),
         color: `#${col.toString(16).padStart(6, '0')}`,
       }).setOrigin(0.5).setAlpha(0.85);
       const t2 = this.scene.add.text(x, def.y + 48, s.line, {
-        fontFamily: FONT.mono, fontSize: '8px', color: '#f3e9dd',
+        fontFamily: FONT.mono, fontSize: fs(8), color: '#f3e9dd',
         wordWrap: { width: w - 18 }, align: 'center',
       }).setOrigin(0.5).setAlpha(0.6);
       c.add([t1, t2]);
@@ -287,7 +288,7 @@ export class ArenaView {
       screens.push({ x, y, w, h, g: sg });
       const s = SPONSORS[i % SPONSORS.length]!;
       const t = this.scene.add.text(x + w / 2, y + h / 2, s.name, {
-        fontFamily: FONT.slam, fontSize: `${Math.round(Math.min(20, w / 7))}px`,
+        fontFamily: FONT.slam, fontSize: `${Math.round(Math.min(fsn(20), w / 7))}px`,
         color: i % 2 ? '#31e7ff' : '#ff2d95',
         align: 'center', wordWrap: { width: w - 10 },
       }).setOrigin(0.5).setAlpha(0.9);
@@ -471,13 +472,13 @@ export class ArenaView {
     this.ringBack.add(g);
 
     const logo = this.scene.add.text(cx, TUNING.ring.baseY + this.cfg.ringDepth * 0.42, 'CHOKE HOLE', {
-      fontFamily: FONT.slam, fontSize: '46px',
+      fontFamily: FONT.slam, fontSize: fs(46),
       color: `#${p.matLogo.toString(16).padStart(6, '0')}`,
     }).setOrigin(0.5).setAlpha(0.22).setScale(1, 0.42);
     this.ringBack.add(logo);
 
     const sub = this.scene.add.text(cx, TUNING.ring.baseY + this.cfg.ringDepth * 0.72, 'SQUELSH', {
-      fontFamily: FONT.slam, fontSize: '20px', color: '#000000',
+      fontFamily: FONT.slam, fontSize: fs(20), color: '#000000',
     }).setOrigin(0.5).setAlpha(0.12).setScale(1, 0.45);
     this.ringBack.add(sub);
 

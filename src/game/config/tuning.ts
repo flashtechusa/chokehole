@@ -39,11 +39,11 @@ export const TUNING = {
 
   fighter: {
     /** Multiplier applied to WrestlerStats.speed for walk. */
-    walkMult: 1.0,
-    runMult: 1.85,
+    walkMult: 1.32,
+    runMult: 2.0,
     /** Depth movement is slower than lateral for a wrestling-camera feel. */
     depthMult: 0.55,
-    accel: 2600,
+    accel: 3400,
     friction: 3400,
     gravity: 1750,
     /** Minimum separation before bodies push each other apart. */
@@ -70,12 +70,12 @@ export const TUNING = {
     /** Grapple. */
     grappleRange: 68,
     grappleStartup: 170,
-    grappleHoldMs: 1400,
-    grappleEscapeTaps: 5,
+    grappleHoldMs: 950,
+    grappleEscapeTaps: 4,
     throwDamage: 13,
     /** Down / recovery. */
-    downMs: 1150,
-    getUpMs: 380,
+    downMs: 850,
+    getUpMs: 300,
     getUpInvulnMs: 320,
     downMashReduction: 90,
     /** Pin. */
