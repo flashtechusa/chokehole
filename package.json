@@ -10,7 +10,7 @@
     "preview": "vite preview --host",
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke-test.mjs",
-    "build:single": "tsc --noEmit && vite build --config vite.config.single.ts && node scripts/name-single.mjs"
+    "build:single": "tsc --noEmit && node scripts/make-single-entry.mjs && vite build --config vite.config.single.ts && node scripts/name-single.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0"
