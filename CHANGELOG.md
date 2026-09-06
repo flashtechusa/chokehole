@@ -2,6 +2,23 @@
 
 Meaningful playable changes only.
 
+## 0.1.5 — One-file build
+
+You can now just open the game.
+
+- `npm run build:single` bundles everything into a single self-contained
+  `CHOKE-HOLE.html` (~1.3 MB). No Node, no server, no install, no internet —
+  open the file and play, or send it to a phone and open it there. A built copy
+  lives at the repo root so it can be downloaded and played straight from GitHub.
+- Possible only because the game loads no external assets: every wrestler, arena
+  and sound is generated at runtime, so there is nothing left to fetch once the
+  code is inlined.
+- The smoke test runs against the single file over `file://`, so the standalone
+  build is verified the same way the hosted one is.
+- The single file has no service worker (that needs a real origin), so it has no
+  offline cache and cannot install to a home screen. Deploy `npm run build` for
+  that.
+
 ## 0.1.4 — Jassy's hair corrected
 
 - Jassy's wig is dark, not blonde. Corrected on the collective's direct

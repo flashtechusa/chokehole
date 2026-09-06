@@ -13,7 +13,26 @@ performer photography is used anywhere in the pipeline.
 
 ---
 
-## Run it
+## Just play it (no install, no server)
+
+**`CHOKE-HOLE.html` in the repo root is the entire game in one file.** Download it
+and open it — in a desktop browser, or AirDrop/email it to a phone and open it
+there. No Node, no build, no server, no internet.
+
+That works because nothing in this game loads an external asset: every wrestler,
+arena and sound is generated at runtime, so once the code is inlined there is
+nothing left to fetch.
+
+Regenerate it any time with:
+
+```bash
+npm run build:single     # -> dist-single/CHOKE-HOLE.html
+```
+
+The one thing the single file cannot do is install to your home screen as an app
+— that needs a real web origin. For that, deploy the normal build (below).
+
+## Run it from source
 
 ```bash
 npm install
@@ -25,6 +44,7 @@ prints the network URL; the phone and the laptop must be on the same Wi-Fi.
 
 ```bash
 npm run build        # typechecks, then emits a static ./dist
+npm run build:single # the whole game as one standalone .html
 npm run preview      # serve ./dist locally
 npm run typecheck    # tsc --noEmit
 ```

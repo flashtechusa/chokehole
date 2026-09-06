@@ -1,5 +1,29 @@
 # Deployment
 
+## The zero-deploy option
+
+`npm run build:single` emits **`dist-single/CHOKE-HOLE.html`** — the whole game
+in a single ~1.3 MB file with everything inlined. Open it directly from disk, or
+send it to someone and they open it. No server, no install, no internet.
+
+This is possible only because the game loads no external assets: characters,
+arenas and audio are all generated at runtime. A copy is committed at the repo
+root as `CHOKE-HOLE.html` so it can be downloaded and played straight from
+GitHub.
+
+It is verified the same way as the hosted build — the smoke test runs against it
+over `file://`:
+
+```bash
+GAME_URL="file://$PWD/dist-single/CHOKE-HOLE.html" npm run smoke
+```
+
+Limitation: a service worker needs a real origin, so the single file has no
+offline caching and cannot be installed to a home screen as an app. For that,
+deploy the normal build.
+
+## The hosted build
+
 `npm run build` typechecks and emits a fully static `dist/`. There is no server,
 no database and no login.
 
