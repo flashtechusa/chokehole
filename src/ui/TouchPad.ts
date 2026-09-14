@@ -41,7 +41,7 @@ export class TouchPad {
     this.stickZone.appendChild(this.stick);
     this.root.appendChild(this.stickZone);
 
-    const hint = h('div', 'stick-hint mono', 'TOUCH TO MOVE');
+    const hint = h('div', 'stick-hint mono', 'SLIDE LEFT AND RIGHT');
     this.root.appendChild(hint);
 
     const buttons = h('div', 'buttons');

@@ -58,7 +58,6 @@ export class ReversalSystem {
     attacker.stun(TUNING.reversal.attackerStunMs);
     const away = defender.facing + Math.PI;
     attacker.vx += Math.cos(away) * -4.2;
-    attacker.vz += Math.sin(away) * -4.2;
     return true;
   }
 }

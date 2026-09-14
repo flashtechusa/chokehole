@@ -62,9 +62,10 @@ const out = await page.evaluate(async (opts) => {
   const step = () => {
     const p = sim.p1, a = sim.p2;
     const i = neutral();
-    const dx = a.x - p.x, dz = a.z - p.z;
-    const dist = Math.hypot(dx, dz);
-    const nx = dist > 0.01 ? dx/dist : 1, nz = dist > 0.01 ? dz/dist : 0;
+    // One axis: the fight is on a line, so "toward them" is a sign.
+    const dx = a.x - p.x;
+    const dist = Math.abs(dx);
+    const nx = dist > 0.01 ? Math.sign(dx) : 1;
     cad -= DT; mash -= DT; planT -= DT;
 
     // Reversal cue: always take it.
@@ -111,11 +112,9 @@ const out = await page.evaluate(async (opts) => {
         if (opts.mode !== 'basic' && r < 0.45) {
           // whip them at the nearest rope and meet them coming back
           const rx = Math.abs(p.x) > 1.2 ? -Math.sign(p.x) : (rnd() < 0.5 ? 1 : -1);
-          i.moveX = rx; i.moveY = 0; i.grab = true;
+          i.moveX = rx; i.grab = true;
         } else if (opts.mode !== 'basic' && r < 0.62) {
-          const c = nearestCornerTo(p.x, p.z, T);
-          const m = Math.hypot(c.x - p.x, c.z - p.z) || 1;
-          i.moveX = (c.x - p.x)/m; i.moveY = (c.z - p.z)/m; i.grab = true;
+          i.moveX = Math.sign(p.x) || 1; i.grab = true;
         } else {
           i.attack = true;
         }
@@ -139,34 +138,31 @@ const out = await page.evaluate(async (opts) => {
       } else if (p.state === 'APRON') {
         if (cad <= 0) { cad = 300; i.grab = true; i.anyPress = true; }
       } else if (plan === 'climb') {
-        const c = nearestCornerTo(p.x, p.z, T);
-        const cd = Math.hypot(c.x - p.x, c.z - p.z);
-        if (cd > 0.7) { const m = cd||1; i.moveX = (c.x-p.x)/m; i.moveY = (c.z-p.z)/m; }
+        const cx = (Math.sign(p.x) || 1) * T.ring.half;
+        if (Math.abs(cx - p.x) > 0.7) { i.moveX = Math.sign(cx - p.x); }
         else if (cad <= 0) { cad = 400; i.grab = true; i.anyPress = true; }
       } else if (plan === 'flank') {
         // walk round to their back, then take the waistlock
-        const bx = a.x - Math.cos(a.facing) * 0.95;
-        const bz = a.z - Math.sin(a.facing) * 0.95;
-        const g = Math.hypot(bx - p.x, bz - p.z) || 1;
-        if (g > 0.5) { i.moveX = (bx - p.x)/g; i.moveY = (bz - p.z)/g; }
-        else if (cad <= 0) { cad = 420; i.moveX = nx*0.35; i.moveY = nz*0.35; i.grab = true; i.anyPress = true; }
+        const bx = a.x - a.dir * 0.95;
+        const g = Math.abs(bx - p.x);
+        if (g > 0.5) { i.moveX = Math.sign(bx - p.x) || 1; }
+        else if (cad <= 0) { cad = 420; i.moveX = nx*0.35; i.grab = true; i.anyPress = true; }
       } else if (plan === 'prop' && sim.prop && !p.carrying) {
         const t = sim.prop;
-        const m = Math.hypot(t.x - p.x, t.z - p.z) || 1;
-        i.moveX = (t.x - p.x)/m; i.moveY = (t.z - p.z)/m;
+        i.moveX = Math.sign(t.x - p.x) || 1;
       } else if (plan === 'ropes') {
         // sprint laterally at the far rope: the long axis is the good one
-        i.moveX = -Math.sign(nx || 1); i.moveY = 0;
+        i.moveX = -Math.sign(nx || 1);
       } else if (plan === 'taunt') {
         if (cad <= 0) { cad = 1200; i.special = true; i.anyPress = true; }
       } else {
         if (p.canFinish || (p.canSignature && rnd() < 0.03)) {
           if (dist <= 2.0 && cad <= 0) { cad = 400; i.special = true; i.anyPress = true; }
-          else { i.moveX = nx; i.moveY = nz; }
-        } else if (dist > 1.25) { i.moveX = nx*0.7; i.moveY = nz*0.7; }
+          else { i.moveX = nx; }
+        } else if (dist > 1.25) { i.moveX = nx*0.7; }
         else if (cad <= 0) {
           cad = opts.mode === 'basic' ? 340 : 480;
-          if (a.isDown && dist < 1.6) { i.moveX = nx*0.34; i.moveY = nz*0.34; i.grab = true; }
+          if (a.isDown && dist < 1.6) { i.moveX = nx*0.34; i.grab = true; }
           else if (rnd() < 0.26) { i.grab = true; }
           else { i.attack = true; }
           i.anyPress = true;
@@ -176,14 +172,6 @@ const out = await page.evaluate(async (opts) => {
     }
     return runOne(i);
   };
-
-  function nearestCornerTo(x, z, T) {
-    const h = T.ring.half, hz = T.ring.halfZ;
-    const cs = [[h,hz],[h,-hz],[-h,hz],[-h,-hz]];
-    let best = cs[0], bd = Infinity;
-    for (const c of cs) { const d = (c[0]-x)**2 + (c[1]-z)**2; if (d < bd) { bd = d; best = c; } }
-    return { x: best[0], z: best[1] };
-  }
 
   let lastP1 = sim.p1.health, lastP2 = sim.p2.health;
   function runOne(i) {

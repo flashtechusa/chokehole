@@ -2,168 +2,142 @@ import { TUNING } from '@/game/config/tuning';
 import type { Zone } from './types';
 
 /**
- * Ring geometry. The ropes, corners, apron and floor are gameplay surfaces, not
- * decoration, so every system asks this module where a body actually is.
+ * Ring geometry, on ONE AXIS.
  *
- * Coordinates are world XZ. The mat sits at TUNING.ring.matY; the floor is 0.
+ * CHOKE HOLE is 2.5D: 3D models and a 3D arena, but the fight happens on a
+ * single line. Everything a wrestler can stand on — the mat, the two corners,
+ * the aprons, the ringside floor — is a segment of that line, measured in X.
+ * There is no depth in the simulation at all.
+ *
+ *     floor    apron  [=========== MAT ===========]  apron    floor
+ *   -floorHalf      -half                        +half      +floorHalf
+ *                    ^corner                    corner^
+ *
+ * The ring still has four posts and four sides on screen. You can only use two
+ * of them, and that is the point: a player pushing left or right always knows
+ * exactly what is at the end of the push.
+ *
+ * Z exists only for rendering. Nothing in this module reads it, and the
+ * simulation pins every body to `playZ`.
  */
 
 export const RING = {
-  /** Mat half-extent across the lateral axis (inside the ropes). */
+  /** Mat half-extent. The whole play line is [-half, +half]. */
   half: TUNING.ring.half,
-  /** Mat half-extent along the shallow depth axis. */
-  halfZ: TUNING.ring.halfZ,
-  /** Within this of an edge counts as "at the ropes". */
+  /** The single gameplay plane. Every body sits here. */
+  playZ: 0,
+  /** Within this of an end counts as "at the ropes". */
   ropeBand: 0.62,
   /**
-   * Within this of a corner point counts as "in the corner". Generous on
-   * purpose: asking a thumb to land inside a one-unit circle before it can
-   * climb turns the best move in the game into a fiddly one.
+   * Within this of an end counts as "in the corner". Generous on purpose:
+   * asking a thumb to stop inside a narrow band before it can climb turns the
+   * best move in the game into a fiddly one.
    */
-  cornerR: 1.55,
+  cornerBand: 1.05,
   /** The apron is the walkable ledge between the ropes and the drop. */
   apronOuter: TUNING.ring.half + 0.62,
-  apronOuterZ: TUNING.ring.halfZ + 0.62,
   /**
    * Ringside floor extent. Beyond this you are against the barricade.
    *
    * Deliberately narrow: the crowd stands right up against the apron, its first
    * row at half + 1.45. A wider floor let a thrown fighter land BEHIND the front
-   * row, where you could not see them, and dragged the camera back so far that
-   * the near crowd filled the foreground.
+   * row, where you could not see them.
    */
   floorHalf: TUNING.ring.half + 1.15,
+
+  /* --- rendering only: the ring is a box on screen, a line in play --- */
+  halfZ: TUNING.ring.halfZ,
+  apronOuterZ: TUNING.ring.halfZ + 0.62,
   floorHalfZ: TUNING.ring.halfZ + 1.0,
 };
 
-export interface Corner { x: number; z: number }
+/** -1 for the left end of the line, +1 for the right. */
+export type Side = -1 | 1;
 
-export const CORNERS: Corner[] = [
-  { x: RING.half, z: RING.halfZ },
-  { x: RING.half, z: -RING.halfZ },
-  { x: -RING.half, z: RING.halfZ },
-  { x: -RING.half, z: -RING.halfZ },
-];
-
-/** Squared distance, for comparisons that never need the square root. */
-function d2(ax: number, az: number, bx: number, bz: number): number {
-  const dx = ax - bx;
-  const dz = az - bz;
-  return dx * dx + dz * dz;
+export function sideOf(x: number): Side {
+  return x >= 0 ? 1 : -1;
 }
 
-export function nearestCorner(x: number, z: number): { corner: Corner; dist: number } {
-  let best = CORNERS[0]!;
-  let bestD = Infinity;
-  for (const c of CORNERS) {
-    const d = d2(x, z, c.x, c.z);
-    if (d < bestD) { bestD = d; best = c; }
-  }
-  return { corner: best, dist: Math.sqrt(bestD) };
+/** X of the corner at this end of the ring. */
+export function cornerX(x: number): number {
+  return sideOf(x) * RING.half;
 }
 
-export function inCorner(x: number, z: number): boolean {
-  return nearestCorner(x, z).dist <= RING.cornerR;
+/** How far this body is from the nearer corner. */
+export function cornerDist(x: number): number {
+  return Math.abs(RING.half - Math.abs(x));
 }
 
-/** Inside the ropes, but close enough to an edge to use them. */
-export function atRopes(x: number, z: number): boolean {
-  return Math.abs(x) >= RING.half - RING.ropeBand
-    || Math.abs(z) >= RING.halfZ - RING.ropeBand;
+export function inCorner(x: number): boolean {
+  return Math.abs(x) >= RING.half - RING.cornerBand;
 }
 
-export function insideRing(x: number, z: number): boolean {
-  return Math.abs(x) <= RING.half && Math.abs(z) <= RING.halfZ;
+/** Inside the ropes, but close enough to an end to use them. */
+export function atRopes(x: number): boolean {
+  return Math.abs(x) >= RING.half - RING.ropeBand;
 }
 
-export function onApron(x: number, z: number): boolean {
-  if (insideRing(x, z)) return false;
-  return Math.abs(x) <= RING.apronOuter && Math.abs(z) <= RING.apronOuterZ;
+export function insideRing(x: number): boolean {
+  return Math.abs(x) <= RING.half;
+}
+
+export function onApron(x: number): boolean {
+  if (insideRing(x)) return false;
+  return Math.abs(x) <= RING.apronOuter;
 }
 
 /** The surface height a body at this position falls to. */
-export function groundAt(x: number, z: number): number {
-  return Math.abs(x) <= RING.apronOuter && Math.abs(z) <= RING.apronOuterZ
-    ? TUNING.ring.matY
-    : 0;
+export function groundAt(x: number): number {
+  return Math.abs(x) <= RING.apronOuter ? TUNING.ring.matY : 0;
 }
 
-export function zoneAt(x: number, z: number): Zone {
-  if (!insideRing(x, z)) return onApron(x, z) ? 'APRON' : 'OUTSIDE';
-  if (inCorner(x, z)) return 'CORNER';
-  if (atRopes(x, z)) return 'ROPES';
+export function zoneAt(x: number): Zone {
+  if (!insideRing(x)) return onApron(x) ? 'APRON' : 'OUTSIDE';
+  if (inCorner(x)) return 'CORNER';
+  if (atRopes(x)) return 'ROPES';
   return 'MAT';
 }
 
-export interface RopeHit {
-  /** Outward normal of the rope being run at. */
-  nx: number;
-  nz: number;
-  /** Where the body would meet the ropes. */
-  cx: number;
-  cz: number;
-}
-
 /**
- * Which rope a body is heading into, or null if it is not running at one.
+ * The rope a body is heading into, as an outward direction, or 0 if it is not
+ * running at one.
  *
- * A corner is NOT a rope: heading into one has to stay a walk, because a player
- * crossing the ring diagonally to climb a turnbuckle would otherwise rebound off
- * the ropes and never arrive — which made the whole top-rope game unreachable.
- * Glancing approaches are excluded for the same reason.
+ * On a line the two ends are BOTH the ropes and the corners, and that is fine,
+ * because the player says which one they mean with a different input: a sprint
+ * into the end runs the ropes, a GRAB at the end climbs the turnbuckle. In two
+ * dimensions this function had to refuse corners, or a player crossing the ring
+ * diagonally to climb would rebound instead of arriving. Keeping that refusal
+ * here made rope running impossible: every position close enough to trip the
+ * lookahead is also inside the corner band.
  */
-export function ropeAhead(
-  x: number, z: number, dx: number, dz: number, lookahead: number,
-): RopeHit | null {
-  const fx = x + dx * lookahead;
-  const fz = z + dz * lookahead;
-  if (Math.abs(fx) < RING.half && Math.abs(fz) < RING.halfZ) return null;
-
-  // Whichever axis breaches first is the rope being hit.
-  const ox = Math.abs(fx) - RING.half;
-  const oz = Math.abs(fz) - RING.halfZ;
-  const hit: RopeHit = ox >= oz
-    ? { nx: Math.sign(fx) || 1, nz: 0, cx: Math.sign(fx) * RING.half, cz: fz }
-    : { nx: 0, nz: Math.sign(fz) || 1, cx: fx, cz: Math.sign(fz) * RING.halfZ };
-
-  if (inCorner(hit.cx, hit.cz)) return null;
-  // Must be heading fairly square at the ropes, not sliding along them.
-  const dot = Math.abs(dx * hit.nx + dz * hit.nz);
-  if (dot < 0.7) return null;
-  return hit;
+export function ropeAhead(x: number, dir: number, lookahead: number): Side | 0 {
+  if (dir === 0) return 0;
+  const ahead = x + Math.sign(dir) * lookahead;
+  if (Math.abs(ahead) < RING.half) return 0;
+  const side = sideOf(ahead);
+  // Running at the ropes means running at the END you are pointed at.
+  return Math.sign(dir) === side ? side : 0;
 }
 
 /** Clamps a body to the ringside floor so it cannot wander into the crowd. */
-export function clampFloor(x: number, z: number, r: number): { x: number; z: number } {
-  const lx = RING.floorHalf - r;
-  const lz = RING.floorHalfZ - r;
-  return {
-    x: Math.max(-lx, Math.min(lx, x)),
-    z: Math.max(-lz, Math.min(lz, z)),
-  };
+export function clampFloor(x: number, r: number): number {
+  const lim = RING.floorHalf - r;
+  return Math.max(-lim, Math.min(lim, x));
 }
 
 /** Clamps a body to the mat. */
-export function clampMat(x: number, z: number, r: number): { x: number; z: number } {
-  const lx = RING.half - r;
-  const lz = RING.halfZ - r;
-  return {
-    x: Math.max(-lx, Math.min(lx, x)),
-    z: Math.max(-lz, Math.min(lz, z)),
-  };
+export function clampMat(x: number, r: number): number {
+  const lim = RING.half - r;
+  return Math.max(-lim, Math.min(lim, x));
 }
 
 /**
- * True when `me` is behind `target`, measured from the target's own facing.
- * This is what makes turning matter: it is the difference between a tie-up and
- * a rear grapple.
+ * True when `me` is behind `target`. On a line this is exact: you are behind
+ * someone when you are on the side they are not facing. This is what makes
+ * turning matter — it is the difference between a tie-up and a rear grapple.
  */
-export function isBehind(
-  meX: number, meZ: number, targetX: number, targetZ: number, targetFacing: number,
-): boolean {
-  const toMe = Math.atan2(meZ - targetZ, meX - targetX);
-  let d = (toMe - targetFacing) % (Math.PI * 2);
-  if (d > Math.PI) d -= Math.PI * 2;
-  if (d < -Math.PI) d += Math.PI * 2;
-  return Math.abs(d) > TUNING.combat.rearAngle;
+export function isBehind(meX: number, targetX: number, targetDir: number): boolean {
+  const gap = meX - targetX;
+  if (Math.abs(gap) < 0.05) return false;
+  return Math.sign(gap) !== Math.sign(targetDir);
 }

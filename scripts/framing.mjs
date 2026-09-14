@@ -73,8 +73,8 @@ const out = await page.evaluate(async () => {
 
   let place = { mid: 0, sep: 1.5, pin: false };
   const hold = setInterval(() => {
-    p.x = place.mid - place.sep / 2; p.z = 0; p.facing = 0; p.vx = 0; p.vz = 0;
-    a.x = place.mid + place.sep / 2; a.z = 0; a.facing = Math.PI; a.vx = 0; a.vz = 0;
+    p.x = place.mid - place.sep / 2; p.facing = 0; p.vx = 0;
+    a.x = place.mid + place.sep / 2; a.facing = Math.PI; a.vx = 0;
     p.y = p.groundY; a.y = a.groundY;
     p.setState(place.pin ? 'PIN' : 'IDLE');
     a.setState(place.pin ? 'PINNED' : 'IDLE');

@@ -2,6 +2,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import { UniversalCamera } from '@babylonjs/core/Cameras/universalCamera';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { TUNING } from '@/game/config/tuning';
+import { RING } from '@/game/combat/ring';
 import { clamp, damp, lerp } from '@/game/util/math';
 
 export type CamMode =
@@ -73,7 +74,6 @@ export class DirectorCamera {
     const T = TUNING.camera;
 
     const midX = (a.x + b.x) * 0.5;
-    const midZ = (a.z + b.z) * 0.5;
     const spreadX = Math.abs(a.x - b.x);
     const meanY = (a.y + b.y) * 0.5;
     const spreadY = Math.abs(a.y - b.y);
@@ -96,7 +96,8 @@ export class DirectorCamera {
     // Full bias from mid-ring rightwards, tapering to nothing at the left rope.
     const biasT = clamp((midX + T.panLimit) / T.panLimit, 0, 1);
     let lookX = clamp(midX, -T.panLimit, T.panLimit) + T.lookBias * biasT;
-    let lookZ = midZ * T.depthShift;
+    // The fight is on a line, so there is no depth to follow.
+    let lookZ = RING.playZ;
     let follow = T.follow;
 
     switch (this.mode) {
@@ -116,7 +117,7 @@ export class DirectorCamera {
         wantHeight = 2.62;
         lookY = 2.18;
         follow = 6.5;
-        if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; lookZ = this.focus.z * T.depthShift; }
+        if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; }
         break;
 
       case 'FINISHER': {
@@ -127,7 +128,7 @@ export class DirectorCamera {
         wantHeight = lerp(3.3, 2.5, clamp(this.modeTimer / 1500, 0, 1));
         lookY = 2.12;
         follow = 4.2;
-        if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; lookZ = this.focus.z * T.depthShift; }
+        if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; }
         break;
       }
 
@@ -137,7 +138,7 @@ export class DirectorCamera {
         wantHeight = 2.15;
         lookY = 1.72;
         follow = 9;
-        if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; lookZ = this.focus.z * T.depthShift; }
+        if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; }
         break;
 
       case 'PIN':
@@ -145,13 +146,13 @@ export class DirectorCamera {
         wantHeight = 2.45;
         lookY = 1.78;
         follow = 5.0;
-        if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; lookZ = this.focus.z * T.depthShift; }
+        if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; }
         break;
 
       case 'VICTORY': {
         this.orbit += dt / 1000;
         const f = this.focus;
-        if (f) { lookX = f.x + T.lookBias * biasT; lookZ = f.z * T.depthShift; }
+        if (f) { lookX = f.x + T.lookBias * biasT; }
         wantYaw = T.yaw + this.orbit * 0.3;
         wantDist = 5.9;
         wantHeight = 2.95;

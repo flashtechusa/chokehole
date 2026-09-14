@@ -2,7 +2,7 @@ import type { MoveDef } from './types';
 import { FS, HITTABLE } from './states';
 import { Fighter } from './Fighter';
 import { TUNING } from '@/game/config/tuning';
-import { angleDelta } from '@/game/util/math';
+import { RING } from './ring';
 
 export interface HitReport {
   attacker: Fighter;
@@ -50,15 +50,16 @@ export class CombatResolver {
       if (defender.invuln > 0) return null;
 
       const dx = defender.x - attacker.x;
-      const dz = defender.z - attacker.z;
-      const dist = Math.hypot(dx, dz);
+      const dist = Math.abs(dx);
       if (dist > m.reach + defender.cfg.stats.radius) return null;
 
-      // Wide forgiving cone: a phone thumb cannot aim precisely.
-      const toTarget = Math.atan2(dz, dx);
-      // A body in mid-air is committed and cannot steer, so its cone is wider.
-      const arc = flying ? Math.max(m.arc, 2.0) : m.arc;
-      if (Math.abs(angleDelta(attacker.facing, toTarget)) > arc) return null;
+      /*
+       * On a line a strike either lands in front of you or it does not: there
+       * is no cone to be generous with. A body already in mid-air is committed
+       * and cannot steer, so it is allowed to connect either way — otherwise a
+       * dive that crossed over its target in flight would pass straight through.
+       */
+      if (!flying && dist > 0.02 && Math.sign(dx) !== attacker.dir) return null;
 
       if (m.kind === 'ground') {
         if (!defender.isDown) return null;
@@ -97,9 +98,9 @@ export class CombatResolver {
 
     return {
       attacker, defender, move: m, damage, combo: chain + 1, counter: counter > 1, fresh,
-      x: attacker.x + Math.cos(attacker.facing) * m.reach * 0.65,
+      x: attacker.x + attacker.dir * m.reach * 0.65,
       y: 1.05 + (m.kind === 'ground' ? -0.75 : 0),
-      z: attacker.z + Math.sin(attacker.facing) * m.reach * 0.65,
+      z: RING.playZ,
     };
   }
 
@@ -107,15 +108,15 @@ export class CombatResolver {
   static separate(a: Fighter, b: Fighter, dt: number): void {
     if (a.state === FS.GRAPPLING || a.state === FS.GRAPPLED) return;
     if (b.state === FS.GRAPPLING || b.state === FS.GRAPPLED) return;
+    // On a line, two bodies can only ever be apart in one direction. That is
+    // what stops them ever occupying the same screen space.
     const dx = b.x - a.x;
-    const dz = b.z - a.z;
-    const d = Math.hypot(dx, dz);
+    const d = Math.abs(dx);
     const min = a.cfg.stats.radius + b.cfg.stats.radius;
     if (d >= min || d < 1e-4) return;
     const push = (min - d) / min * TUNING.move.pushForce * (dt / 1000);
-    const nx = dx / d;
-    const nz = dz / d;
-    a.x -= nx * push; a.z -= nz * push;
-    b.x += nx * push; b.z += nz * push;
+    const nx = Math.sign(dx);
+    a.x -= nx * push;
+    b.x += nx * push;
   }
 }

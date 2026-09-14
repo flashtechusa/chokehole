@@ -7,57 +7,85 @@ was never measured.
 
 ## The shape of the game: 3D rendered, 2.5D played
 
-Everything is Babylon.js 3D — real geometry, real lighting, procedural rigs. The
-*gameplay* is 2.5D: a wide, shallow play space and a camera that stays put.
+Everything is Babylon.js 3D — real geometry, real lighting, procedural rigs, a
+3D arena. **The combat logic runs on a 2D plane.** That is what 2.5D means, and
+it is the model the genre's reference point, Action Arcade Wrestling, uses:
+3D models and a 3D building, a fight restricted to one plane.
 
-### The camera, and how it is framed
+### The ring is a line
 
-The first pass at this was still a diorama: a 23-degree three-quarter angle, a
-49-degree wide lens and five to six units of distance, which meant you were
-looking DOWN at a whole ring containing two small figures. Rendering in 3D does
-not make a game 2.5D; framing does.
+`combat/ring.ts` describes the whole play space on one axis:
 
-Four things fix it, and all four are measured rather than eyeballed:
+```
+     floor    apron  [=========== MAT ===========]  apron    floor
+   -floorHalf      -half                        +half      +floorHalf
+                    ^corner                    corner^
+```
 
-| | Was | Now |
-| --- | --- | --- |
-| Yaw off side-on | 23° | 11° |
-| Lens | 49° (wide) | 41° (longer) |
-| Distance | 4.6–6.2 | 4.9–6.1 |
-| Tilt down | 7° | 4° |
+There is no depth in the simulation. Every body sits on `RING.playZ`, and the
+only horizontal coordinate that exists is `x`. The ring still has four posts and
+four sides on screen; you can only use two of them, and that is the point — a
+player pushing left or right always knows exactly what is at the end of the
+push.
 
-- **A longer lens** flattens the perspective, so the far ropes and the crowd sit
-  behind the action like a backdrop instead of a box you are peering into.
-- **Distance is set from the VERTICAL field of view**, which is what actually
-  limits how big a wrestler can be. Framing for the *width* is what kept pushing
-  the camera back: a 2.16:1 phone is over seven units wide at these distances,
-  wider than the ring, so both fighters stay framed however far apart they get.
-- **The tilt is about four degrees**, so the camera looks *across* the mat, not
-  down into it. Every extra degree turns another band of empty mat into
-  foreground.
-- **The rig sits slightly above the fighters' centre of mass**, which puts them
-  below the middle of the frame. The HUD owns the top quarter of a 390px screen,
-  and centred framing put both wrestlers' heads behind it.
+Two earlier attempts at "make it look 2.5D" moved the camera and failed, twice,
+because the camera was never the problem. What made it read as 3D was the fight
+moving in depth.
 
-The eleven degrees of yaw are not decoration: they are what lets two fighters at
-different depths separate on screen instead of hiding behind each other.
+### What each end of the line is
 
-**Measured**, across the full width of the ring and at every separation: a
-wrestler is **51–58% of the screen height**, and the pair sits inside the 12–79%
-horizontal band — clear of the three buttons in the bottom-right corner.
+Both ends serve double duty, and the player says which one they mean with a
+different input rather than a different position:
 
-The look point is also pushed left of centre, tapering to nothing at the left
-rope. The buttons own the bottom-right permanently; the joystick on the left is
-floating and only exists while a thumb is down.
+| Input at the end of the ring | What happens |
+| --- | --- |
+| Sprint into it | Rope run, then a rebound |
+| Walk to it, press GRAB | Climb the turnbuckle |
+| Walk out of it | Step onto the apron |
+| Get thrown at it | Corner, or over the top to the floor |
 
-The camera pans, shifts a little with depth and zooms modestly. It never orbits
-during play. Cinematic angles are reserved for big throws, top-rope dives,
-signatures, finishers, near falls, entrances and victories, and every one of
-them was measured to keep both fighters on screen and clear of the HUD before it
-shipped.
+This is why the old rule "a corner is not a rope" had to go. In two dimensions
+it stopped a player crossing the ring diagonally to climb from rebounding
+instead of arriving. On a line it made rope running *impossible*: every position
+close enough to trip the rope lookahead is also inside the corner band.
 
-Move callouts are a broadcast **lower-third**, anchored bottom-left. Centred,
-they sat straight over the two wrestlers and hid the fight they were describing.
+### What this buys
+
+Running the ropes went from something the scripted player managed once or twice
+a match to **26–38 rope runs and 8–17 rebounds per match**, because sprinting
+into a rope is now simply what happens when you hold a direction. Getting behind
+someone is exact rather than a cone test. A throw has five destinations and the
+player can tell them apart.
+
+### The camera
+
+Square to the line and close: an 11-degree yaw for solidity, a 41-degree lens so
+the ring reads as a backdrop rather than a box, a 4-degree downward tilt, and a
+distance set from the VERTICAL field of view — which is what limits how big a
+wrestler can be. Framing for the *width* is what used to push the camera back: a
+2.16:1 phone is over seven units wide at these distances, wider than the ring.
+
+The camera rig sits slightly above the fighters' centre of mass so they land
+below the middle of the frame, clear of a HUD that owns the top quarter. The
+look point is pushed left, tapering to nothing at the left rope, so the
+right-hand wrestler never disappears behind the three buttons.
+
+`npm run framing` measures all of this in screen pixels rather than by eye.
+
+## Controls: the stick is left, right, and two modifiers
+
+`moveX` moves and faces. `moveY` moves nothing — there is nowhere to move — so
+it is a modifier the simulation reads when aiming:
+
+| Input | Result |
+| --- | --- |
+| LEFT / RIGHT | Walk or run that way, and face that way |
+| LEFT / RIGHT hard | Sprint; into a rope, that is a rope run |
+| UP, while holding someone at the ropes | Throw them over the top |
+| Neutral | Stand still, still facing wherever you were |
+
+The stick used to be rotated into the camera's frame. It is not any more: the
+camera is square to the line, so LEFT is left, always.
 
 ## Turning is mandatory
 

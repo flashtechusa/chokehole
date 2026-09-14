@@ -3,7 +3,7 @@ import type { PinState } from '@/game/combat/PinSystem';
 import type { Intent } from '@/game/input/Intent';
 import { neutralIntent } from '@/game/input/Intent';
 import { FS } from '@/game/combat/states';
-import { RING, nearestCorner } from '@/game/combat/ring';
+import { RING, cornerX, inCorner } from '@/game/combat/ring';
 import { TUNING } from '@/game/config/tuning';
 import type { AIProfile } from './profiles';
 import type { Rng } from '@/game/util/rng';
@@ -53,11 +53,10 @@ export class AIController {
     this.mashTimer -= dt;
     this.tapTimer -= dt;
 
+    // One axis. The fight is on a line, so "toward the opponent" is a sign.
     const dx = foe.x - me.x;
-    const dz = foe.z - me.z;
-    const dist = Math.hypot(dx, dz);
-    const toFoeX = dist > 0.001 ? dx / dist : 1;
-    const toFoeZ = dist > 0.001 ? dz / dist : 0;
+    const dist = Math.abs(dx);
+    const toFoeX = dist > 0.001 ? Math.sign(dx) : 1;
 
     /**
      * Facing now follows the stick for everyone, so the AI has to actually aim
@@ -67,7 +66,6 @@ export class AIController {
      */
     const aim = (i: Intent, amount = 0.34): void => {
       i.moveX = toFoeX * amount;
-      i.moveY = toFoeZ * amount;
     };
 
     // --- mashing out of holds and knockdowns ---
@@ -89,19 +87,18 @@ export class AIController {
           return it;
         }
         const roll = this.rng.next();
-        if (roll < 0.3) {
-          // whip into the ropes and meet them coming back
-          const away = nearestRopeDir(me.x, me.z);
-          it.moveX = away.x; it.moveY = away.z;
+        const end = nearestEnd(me.x);
+        if (roll < 0.34) {
+          // Whip them at the near end and meet them coming back.
+          it.moveX = end;
           it.grab = true;
-        } else if (roll < 0.52) {
-          const c = nearestCorner(foe.x, foe.z).corner;
-          const d = norm(c.x - me.x, c.z - me.z);
-          it.moveX = d.x; it.moveY = d.z;
+        } else if (roll < 0.56) {
+          // Bury them in the corner.
+          it.moveX = end;
           it.attack = true;
-        } else if (roll < 0.66 && this.profile.aggression > 0.6) {
-          const away = nearestRopeDir(me.x, me.z);
-          it.moveX = away.x * 1.2; it.moveY = away.z * 1.2;
+        } else if (roll < 0.68 && this.profile.aggression > 0.6) {
+          // Over the top rope, if there is any chance of reaching it.
+          it.moveX = end; it.moveY = 1;
           it.attack = true;
         } else {
           it.attack = true;
@@ -186,49 +183,46 @@ export class AIController {
     switch (this.plan) {
       case 'APPROACH': {
         const closeAt = me.cfg.moves.light1.reach * 0.7;
-        if (dist > closeAt) { it.moveX = toFoeX; it.moveY = toFoeZ; }
+        if (dist > closeAt) { it.moveX = toFoeX; }
         else if (this.tapTimer <= 0) { this.tapTimer = 240; aim(it); it.attack = true; it.anyPress = true; }
         break;
       }
       case 'STRIKE': {
         const closeAt = me.cfg.moves.light1.reach * 0.82;
-        if (dist > closeAt) { it.moveX = toFoeX * 0.9; it.moveY = toFoeZ * 0.9; }
+        if (dist > closeAt) { it.moveX = toFoeX * 0.9; }
         if (dist <= closeAt && this.tapTimer <= 0) {
           this.tapTimer = 230; aim(it); it.attack = true; it.anyPress = true;
         }
         break;
       }
       case 'GRAB': {
-        if (dist > me.cfg.moves.grapple.reach * 0.8) { it.moveX = toFoeX; it.moveY = toFoeZ; }
+        if (dist > me.cfg.moves.grapple.reach * 0.8) { it.moveX = toFoeX; }
         else if (this.tapTimer <= 0) { this.tapTimer = 420; aim(it); it.grab = true; it.anyPress = true; }
         break;
       }
       case 'SPECIAL':
-        if (dist > me.cfg.moves.signature.reach * 0.7) { it.moveX = toFoeX; it.moveY = toFoeZ; }
+        if (dist > me.cfg.moves.signature.reach * 0.7) { it.moveX = toFoeX; }
         else if (this.tapTimer <= 0) { this.tapTimer = 500; aim(it); it.special = true; it.anyPress = true; }
         break;
       case 'PIN':
-        if (dist > TUNING.pin.range * 0.7) { it.moveX = toFoeX; it.moveY = toFoeZ; }
+        if (dist > TUNING.pin.range * 0.7) { it.moveX = toFoeX; }
         else if (this.tapTimer <= 0) { this.tapTimer = 320; aim(it); it.grab = true; it.anyPress = true; }
         break;
       case 'ROPES': {
-        // Sprint at the nearest rope away from the opponent, then rebound back.
-        const d = ropeAwayFrom(me.x, me.z, toFoeX, toFoeZ);
-        it.moveX = d.x; it.moveY = d.z;
+        // Sprint at the end away from the opponent, then rebound back at them.
+        it.moveX = ropeAwayFrom(me.x, toFoeX);
         break;
       }
       case 'CLIMB': {
-        const c = nearestCorner(me.x, me.z);
-        if (c.dist > RING.cornerR * 0.7) {
-          const d = norm(c.corner.x - me.x, c.corner.z - me.z);
-          it.moveX = d.x * 0.6; it.moveY = d.z * 0.6;
+        if (!inCorner(me.x)) {
+          it.moveX = Math.sign(cornerX(me.x) - me.x) * 0.6;
         } else if (this.tapTimer <= 0) {
           this.tapTimer = 420; it.grab = true; it.anyPress = true;
         }
         break;
       }
       case 'CHASE_OUTSIDE': {
-        it.moveX = toFoeX; it.moveY = toFoeZ;
+        it.moveX = toFoeX;
         if (dist < 1.6 && this.tapTimer <= 0) {
           this.tapTimer = 260; aim(it); it.attack = true; it.anyPress = true;
         }
@@ -237,8 +231,7 @@ export class AIController {
       case 'CAN': case 'PROP': {
         const target = this.plan === 'CAN' ? this.can : this.prop;
         if (!target) { this.plan = 'APPROACH'; break; }
-        const d = norm(target.x - me.x, target.z - me.z);
-        it.moveX = d.x; it.moveY = d.z;
+        it.moveX = Math.sign(target.x - me.x) || 1;
         break;
       }
       case 'TAUNT':
@@ -250,19 +243,20 @@ export class AIController {
          * exists to show the player that turning matters: being grabbed from
          * behind teaches it faster than any tutorial card.
          */
-        const behindX = foe.x - Math.cos(foe.facing) * 1.0;
-        const behindZ = foe.z - Math.sin(foe.facing) * 1.0;
-        const d = norm(behindX - me.x, behindZ - me.z);
-        const gap = Math.hypot(behindX - me.x, behindZ - me.z);
-        if (gap > 0.55) { it.moveX = d.x; it.moveY = d.z; }
+        const behindX = foe.x - foe.dir * 1.0;
+        const toBehind = Math.sign(behindX - me.x) || 1;
+        const gap = Math.abs(behindX - me.x);
+        if (gap > 0.55) { it.moveX = toBehind; }
         else if (this.tapTimer <= 0) {
           this.tapTimer = 420; aim(it); it.grab = true; it.anyPress = true;
         }
         break;
       }
       case 'SPACE': {
-        it.moveX = -toFoeZ * 0.7 - toFoeX * 0.25;
-        it.moveY = toFoeX * 0.7 - toFoeZ * 0.25;
+        // On a line there is one way to make space: back off, unless that
+        // means backing into a corner, in which case walk past them instead.
+        const away = -toFoeX;
+        it.moveX = RING.half - away * me.x > 1.2 ? away * 0.8 : toFoeX * 0.9;
         break;
       }
     }
@@ -337,33 +331,18 @@ export class AIController {
   }
 }
 
-function norm(x: number, z: number): { x: number; z: number } {
-  const d = Math.hypot(x, z) || 1;
-  return { x: x / d, z: z / d };
+/** Which end of the line this body is nearer: -1 left, +1 right. */
+function nearestEnd(x: number): number {
+  return Math.sign(x) || 1;
 }
 
-/** Unit vector at the nearest rope. */
-function nearestRopeDir(x: number, z: number): { x: number; z: number } {
-  return Math.abs(x) >= Math.abs(z)
-    ? { x: Math.sign(x) || 1, z: 0 }
-    : { x: 0, z: Math.sign(z) || 1 };
-}
-
-/** Sprint direction toward a rope that is not through the opponent. */
-function ropeAwayFrom(
-  x: number, z: number, toFoeX: number, toFoeZ: number,
-): { x: number; z: number } {
-  const options = [
-    { x: 1, z: 0 }, { x: -1, z: 0 }, { x: 0, z: 1 }, { x: 0, z: -1 },
-  ];
-  let best = options[0]!;
-  let bestScore = -Infinity;
-  for (const o of options) {
-    // Prefer a rope we are not already against and that is not straight at them.
-    const room = o.x !== 0 ? RING.half - o.x * x : RING.half - o.z * z;
-    const away = -(o.x * toFoeX + o.z * toFoeZ);
-    const score = room * 0.7 + away * 1.6;
-    if (score > bestScore) { bestScore = score; best = o; }
-  }
-  return best;
+/**
+ * Which end to sprint at. There are only two, so the choice is: take the one
+ * AWAY from the opponent when there is room to build up speed, otherwise the
+ * other one. Running at a rope you are already against does nothing.
+ */
+function ropeAwayFrom(x: number, toFoeX: number): number {
+  const away = -Math.sign(toFoeX) || 1;
+  const roomAway = RING.half - away * x;
+  return roomAway > 1.6 ? away : -away;
 }

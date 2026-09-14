@@ -123,8 +123,8 @@ export class MatchSim {
     this.rng = new Rng(init.seed ?? (Date.now() >>> 0));
     this.p1 = new Fighter(init.player, 1);
     this.p2 = new Fighter(init.opponent, -1);
-    this.p1.x = -1.7; this.p1.z = 0.5;
-    this.p2.x = 1.7; this.p2.z = -0.5;
+    this.p1.x = -1.7;
+    this.p2.x = 1.7;
     this.p1.setState(FS.ENTRANCE);
     this.p2.setState(FS.ENTRANCE);
     this.ai = new AIController(AI_PROFILES[init.difficulty], this.rng);
@@ -284,7 +284,7 @@ export class MatchSim {
         case 'propDropped':
           this.prop = {
             def: this.prop?.def ?? who.cfg.prop,
-            x: who.x, z: who.z, alive: true,
+            x: who.x, z: RING.playZ, alive: true,
           };
           this.emit({ type: 'propDropped', at: this.prop });
           break;
@@ -357,9 +357,11 @@ export class MatchSim {
 
   private updatePickups(): void {
     if (!this.can && this.elapsed >= this.nextCanAt) {
+      // Pickups land ON the line, because that is the only place a wrestler
+      // can ever be standing to reach them.
       this.can = {
         x: this.rng.range(-(RING.half - 0.9), RING.half - 0.9),
-        z: this.rng.range(-(RING.halfZ - 0.7), RING.halfZ - 0.7),
+        z: RING.playZ,
         alive: true,
       };
       this.nextCanAt = this.elapsed + TUNING.squelsh.respawnMs;
@@ -378,7 +380,7 @@ export class MatchSim {
       this.prop = {
         def,
         x: side * this.rng.range(RING.half * 0.45, RING.half - 0.7),
-        z: this.rng.range(-(RING.half - 0.8), RING.half - 0.8),
+        z: RING.playZ,
         alive: true,
       };
       this.nextPropAt = this.elapsed + TUNING.props.respawnMs;
@@ -393,7 +395,7 @@ export class MatchSim {
     for (const f of [this.p1, this.p2]) {
       if (f.isDown || f.isBusy) continue;
       const can = this.can;
-      if (can && Math.hypot(f.x - can.x, f.z - can.z) < TUNING.squelsh.pickupRadius) {
+      if (can && Math.abs(f.x - can.x) < TUNING.squelsh.pickupRadius) {
         this.can = null;
         f.drinkSquelsh(f.cfg.squelsh);
         this.heat.add(14);
@@ -405,7 +407,7 @@ export class MatchSim {
       }
       const prop = this.prop;
       if (prop && !f.carrying && f.propCooldown <= 0
-        && Math.hypot(f.x - prop.x, f.z - prop.z) < TUNING.props.pickupRadius) {
+        && Math.abs(f.x - prop.x) < TUNING.props.pickupRadius) {
         f.takeProp(prop.def);
       }
     }
@@ -427,8 +429,7 @@ export class MatchSim {
     });
     attacker.setState(FS.PIN);
     defender.setState(FS.PINNED);
-    attacker.x = defender.x - Math.cos(defender.facing) * 0.5;
-    attacker.z = defender.z - Math.sin(defender.facing) * 0.5;
+    attacker.x = defender.x - defender.dir * 0.5;
     this.setPhase('PIN');
     this.emit({ type: 'pinStart', attacker, defender });
   }

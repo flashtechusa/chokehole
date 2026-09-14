@@ -14,7 +14,7 @@ import {
 import { h } from '@/ui/dom';
 import { Broadcast, bumperCard } from '@/ui/Broadcast';
 import { FS } from '@/game/combat/states';
-import { RING, nearestCorner } from '@/game/combat/ring';
+import { atRopes, inCorner } from '@/game/combat/ring';
 import { CANON } from '@/game/config/canon';
 import { TUNING } from '@/game/config/tuning';
 import { neutralIntent, type Intent } from '@/game/input/Intent';
@@ -237,7 +237,7 @@ export class App {
     this.autoQuality(dt);
 
     if (this.sim && this.view && this.hud && this.screen === 'MATCH' && !this.paused) {
-      const intent = this.cameraRelative(this.pad.consume());
+      const intent = this.stickToWorld(this.pad.consume());
       this.sim.update(dt, intent);
 
       const events = this.sim.drainEvents();
@@ -280,19 +280,16 @@ export class App {
   }
 
   /**
-   * Rotates the stick into the camera's frame, so "up" always means away from
-   * the viewer no matter where the director has drifted the camera to.
+   * The stick goes to the simulation exactly as the thumb gave it.
+   *
+   * It used to be rotated into the camera's frame, because the fight moved in
+   * two dimensions and the camera could be at any angle. The fight is now on a
+   * line and the camera is square to it, so LEFT is left and RIGHT is right,
+   * always. Up and down are not directions at all: they are modifiers the
+   * simulation reads when aiming a throw.
    */
-  private cameraRelative(i: Intent): Intent {
-    if (!this.view) return i;
-    if (i.moveX === 0 && i.moveY === 0) return i;
-    const yaw = this.view.camera.yawNow;
-    const c = Math.cos(yaw);
-    const s = Math.sin(yaw);
-    const out: Intent = { ...i };
-    out.moveX = c * i.moveX + s * i.moveY;
-    out.moveY = s * i.moveX - c * i.moveY;
-    return out;
+  private stickToWorld(i: Intent): Intent {
+    return i;
   }
 
   private playEventAudio(events: SimEvent[]): void {
@@ -369,8 +366,8 @@ export class App {
       this.pad.setAttackContext('SWING', p.carrying.name);
     } else if (p.state === FS.GRAPPLING) {
       // While holding someone the stick aims the throw and the button picks
-      // what happens at the ropes, so both labels have to say so.
-      this.pad.setAttackContext('THROW', 'AIM WITH THE STICK');
+      // what happens at the end of the ring, so both labels have to say so.
+      this.pad.setAttackContext('THROW', atRopes(p.x) ? 'UP = OVER THE TOP' : 'PUSH TO AIM');
     } else if (p.state === FS.PERCH) {
       this.pad.setAttackContext(foe.outside ? 'DIVE OUT' : 'DIVE', 'OFF THE TOP');
     } else if (p.state === FS.ROPE_RUN) {
@@ -382,22 +379,22 @@ export class App {
     } else if (behind && dist < 2) {
       this.pad.setAttackContext('BLINDSIDE', 'THEY CANNOT SEE YOU');
     } else {
-      const inCorner = nearestCorner(p.x, p.z).dist <= RING.cornerR && dist > 1.9;
-      this.pad.setAttackContext(null, inCorner ? 'GRAB TO CLIMB' : null);
+      const climbable = inCorner(p.x) && dist > 1.9;
+      this.pad.setAttackContext(null, climbable ? 'GRAB TO CLIMB' : null);
     }
 
     // GRAB changes meaning too, and the rear grapple is the whole reason
     // turning exists — it has to be visible that it is available.
     if (p.carrying) this.pad.setGrabContext('DROP', null);
     else if (p.state === FS.GRAPPLING) {
-      this.pad.setGrabContext('WHIP', 'AIM AT THE ROPES');
+      this.pad.setGrabContext('WHIP', 'PUSH LEFT OR RIGHT');
     } else if (foe.isDown && dist < TUNING.pin.range) {
       const pinnable = foe.healthFrac <= TUNING.pin.maxHealthFrac || foe.exhausted;
       this.pad.setGrabContext(pinnable ? 'PIN' : 'PICK UP', pinnable ? 'COVER THEM' : null);
     } else if (p.state === FS.PERCH) this.pad.setGrabContext('CLIMB DOWN', null);
     else if (p.state === FS.APRON) this.pad.setGrabContext('ROLL IN', null);
     else if (behind && dist < 2.2) this.pad.setGrabContext('REAR GRAPPLE', 'FROM BEHIND');
-    else if (nearestCorner(p.x, p.z).dist <= RING.cornerR && dist > 1.9) {
+    else if (inCorner(p.x) && dist > 1.9) {
       this.pad.setGrabContext('CLIMB', 'UP TOP');
     } else this.pad.setGrabContext(null, null);
   }

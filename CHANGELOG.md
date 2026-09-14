@@ -1,5 +1,69 @@
 # Changelog
 
+## v3.0 — 2.5D for real: the fight happens on a plane
+
+Two releases tried to fix "this looks 3D, not 2.5D" by moving the camera. Both
+were wrong, because the camera was never the problem. 2.5D means 3D models and
+a 3D arena with the **combat logic restricted to a 2D plane** — the model
+Action Arcade Wrestling uses. The rendering here was never the issue; the fight
+moving in depth was.
+
+### The ring is a line
+`combat/ring.ts` is now one axis end to end. Every body sits on `RING.playZ`
+and the only horizontal coordinate in the simulation is `x`. The ring still has
+four posts and four sides on screen; two of them are reachable, and that is the
+point — pushing left or right always has a knowable destination.
+
+Rewritten to match: movement, facing, hit detection, body separation, rope
+running, climbing, the apron, throw aiming, pickups, the AI's whole navigation,
+and the pacing harness.
+
+### Facing is left or right
+`facing` still stores radians because everything downstream does trigonometry
+with it, but it only ever settles on 0 or PI. `dir` is the honest version.
+Getting behind someone is now exact — you are behind them when you are on the
+side they are not facing — instead of a cone measured from their yaw.
+
+### Both ends are ropes AND corners
+The player says which one they mean with a different input: sprint into the end
+to run the ropes, walk to it and press GRAB to climb. The old rule "a corner is
+not a rope" existed so a player crossing the ring diagonally to climb would not
+rebound instead of arriving; on a line it made rope running impossible, because
+every position close enough to trip the rope lookahead is also inside the corner
+band.
+
+**Measured effect: 26–38 rope runs and 8–17 rebounds per match**, against 0–3
+before. Sprinting into a rope is now simply what happens when you hold a
+direction toward one.
+
+### Throw aiming, on one axis
+| Input | Throw |
+| --- | --- |
+| Stick UP, at the ropes | Over the top rope, to the floor |
+| LEFT/RIGHT + GRAB | Irish whip — they run and rebound |
+| LEFT/RIGHT, at an end | Corner throw |
+| Back | Back throw |
+| Neutral | Forward throw (rear throw from a waistlock) |
+
+### Controls
+The stick is no longer rotated into the camera's frame — the camera is square to
+the line, so LEFT is left, always. `moveY` moves nothing; it is a modifier.
+
+### Also fixed
+- A body whipped from a standing start next to the ropes rebounded on frame one
+  and went nowhere: the rebound now requires still travelling *into* the ropes.
+- "Over the top rope" was unreachable, because every place you can throw someone
+  out of is also a corner and the corner case was tested first.
+
+### Verified by direct probe
+Turning both ways and holding a facing with no input; pushing the stick into
+depth moving nothing; rear grapple, rear throw and back attack; rope run into a
+rebound and a rebound strike; Irish whip into the ropes and back out at speed;
+corner throw; throw over the top that actually leaves the ring; forward throw;
+climb to perch to top-rope dive; ground move; prop spawn, pickup and swing; and
+the crowd taunt and opponent taunt resolving differently.
+
+
 ## v2.3 — it actually looks 2.5D now
 
 The 2.5D rework changed how the game *plays*. It did not change how it looks,
