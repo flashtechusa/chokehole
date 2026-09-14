@@ -60,7 +60,14 @@ export function buildRing(scene: Scene): Ring {
   const mat = CreateBox('ringMat', { width: H * 2 + 0.18, height: 0.08, depth: HZ * 2 + 0.18 }, scene);
   mat.position.y = matY + 0.04;
   mat.parent = root;
-  const matMat = emissiveMat(scene, 'matMat', matTexture(scene), 0.3);
+  const canvas = matTexture(scene);
+  /*
+   * A box maps its top face with U across X and V along Z, which printed the
+   * canvas artwork side-on: the logo ran away from the camera instead of across
+   * it. A quarter turn in UV space puts it the right way up for a hard camera.
+   */
+  canvas.wAng = -Math.PI / 2;
+  const matMat = emissiveMat(scene, 'matMat', canvas, 0.3);
   mat.material = matMat;
   mat.isPickable = false;
 

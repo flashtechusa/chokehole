@@ -1,5 +1,45 @@
 # Changelog
 
+## v3.3 — the broadcast hard camera, matched to the reference
+
+Working from Action Arcade Wrestling screenshots rather than from my own idea of
+what 2.5D should look like. Three things were wrong, and two of them were things
+I had introduced trying to fix the first.
+
+- **The camera is above the ring, not beside it.** About twenty degrees up,
+  outside the ropes, looking down across the mat. The near ropes now cross the
+  fighters at the ankle and frame the bottom of the picture instead of cutting
+  across their chests.
+- **It is PERSPECTIVE again.** The orthographic pass flattened the ring into a
+  diagram: parallel ropes, near and far posts the same size, no sense of a box
+  to fight inside. It is a real technique and it is not what this genre looks
+  like. What makes this game 2.5D is that the simulation runs on a line — not
+  that the projection is flat. Converging ropes and a foreshortened mat are
+  correct.
+- **The shot is framed on the RING, not on the two bodies.** A hard camera, not
+  a fighting-game camera: a wrestler is about a third of the screen height and
+  the ring is the picture. Every pass that pushed a wrestler to 60% of the frame
+  lost the ring around them. The framing check's "too small" threshold moved
+  from 45% to 28% to match.
+
+### The ring is square again
+`ring.halfZ` is the rendered depth and nothing else — no system reads it for
+gameplay. It was 1.9 against a width of 3.2, from when the fight could move in
+depth and the band had to stay shallow to stop the camera chasing it. On a line
+that reason is gone, and a shallow ring seen from an elevated camera reads as a
+squashed box. A ring is square, so it is square, and the fight runs along the
+middle of it.
+
+### Fixed
+The canvas logo ran away from the camera instead of across it — a box maps its
+top face with U across X and V along Z. A quarter turn in UV space fixes it.
+Only visible once the ring was square and the camera settled.
+
+### Measured
+Framing check passes at all 17 positions and all 7 camera modes. Smoke test
+clean. Gameplay untouched: 115 s, 34 rope runs, 14 rebounds, 3 near falls.
+
+
 ## v3.2 — the camera looks down, like a wrestling camera
 
 Side-on at rope height meant looking *through* the near ropes at the fighters.

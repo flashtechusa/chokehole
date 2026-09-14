@@ -12,8 +12,10 @@
  *
  * Requires a server (npm run preview) at GAME_URL.
  *
- * What good looks like on a 844x390 phone:
- *   height   51-62% of the screen   (below ~45% the wrestlers read as small)
+ * What good looks like on a 844x390 phone. The camera is a broadcast hard
+ * camera framed on the RING, not a fighting-game camera framed on the two
+ * bodies, so a wrestler is a third of the screen rather than two thirds:
+ *   height   30-42% of the screen   (below ~28% they stop being readable)
  *   top      >= 26%                 (the HUD owns the top quarter)
  *   right    <= 80%                 (the three buttons own the bottom right)
  */
@@ -113,7 +115,7 @@ const row = (label, m, prone = false) => {
   if (m.offscreen) flag.push('OFFSCREEN');
   // A pin camera is framed on two bodies lying on the mat, so a small vertical
   // extent is correct there and only there.
-  if (!prone && m.height < 45) flag.push('SMALL');
+  if (!prone && m.height < 28) flag.push('SMALL');
   if (m.top < 24) flag.push('UNDER-HUD');
   if (m.bottom > 101) flag.push('FEET-OFF-FRAME');
   if (m.right > 82) flag.push('UNDER-BUTTONS');

@@ -57,64 +57,66 @@ into a rope is now simply what happens when you hold a direction. Getting behind
 someone is exact rather than a cone test. A throw has five destinations and the
 player can tell them apart.
 
-### The camera is ORTHOGRAPHIC
+### The camera is a broadcast hard camera
 
-This is the other half of 2.5D, and it took three attempts to get right.
+Matched to the genre reference, Action Arcade Wrestling: **outside the ring, up
+at about twenty degrees, looking down across the mat.** The near ropes cross the
+fighters at the ankle and frame the bottom of the picture; the far ropes and the
+crowd sit behind their shoulders.
 
-A perspective lens gives the ring vanishing points. The ropes converge toward
-the edges of the screen, the mat opens out below the fighters as a receding
-trapezoid, and the posts lean. However far back you put that camera and however
-square you aim it, the picture reads as a three-dimensional box you are looking
-into — which is exactly what it is. Moving the camera cannot fix that, because
-the projection is what is doing it.
+It took four attempts to get here, and the wrong turns are worth recording:
 
-With no perspective divide at all, parallel lines stay parallel: the ropes are
-horizontal, the posts are vertical, the mat is a flat band, and the arena reads
-as a painted stage with 3D actors standing on it.
+- **Side-on at rope height** put both sets of ropes across the fighters' chests.
+  A wrestling camera is *above* the ring, which is the only way the near ropes
+  end up below the action.
+- **Orthographic** flattened the ring into a diagram — parallel ropes, near and
+  far posts the same size, no sense of a box to fight inside. It is a real
+  technique, but it is not what this genre looks like. **What makes this game
+  2.5D is that the SIMULATION runs on a line, not that the projection is flat.**
+  A perspective lens with converging ropes and a foreshortened mat is correct.
+- **Framing on the two bodies** rather than on the ring. This is a hard camera,
+  not a fighting-game camera: a wrestler is about a third of the screen and the
+  ring is the picture. Every pass that pushed a wrestler to 60% of the frame lost
+  the ring around them.
 
-Everything else follows from that:
+The numbers:
 
-- **Yaw is exactly zero.** Not "nearly". Any yaw turns the ring back into an
-  object seen from a corner.
-- **The camera looks DOWN about thirty degrees**, which is the standard
-  wrestling shot. Past roughly 28 degrees the near top rope drops below the
-  fighters' feet, so you look *over* the ropes at the canvas instead of through
-  them. Under a perspective lens that tilt is exactly what spread the mat into a
-  receding trapezoid, which is why earlier passes kept driving the camera back
-  down to rope height and still could not make it read flat. Orthographically it
-  costs nothing: parallel stays parallel at any angle, so the shot can be angled
-  like a wrestling camera *and* read as a stage.
-- **The tilt is stored as an angle, not a height**, and the camera's height is
-  derived from it, so the angle does not drift when the look point rises for a
-  turnbuckle or drops for a body on the floor.
-- **`dist` now sizes the orthographic box** rather than pushing the camera away.
-  Every zoom rule that already existed — separation, a fighter on the floor,
-  vertical spread, the hit punch — keeps working unchanged.
-- **The camera's physical stand-off is fixed at 12.5 units**, chosen only to sit
-  inside the building (walls at 15) and behind the crowd. With an orthographic
-  projection it changes nothing about scale.
-- **Nothing is on the camera side** — no crowd, no roof beams, no lighting cans.
-  An orthographic lens renders near-side scenery at full size directly in front
-  of the match, and at this angle a roof beam hangs straight across the ring.
-  Real broadcast hard cameras look over an empty aisle for the same reason.
-  Culling it also roughly doubled the frame rate.
-- **Cinematic modes lean, they do not swing.** A signature used to swing the
-  camera half a radian; an orthographic view spun off its axis stops reading as
-  a stage. Drama comes from the zoom, the slow motion and the lighting instead.
+| | |
+| --- | --- |
+| Projection | Perspective, 0.75 rad vertical |
+| Elevation | 0.35 rad (~20°), stored as an ANGLE |
+| Swing off dead-on | 0.15 rad — enough to see a corner post |
+| Distance | 5.2–6.9, wrestler 42% → 33% of screen height |
 
-The rig sits slightly above the fighters' centre of mass so they land below the
-middle of the frame, clear of a HUD that owns the top quarter. The look point is
-pushed left, tapering to nothing at the left rope, so the right-hand wrestler
-never disappears behind the three buttons.
+The elevation is an angle rather than a height so that raising the look point
+for a turnbuckle, or dropping it for a body on the floor, tilts the shot with
+the action instead of flattening it.
+
+The look point is pushed left, tapering to nothing at the left rope, so the
+right-hand wrestler never disappears behind the three buttons. Cinematic modes
+push in and step round; they never spin, because the player would have to
+relearn left and right.
+
+**Nothing is on the camera side** — no crowd, no roof beams, no lighting cans.
+Near-side scenery sits directly in front of the match, and at this angle a roof
+beam hangs straight across the ring. Real broadcast hard cameras look over an
+empty aisle for the same reason. Culling it roughly doubled the frame rate.
 
 `npm run framing` measures all of this in screen pixels rather than by eye.
 
-### One more thing the flat camera exposed
+### The ring is square again
 
-The ring's apron is a box, and a box maps its two Z faces as mirror images, so
-the sponsor text printed across it came out backwards. Nobody had noticed while
-the camera was angled; side-on it runs across the whole bottom of the screen.
-Both Z faces now have their U flipped.
+`ring.halfZ` is the ring's RENDERED depth and nothing else — no system reads it
+for gameplay. It was 1.9 against a width of 3.2 back when the fight could move
+in depth and the band had to stay shallow to stop the camera chasing it. With
+the simulation on a line that reason is gone, and a shallow ring seen from an
+elevated hard camera reads as a squashed box rather than a wrestling ring. A
+ring is square, so it is square, and the fight runs along the middle of it.
+
+Two texture bugs only became visible once the camera settled: the apron's
+sponsor text was printed backwards (a box maps its two Z faces as mirror images)
+and the canvas logo ran away from the camera instead of across it (a box maps
+its top face with U across X and V along Z).
 
 ## Controls: the stick is left, right, and two modifiers
 

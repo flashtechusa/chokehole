@@ -9,14 +9,19 @@
 export const TUNING = {
   ring: {
     /**
-     * The play space is 2.5D: wide across, shallow in depth. Free 3D navigation
-     * tested badly — the fight wandered, the camera had to pull back to follow
-     * it, and the wrestlers ended up tiny. A shallow depth band keeps both
-     * fighters large and the geometry readable while still being a real 3D
-     * space you can walk around in.
+     * `half` is the play line: the fight runs from -3.2 to +3.2 and nowhere
+     * else (see combat/ring.ts).
+     *
+     * `halfZ` is the ring's RENDERED depth and nothing more — no system reads
+     * it for gameplay. It was 1.9 back when the fight could move in depth and
+     * the band had to be kept shallow to stop the camera chasing it. With the
+     * simulation on a line that reason is gone, and a shallow ring seen from an
+     * elevated hard camera reads as a squashed box rather than a wrestling
+     * ring. A ring is square, so this is square, and the fight happens along
+     * the middle of it.
      */
     half: 3.2,
-    halfZ: 1.9,
+    halfZ: 3.2,
     /** Mat surface height above the floor. */
     matY: 1.06,
     ropeHeights: [0.42, 0.72, 1.02],
@@ -214,67 +219,64 @@ export const TUNING = {
 
   camera: {
     /**
-     * A 2.5D camera: 3D models and a 3D arena, shot DEAD side-on.
+     * The broadcast hard camera, matched to the genre reference (Action Arcade
+     * Wrestling): outside the ring, up at about twenty degrees, looking down
+     * across the mat. The near ropes cross the fighters at the ankle and frame
+     * the bottom of the picture; the far ropes and the crowd sit behind them.
      *
-     * Zero, not "nearly zero". Any yaw at all turns the ring into an object
-     * you are looking at from a corner: the ropes converge, the mat becomes a
-     * receding trapezoid, and the picture reads as 3D no matter what the
-     * simulation is doing underneath. Square on, the ropes are horizontal
-     * lines, the posts line up, and the ring reads as a stage.
+     * A PERSPECTIVE lens. An orthographic pass flattened the ring into a
+     * diagram — parallel ropes, near and far posts the same size, no sense of a
+     * box to fight inside. What makes this game 2.5D is that the SIMULATION
+     * runs on a line, not that the projection is flat.
      */
-    yaw: 0,
+
+    /**
+     * A small swing off dead-on, so a corner post reads and the ring looks like
+     * an object you are standing beside rather than a painted backdrop. Enough
+     * to see the corner; not enough for the fight to stop running left to right.
+     */
+    yaw: 0.15,
+    /**
+     * Elevation in radians — about twenty degrees. This is what stops the ropes
+     * cutting across the fighters: from up here the near ropes sit at their
+     * ankles and the far ropes behind their shoulders, instead of a side-on
+     * view putting both across their chests.
+     *
+     * Stored as an ANGLE, not a height, so raising the look point for a
+     * turnbuckle or dropping it for a body on the floor tilts the shot with the
+     * action instead of flattening it.
+     */
+    pitch: 0.35,
     /**
      * Lateral pan, in ring units. The camera tracks the fight along the line,
-     * which is now the only thing it has to follow.
+     * which is the only thing it has to follow.
      */
     panLimit: 2.3,
     /**
      * A fixed offset that pushes the action LEFT of screen centre, tapering to
-     * nothing at the left rope. The three buttons own the bottom-right corner
-     * permanently; the joystick on the left is floating and only exists while a
-     * thumb is down.
+     * nothing at the left rope. The three buttons own the bottom-right corner;
+     * the joystick on the left is floating and only exists while a thumb is
+     * down.
      */
     lookBias: 0.5,
+    /** Vertical field of view. An ordinary lens, not a wide one. */
+    fov: 0.75,
     /**
-     * A longer lens. 0.86 rad (49 degrees) is wide, and a wide lens flares near
-     * geometry and spreads the mat out below the fighters. 0.72 flattens the
-     * perspective so the ring reads as a backdrop behind the action.
+     * Framed like the reference: wide enough that the ring is the picture and
+     * the near ropes are in shot, close enough that a phone can read two
+     * wrestlers. A 2-unit wrestler is about 42% of the screen height at
+     * minDist and 33% at maxDist.
      */
-    fov: 0.66,
-    /**
-     * Read as "how much world fits on screen", not "how far the camera stands"
-     * — the projection is orthographic, so distance changes nothing about
-     * scale. At minDist a 2-unit wrestler is about 62% of the screen height, at
-     * maxDist about 49%. The horizontal span is six to eight units on a 2.16:1
-     * phone — wider than the ring — so both fighters stay framed however far
-     * apart they get.
-     */
-    minDist: 4.4,
-    maxDist: 5.95,
+    minDist: 5.2,
+    maxDist: 6.9,
     /** Widening per unit of separation along the line. */
-    spreadZoom: 0.30,
+    spreadZoom: 0.34,
     /**
-     * How far the camera looks DOWN, in radians. 0.56 is about 32 degrees.
-     *
-     * A high angle is the standard wrestling shot and it is what stops the near
-     * ropes cutting across the fighters: past about 28 degrees the near top
-     * rope drops below their feet, so you look OVER the ropes at the mat rather
-     * than through them. Under a perspective lens that tilt would have spread
-     * the mat into a receding trapezoid, which is why earlier passes kept
-     * driving the camera back down to rope height. Orthographically it costs
-     * nothing — parallel stays parallel at any angle — so the shot can be
-     * angled like a wrestling camera and still read flat.
-     *
-     * It is stored as an ANGLE, not a height, so that the tilt stays fixed when
-     * the look point rises for a turnbuckle or drops for a body on the floor.
+     * Where the camera is aimed, in world height. A little above the mat: the
+     * fighters then sit below the middle of the frame, clear of a HUD that owns
+     * the top quarter of a 390px screen, with the canvas beneath them.
      */
-    pitch: 0.53,
-    /**
-     * Where the camera is aimed, in world height. Above a standing wrestler's
-     * centre of mass on purpose: it puts them below the middle of the frame,
-     * clear of a HUD that owns the top quarter of a 390px screen.
-     */
-    lookHeight: 2.52,
+    lookHeight: 2.26,
     follow: 3.4,
     punchDecay: 7.5,
     /** Extra distance when a fighter is out on the floor. */
@@ -282,8 +284,7 @@ export const TUNING = {
     /**
      * When the two are at very different heights — one on the top rope, one on
      * the mat; one on the floor, one in the ring — there is more to fit in, so
-     * the camera backs off and raises its look point to sit the taller
-     * arrangement lower in frame and out from under the HUD.
+     * the camera backs off and raises its look point.
      */
     verticalZoom: 1.25,
     verticalLift: 0.16,
