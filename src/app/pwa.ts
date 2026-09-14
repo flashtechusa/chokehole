@@ -6,7 +6,9 @@ export function registerSW(): void {
   if (!('serviceWorker' in navigator)) return;
   if (!import.meta.env.PROD) return;
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
+    // Resolved against the deployed base, so it works from a Pages subpath.
+    const url = `${import.meta.env.BASE_URL}sw.js`.replace(/\/{2,}/g, '/');
+    navigator.serviceWorker.register(url).catch(() => {
       // An unavailable service worker must never break the game.
     });
   });

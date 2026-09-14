@@ -3,6 +3,11 @@ import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
 
 export default defineConfig({
+  /*
+   * Relative asset URLs. GitHub Pages serves this from a project subpath
+   * (/chokehole/), and Vite's default absolute "/assets/..." 404s there.
+   */
+  base: './',
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') },
   },
@@ -20,6 +25,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,webp}'],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
       },
+      // Scope follows the deployed base so the PWA installs from a subpath.
       manifest: {
         name: 'CHOKE HOLE: NO HOLES BARRED',
         short_name: 'CHOKE HOLE',

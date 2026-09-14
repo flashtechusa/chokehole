@@ -22,9 +22,27 @@ page.on('response', r => net.push([r.status(), r.url()]));
 page.on('requestfailed', r => net.push(['FAILED', r.url()]));
 await page.goto(process.env.URL, { waitUntil: 'load' });
 await page.waitForTimeout(4000);
-const booted = await page.evaluate(() => !!window.__CHOKEHOLE__ && window.__CHOKEHOLE__.scene.getScenes(true).map(s=>s.scene.key));
+const booted = await page.evaluate(() => {
+  const app = window.__CHOKEHOLE__;
+  if (!app || typeof app.debug !== 'function') return null;
+  const d = app.debug();
+  return { screen: d.screen, fps: d.fps, quality: d.quality };
+});
+/*
+ * Start a match before judging the deploy. Babylon loads its shader chunks
+ * lazily, so a broken asset path shows up only once the 3D scene is built —
+ * a title screen that renders proves almost nothing.
+ */
+if (booted) {
+  await page.evaluate(() => window.__CHOKEHOLE__.debug().startMatch());
+  await page.waitForTimeout(5000);
+  const inMatch = await page.evaluate(() => window.__CHOKEHOLE__.debug().screen);
+  console.log('after startMatch:', inMatch);
+  if (inMatch !== 'MATCH') errs.push(`match did not start: ${inMatch}`);
+}
 await page.screenshot({ path: process.env.SHOT });
-console.log('scenes running:', JSON.stringify(booted));
+console.log('booted:', JSON.stringify(booted));
+if (!booted) errs.push('game did not boot: window.__CHOKEHOLE__ missing');
 console.log('--- network ---');
 for (const [s,u] of net) console.log(String(s).padEnd(7), u.length>90 ? u.slice(0,90)+'…' : u);
 console.log('--- errors ---');
