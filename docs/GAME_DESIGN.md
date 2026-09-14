@@ -76,19 +76,28 @@ Everything else follows from that:
 
 - **Yaw is exactly zero.** Not "nearly". Any yaw turns the ring back into an
   object seen from a corner.
-- **The camera stands at rope height** (2.22 world, against a top rope at 2.08),
-  not above it. Earlier passes sat at 2.45–2.64 — over the ropes, looking down —
-  which is what spread the mat out below the fighters.
+- **The camera looks DOWN about thirty degrees**, which is the standard
+  wrestling shot. Past roughly 28 degrees the near top rope drops below the
+  fighters' feet, so you look *over* the ropes at the canvas instead of through
+  them. Under a perspective lens that tilt is exactly what spread the mat into a
+  receding trapezoid, which is why earlier passes kept driving the camera back
+  down to rope height and still could not make it read flat. Orthographically it
+  costs nothing: parallel stays parallel at any angle, so the shot can be angled
+  like a wrestling camera *and* read as a stage.
+- **The tilt is stored as an angle, not a height**, and the camera's height is
+  derived from it, so the angle does not drift when the look point rises for a
+  turnbuckle or drops for a body on the floor.
 - **`dist` now sizes the orthographic box** rather than pushing the camera away.
   Every zoom rule that already existed — separation, a fighter on the floor,
   vertical spread, the hit punch — keeps working unchanged.
 - **The camera's physical stand-off is fixed at 12.5 units**, chosen only to sit
   inside the building (walls at 15) and behind the crowd. With an orthographic
   projection it changes nothing about scale.
-- **Nobody sits on the camera side.** The shot is a broadcast hard camera, and
-  an orthographic lens renders a near-side spectator at full size directly in
-  front of the match. Real hard cameras look over an empty aisle for the same
-  reason.
+- **Nothing is on the camera side** — no crowd, no roof beams, no lighting cans.
+  An orthographic lens renders near-side scenery at full size directly in front
+  of the match, and at this angle a roof beam hangs straight across the ring.
+  Real broadcast hard cameras look over an empty aisle for the same reason.
+  Culling it also roughly doubled the frame rate.
 - **Cinematic modes lean, they do not swing.** A signature used to swing the
   camera half a radian; an orthographic view spun off its axis stops reading as
   a stage. Drama comes from the zoom, the slow motion and the lighting instead.

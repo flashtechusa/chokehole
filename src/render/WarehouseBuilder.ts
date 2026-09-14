@@ -104,6 +104,9 @@ export function buildWarehouse(scene: Scene, arena: ArenaConfig): Warehouse {
   // --- scaffold and roof beams ---
   const steel = flatMaterial(scene, '#3A2B45', 0.06);
   for (let i = -2; i <= 2; i++) {
+    // Nothing overhead on the camera side. The shot looks down over the ring,
+    // so a roof beam in front of the lens hangs straight across the match.
+    if (i * 5.2 < -1) continue;
     const beam = CreateBox('beam', { width: 30, height: 0.34, depth: 0.34 }, scene);
     beam.position.set(0, 7.0, i * 5.2);
     beam.parent = root;
@@ -126,6 +129,9 @@ export function buildWarehouse(scene: Scene, arena: ArenaConfig): Warehouse {
     const a = (i / arena.lighting.rig.length) * Math.PI * 2 + 0.7;
     const x = Math.cos(a) * 5.4;
     const z = Math.sin(a) * 5.4;
+    // Same for the lighting rig: a lamp hung on the camera side of the ring
+    // sits in the middle of the picture at this angle.
+    if (z < -1.2) return;
 
     const can = CreateCylinder('lampCan', {
       height: 0.4, diameterTop: 0.36, diameterBottom: 0.5, tessellation: 8,

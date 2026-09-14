@@ -249,26 +249,32 @@ export const TUNING = {
      * phone — wider than the ring — so both fighters stay framed however far
      * apart they get.
      */
-    minDist: 4.7,
-    maxDist: 5.9,
+    minDist: 4.4,
+    maxDist: 5.95,
     /** Widening per unit of separation along the line. */
-    spreadZoom: 0.26,
+    spreadZoom: 0.30,
     /**
-     * The camera sits at ROPE HEIGHT, not above it.
+     * How far the camera looks DOWN, in radians. 0.56 is about 32 degrees.
      *
-     * The top rope is at 2.08 (mat 1.06 + 1.02). Every previous pass put the
-     * camera at 2.45-2.64 — above the ropes, looking down into the ring — and
-     * that is what made the mat spread out below the fighters as a big
-     * receding surface. From 2.22 the camera looks ACROSS: the ropes are
-     * horizontal lines, the mat is a thin band at the fighters' feet, and the
-     * far side of the ring and the crowd sit behind them like scenery.
+     * A high angle is the standard wrestling shot and it is what stops the near
+     * ropes cutting across the fighters: past about 28 degrees the near top
+     * rope drops below their feet, so you look OVER the ropes at the mat rather
+     * than through them. Under a perspective lens that tilt would have spread
+     * the mat into a receding trapezoid, which is why earlier passes kept
+     * driving the camera back down to rope height. Orthographically it costs
+     * nothing — parallel stays parallel at any angle — so the shot can be
+     * angled like a wrestling camera and still read flat.
      *
-     * The look point is slightly ABOVE the camera, so the lens tilts up by a
-     * degree rather than down. That both flattens the mat further and drops the
-     * fighters clear of a HUD that owns the top quarter of a 390px screen.
+     * It is stored as an ANGLE, not a height, so that the tilt stays fixed when
+     * the look point rises for a turnbuckle or drops for a body on the floor.
      */
-    height: 2.40,
-    lookHeight: 2.46,
+    pitch: 0.53,
+    /**
+     * Where the camera is aimed, in world height. Above a standing wrestler's
+     * centre of mass on purpose: it puts them below the middle of the frame,
+     * clear of a HUD that owns the top quarter of a 390px screen.
+     */
+    lookHeight: 2.52,
     follow: 3.4,
     punchDecay: 7.5,
     /** Extra distance when a fighter is out on the floor. */

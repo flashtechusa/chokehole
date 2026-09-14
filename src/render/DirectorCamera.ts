@@ -43,7 +43,7 @@ export class DirectorCamera {
 
   private yaw = TUNING.camera.yaw;
   private dist = TUNING.camera.maxDist;
-  private height = TUNING.camera.height;
+  private pitch = TUNING.camera.pitch;
   private look = new Vector3(0, TUNING.camera.lookHeight, 0);
   private pos = new Vector3(0, 3, -8);
 
@@ -120,7 +120,7 @@ export class DirectorCamera {
     let wantDist = clamp(T.minDist + spreadX * T.spreadZoom, T.minDist, T.maxDist)
       + spreadY * T.verticalZoom
       + (outside ? T.outsidePull : 0);
-    let wantHeight = T.height;
+    let wantPitch = T.pitch;
     /*
      * The look point follows the pair's height, partially. Standing on the mat
      * is the reference, so ordinary play is unaffected; a climb lifts it, and
@@ -142,7 +142,7 @@ export class DirectorCamera {
         // An establishing shot, not a diorama: wide enough to say "here is the
         // room", close enough that the wrestlers still read as people.
         wantDist = 6.2;
-        wantHeight = 2.9;
+        wantPitch = 0.62;
         wantYaw = T.yaw - 0.10 + Math.sin(this.modeTimer / 1500) * 0.07;
         follow = 1.8;
         break;
@@ -154,7 +154,7 @@ export class DirectorCamera {
         // its axis and making the player relearn left and right.
         wantYaw = T.yaw + 0.14;
         wantDist = 5.2;
-        wantHeight = 2.62;
+        wantPitch = 0.49;
         lookY = 2.46;
         follow = 6.5;
         if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; }
@@ -167,7 +167,7 @@ export class DirectorCamera {
         this.orbit += dt / 1000;
         wantYaw = T.yaw + 0.10 + Math.sin(this.orbit * 1.6) * 0.12;
         wantDist = clamp(5.3 + spreadX * 0.15, 5.0, 6.5);
-        wantHeight = lerp(3.3, 2.5, clamp(this.modeTimer / 1500, 0, 1));
+        wantPitch = lerp(0.72, 0.46, clamp(this.modeTimer / 1500, 0, 1));
         lookY = 2.42;
         follow = 4.2;
         if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; }
@@ -177,7 +177,7 @@ export class DirectorCamera {
       case 'NEARFALL':
         // Snap in tight on the kickout. Short and violent.
         wantDist = 5.1;
-        wantHeight = 2.15;
+        wantPitch = 0.42;
         lookY = 1.72;
         follow = 9;
         if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; }
@@ -185,7 +185,7 @@ export class DirectorCamera {
 
       case 'PIN':
         wantDist = 5.3;
-        wantHeight = 2.45;
+        wantPitch = 0.52;
         lookY = 1.78;
         follow = 5.0;
         if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; }
@@ -197,7 +197,7 @@ export class DirectorCamera {
         if (f) { lookX = f.x + T.lookBias * biasT; }
         wantYaw = T.yaw + Math.sin(this.orbit * 0.9) * 0.14;
         wantDist = 5.9;
-        wantHeight = 2.95;
+        wantPitch = 0.53;
         lookY = 2.52;
         follow = 2.6;
         break;
@@ -209,7 +209,7 @@ export class DirectorCamera {
 
     this.yaw = damp(this.yaw, wantYaw, follow, dt);
     this.dist = damp(this.dist, wantDist - this.punchAmount * 0.55, follow, dt);
-    this.height = damp(this.height, wantHeight, follow, dt);
+    this.pitch = damp(this.pitch, wantPitch, follow, dt);
 
     this.look.x = damp(this.look.x, lookX, follow, dt);
     this.look.y = damp(this.look.y, lookY, follow, dt);
@@ -225,7 +225,9 @@ export class DirectorCamera {
      */
     this.pos.x = this.look.x + Math.sin(this.yaw) * CAMERA_STANDOFF + sx;
     this.pos.z = this.look.z - Math.cos(this.yaw) * CAMERA_STANDOFF;
-    this.pos.y = this.height + sy;
+    // Height is derived from the angle, so the tilt does not drift when the
+    // look point rises for a turnbuckle or drops for a body on the floor.
+    this.pos.y = this.look.y + Math.tan(this.pitch) * CAMERA_STANDOFF + sy;
     this.applyOrtho();
 
     this.cam.position.copyFrom(this.pos);

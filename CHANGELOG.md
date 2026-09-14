@@ -1,5 +1,32 @@
 # Changelog
 
+## v3.2 — the camera looks down, like a wrestling camera
+
+Side-on at rope height meant looking *through* the near ropes at the fighters.
+The camera now sits about thirty degrees above the ring and looks down over the
+ropes onto the canvas, which is the standard wrestling shot.
+
+Past roughly 28 degrees the near top rope drops below the fighters' feet, so it
+leaves the frame entirely. Under a perspective lens that same tilt is exactly
+what spread the mat into a receding trapezoid — which is why the previous passes
+kept driving the camera back down to rope height and still could not make it
+read flat. Orthographically it costs nothing: parallel stays parallel at any
+angle, so the shot can be angled like a wrestling camera *and* read as a stage.
+
+- The tilt is stored as an **angle**, and the camera's height is derived from
+  it, so it does not drift when the look point rises for a turnbuckle or drops
+  for a body on the floor. Every cinematic mode is an angle now too.
+- **Roof beams and lighting cans on the camera side are gone**, along with the
+  near crowd. At this angle a roof beam hangs straight across the ring, and an
+  orthographic lens draws it at full size.
+- Zoom and look height retuned for the foreshortening a tilt introduces.
+
+### Measured
+Framing check passes at all 17 positions and all 7 camera modes. Frame rate
+under software rendering went from 13–15 fps to **32**, mostly from not drawing
+the near-side arena.
+
+
 ## v3.1 — the camera is orthographic now
 
 v3.0 put the combat logic on a 2D plane, which was the right fix and only half
