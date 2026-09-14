@@ -1,54 +1,40 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import { fileURLToPath, URL } from 'node:url';
+import path from 'node:path';
 
-// CHOKE HOLE: NO HOLES BARRED — build config.
-// Static output; deployable to Netlify / Cloudflare Pages / Vercel (see docs/DEPLOYMENT.md).
 export default defineConfig({
-  base: './',
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: { '@': path.resolve(__dirname, 'src') },
   },
   build: {
     target: 'es2020',
-    assetsInlineLimit: 4096,
-    chunkSizeWarningLimit: 1600,
-    rollupOptions: {
-      output: {
-        manualChunks: { phaser: ['phaser'] },
-      },
-    },
+    sourcemap: false,
+    chunkSizeWarningLimit: 4000,
   },
-  server: { host: true, port: 5173 },
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['assets/branding/favicon.svg', 'assets/branding/icon-180.png'],
+      injectRegister: null,
+      filename: 'sw.js',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,webp}'],
+        maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
+      },
       manifest: {
         name: 'CHOKE HOLE: NO HOLES BARRED',
         short_name: 'CHOKE HOLE',
-        description: 'Extreme Drag Wrestling. A mobile-first 2.5D arcade wrestling broadcast, interrupted by IBS.',
-        theme_color: '#0a0410',
-        background_color: '#0a0410',
+        description: 'Extreme Drag Wrestling. An I.B.S. broadcast.',
+        start_url: '.',
+        scope: '.',
         display: 'fullscreen',
-        display_override: ['fullscreen', 'standalone'],
         orientation: 'landscape',
-        start_url: './',
-        scope: './',
+        background_color: '#0B0611',
+        theme_color: '#0B0611',
         icons: [
-          { src: 'assets/branding/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: 'assets/branding/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          { src: 'assets/branding/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'assets/branding/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'assets/branding/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
-      workbox: {
-        // Intentionally limited cache set: core quick-match play works offline after first load.
-        globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2}'],
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
-        navigateFallback: 'index.html',
-        cleanupOutdatedCaches: true,
-      },
-      devOptions: { enabled: false },
     }),
   ],
 });

@@ -1,6 +1,8 @@
+import type { Difficulty } from '@/game/ai/profiles';
+
 /**
- * Versioned local save. All state is local for the MVP; `StorageAdapter` exists
- * so a cloud backend can be dropped in later without touching game logic.
+ * Versioned local save. All state is local for the MVP; StorageAdapter exists so
+ * a cloud backend can replace it later without touching game logic (Bible s33).
  */
 export interface StorageAdapter {
   read(key: string): string | null;
@@ -25,15 +27,11 @@ export interface GameSettings {
   sfx: number;
   announcer: number;
   muted: boolean;
-  controlOpacity: number;
-  controlScale: number;
   reduceShake: boolean;
   reduceFlash: boolean;
-  highContrast: boolean;
-  largeText: boolean;
-  subtitles: boolean;
-  difficulty: 'EASY' | 'NORMAL' | 'BRUTAL';
-  matchLengthMin: number;
+  difficulty: Difficulty;
+  /** Forced quality tier, or null for automatic. */
+  quality: 'LOW' | 'MEDIUM' | 'HIGH' | null;
 }
 
 export interface WrestlerRecord {
@@ -43,141 +41,109 @@ export interface WrestlerRecord {
   bestHeat: number;
 }
 
-export const SAVE_VERSION = 1;
+/** v2 drops the 2D prototype's HUD-scaling settings: the UI is HTML now. */
+export const SAVE_VERSION = 2;
+const KEY = 'chokehole.save.v2';
 
 export interface SaveData {
   version: number;
   settings: GameSettings;
-  unlockedWrestlers: string[];
-  unlockedArenas: string[];
-  tourCompleted: string[];
   records: Record<string, WrestlerRecord>;
   totalWins: number;
   totalMatches: number;
+  /** Whether the player has seen the controls card. */
+  seenHowTo: boolean;
 }
-
-const KEY = 'chokehole.save.v1';
 
 export const DEFAULT_SETTINGS: GameSettings = {
   music: 0.55,
-  sfx: 0.85,
+  sfx: 0.9,
   announcer: 0.8,
   muted: false,
-  controlOpacity: 0.8,
-  controlScale: 1,
   reduceShake: false,
   reduceFlash: false,
-  highContrast: false,
-  largeText: false,
-  subtitles: true,
   difficulty: 'NORMAL',
-  matchLengthMin: 5,
+  quality: null,
 };
 
 function defaults(): SaveData {
   return {
     version: SAVE_VERSION,
     settings: { ...DEFAULT_SETTINGS },
-    unlockedWrestlers: ['jassy', 'raid'],
-    unlockedArenas: ['nola-warehouse-2018'],
-    tourCompleted: [],
     records: {},
     totalWins: 0,
     totalMatches: 0,
+    seenHowTo: false,
   };
 }
 
-export class SaveManager {
-  private static _i: SaveManager | null = null;
-  static get instance(): SaveManager {
-    if (!this._i) this._i = new SaveManager(new LocalStorageAdapter());
-    return this._i;
+class SaveManager {
+  private adapter: StorageAdapter = new LocalStorageAdapter();
+  private data: SaveData = defaults();
+  private loaded = false;
+
+  setAdapter(a: StorageAdapter): void {
+    this.adapter = a;
+    this.loaded = false;
   }
 
-  private adapter: StorageAdapter;
-  private data: SaveData;
-
-  constructor(adapter: StorageAdapter) {
-    this.adapter = adapter;
-    this.data = this.load();
+  get(): SaveData {
+    if (!this.loaded) this.load();
+    return this.data;
   }
 
-  private load(): SaveData {
+  get settings(): GameSettings { return this.get().settings; }
+
+  private load(): void {
+    this.loaded = true;
     const raw = this.adapter.read(KEY);
-    if (!raw) return defaults();
+    if (!raw) { this.data = defaults(); return; }
     try {
       const parsed = JSON.parse(raw) as Partial<SaveData>;
-      return this.migrate(parsed);
+      // Unknown or older versions fall back to defaults rather than crashing on
+      // a shape that no longer exists.
+      if (parsed.version !== SAVE_VERSION) { this.data = defaults(); return; }
+      this.data = {
+        ...defaults(),
+        ...parsed,
+        settings: { ...DEFAULT_SETTINGS, ...(parsed.settings ?? {}) },
+        records: parsed.records ?? {},
+      };
     } catch {
-      return defaults();
+      this.data = defaults();
     }
   }
 
-  /** Forward-compatible merge; unknown/older shapes fall back to defaults. */
-  private migrate(input: Partial<SaveData>): SaveData {
-    const base = defaults();
-    return {
-      version: SAVE_VERSION,
-      settings: { ...base.settings, ...(input.settings ?? {}) },
-      unlockedWrestlers: Array.from(new Set([...base.unlockedWrestlers, ...(input.unlockedWrestlers ?? [])])),
-      unlockedArenas: Array.from(new Set([...base.unlockedArenas, ...(input.unlockedArenas ?? [])])),
-      tourCompleted: input.tourCompleted ?? [],
-      records: input.records ?? {},
-      totalWins: input.totalWins ?? 0,
-      totalMatches: input.totalMatches ?? 0,
-    };
-  }
-
-  get(): SaveData { return this.data; }
-  get settings(): GameSettings { return this.data.settings; }
-
-  save(): void {
+  private flush(): void {
     this.adapter.write(KEY, JSON.stringify(this.data));
   }
 
   updateSettings(patch: Partial<GameSettings>): void {
-    this.data.settings = { ...this.data.settings, ...patch };
-    this.save();
+    this.get().settings = { ...this.get().settings, ...patch };
+    this.flush();
   }
 
-  isWrestlerUnlocked(id: string): boolean { return this.data.unlockedWrestlers.includes(id); }
-  isArenaUnlocked(id: string): boolean { return this.data.unlockedArenas.includes(id); }
-
-  unlockArena(id: string): boolean {
-    if (this.data.unlockedArenas.includes(id)) return false;
-    this.data.unlockedArenas.push(id);
-    this.save();
-    return true;
-  }
-
-  unlockWrestler(id: string): boolean {
-    if (this.data.unlockedWrestlers.includes(id)) return false;
-    this.data.unlockedWrestlers.push(id);
-    this.save();
-    return true;
-  }
-
-  recordMatch(wrestlerId: string, won: boolean, rating: number, heatPeak: number): void {
-    const r = this.data.records[wrestlerId] ?? { wins: 0, losses: 0, bestRating: 0, bestHeat: 0 };
-    if (won) { r.wins += 1; this.data.totalWins += 1; } else r.losses += 1;
+  recordMatch(wrestlerId: string, won: boolean, rating: number, heat: number): void {
+    const d = this.get();
+    const r = d.records[wrestlerId] ?? { wins: 0, losses: 0, bestRating: 0, bestHeat: 0 };
+    if (won) { r.wins += 1; d.totalWins += 1; } else { r.losses += 1; }
     r.bestRating = Math.max(r.bestRating, rating);
-    r.bestHeat = Math.max(r.bestHeat, heatPeak);
-    this.data.records[wrestlerId] = r;
-    this.data.totalMatches += 1;
-    this.save();
+    r.bestHeat = Math.max(r.bestHeat, heat);
+    d.records[wrestlerId] = r;
+    d.totalMatches += 1;
+    this.flush();
   }
 
-  markTourStop(id: string): void {
-    if (!this.data.tourCompleted.includes(id)) {
-      this.data.tourCompleted.push(id);
-      this.save();
-    }
+  markHowToSeen(): void {
+    this.get().seenHowTo = true;
+    this.flush();
   }
 
   reset(): void {
     this.data = defaults();
-    this.save();
+    this.adapter.remove(KEY);
+    this.flush();
   }
 }
 
-export const Save = SaveManager.instance;
+export const Save = new SaveManager();

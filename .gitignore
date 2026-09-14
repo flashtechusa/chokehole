@@ -1,9 +1,6 @@
 node_modules/
 dist/
 dist-single/
-dev-dist/
-dist-single/
+*.tmp.mjs
+*.tmp.py
 .DS_Store
-*.local
-.vite/
-single.html

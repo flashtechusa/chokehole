@@ -1,115 +1,51 @@
-# Adding a wrestler
+# Adding a character
 
-Adding a performer is **two files and one line**. Nothing in `MatchScene`,
-`Fighter`, `CombatSystem` or the AI changes.
+Nothing in `MatchScene`-equivalent code needs editing. A wrestler is data.
 
-## 1. Create the data file
+1. Create `src/game/characters/<id>.ts` exporting a `WrestlerConfig`.
+2. Add it to `ROSTER` in `src/game/characters/index.ts`.
 
-Copy `src/game/data/characters/raid.ts` to
-`src/game/data/characters/<id>.ts` and edit it. `id` is permanent and internal;
-`displayName` is a display string the performer can change at any time without
-touching save data or logic.
+## What a WrestlerConfig needs
 
-```ts
-export const NEW_WRESTLER: WrestlerConfig = {
-  id: 'newwrestler',              // lowercase, stable, never shown to players
-  displayName: 'NEW WRESTLER',    // confirm the spelling with the performer
-  tagline: 'THE SOMETHING',
-  publicPersonaSummary: '…',      // REAL LAYER — factual, short, original wording
-  personaResearch: 'TEAM CONFIRMATION REQUIRED',
-  archetype: 'CHAOS',
-  alignment: 'FACE',              // FACE | HEEL | CHAOTIC — drives crowd copy
-  stats: { health, speed, power, grapple, reversal, squelshGain },
-  moves: { light, heavy, grapple, signature, finisher },
-  lightAlt: …,                    // optional second light in the chain
-  prop: { name, mechanic, shape, color },
-  rig: { … },                     // see "3. The look" below
-  audio: { pitch, grit, hype },
-  quotes: { entrance, taunt[], win[], lose },
-  venueBonus: [{ arenaId, heatMult, note }],
-  unlock: { kind: 'default', label: 'AVAILABLE' },
-};
-```
+- **Canon**: `canonSummary` plus a `canonSource` tier. If the deck does not
+  support a claim, do not make it.
+- **Stats**: `health`, `speed`, `power`, `reversal`, `itGain`, `radius`,
+  `height`, `air`. `air` scales jump height and distance — it is the main lever
+  that makes one wrestler an aerialist and another not.
+- **Moves**: the twenty entries of `MoveSet`. Every one carries a `provenance`.
+  A move with a `leap` is a committed jump and resolves in the air.
+- **Taunts**: at least one each of `short`, `crowd`, `opponent`. A `big` one is
+  optional. The context picker falls back safely if a kind is missing.
+- **Prop**: the wrestler's own oversized object and its swing.
+- **Squelsh**: the buff *and its drawback*. If it has no drawback it is a second
+  super meter, which the Bible explicitly forbids.
+- **Rig**: proportions, palette, head kind, costume and extras. See below.
 
-### Stat ranges
+## Making them feel different
 
-| Stat | Typical | Meaning |
-| --- | --- | --- |
-| `health` | 100–140 | Max health. |
-| `speed` | 140–190 | Ring units per second at a full walk. |
-| `power` | 0.85–1.3 | Damage multiplier. |
-| `grapple` | 0.9–1.4 | Clinch duration and throw damage. |
-| `reversal` | 0.85–1.25 | Multiplies the reversal timing window. |
-| `squelshGain` | 0.9–1.25 | Meter build rate. |
+Jassy and RAID are deliberately opposite on every axis: speed, reach, air,
+per-hit damage, grapple range, and startup frames. Copying one and changing the
+colours produces exactly the thing the Bible warns against.
 
-Keep the sum of the multipliers near JASSY's and RAID's, and give each fighter
-one thing they are clearly best at.
+Give the renderer something to work with too:
 
-### Move frame data
+- `proportions.bulk`, `hunch`, `heel` and `shoulderW` change the silhouette
+  before any animation runs.
+- `render/rig/clips.ts` exposes a `Style` (`amp`, `lean`, `stance`, `bounce`,
+  `elbow`, `sway`). `STYLE_POISED` and `STYLE_BRUTE` produce visibly different
+  walks from the same clip library. Add a new one rather than reusing.
 
-```ts
-{
-  id, name, kind,                 // kind drives animation and hit reaction
-  startup, active, recovery,      // ms — the reversal window is the end of startup
-  damage, reach, depthTolerance,  // reach is horizontal; depthTolerance is the 2.5D axis
-  knockback, hitstun,
-  knockdown?, launch?,            // knockdown puts them on the mat
-  squelsh, heat,                  // meter and crowd payout on a clean hit
-  lunge?, shake?, impactTint?, callout?,
-  buff?,                          // signatures usually apply one
-  cost?,                          // 50 signature, 100 finisher
-}
-```
+## Rig geometry
 
-Rules of thumb: a light is ~90–120 startup, a heavy ~260–320 (it must be
-reactable), a finisher 380–440. Longer reach should cost startup.
+`RigSpec` is interpreted by `render/rig/buildBody.ts`. Head kinds are `glam` and
+`insect`; costume tops are `leotard` and `harness`; extras cover additional arm
+pairs, antennae, shoulder pads and a hip prop. Extend `buildBody` for anything
+new, and keep it primitive-based until approved GLB assets exist.
 
-## 2. Register it
+## Checklist
 
-```ts
-// src/game/data/characters/index.ts
-import { NEW_WRESTLER } from './newwrestler';
-export const ROSTER: WrestlerConfig[] = [JASSY, RAID, NEW_WRESTLER];
-```
-
-If the persona is documented but not yet playable, add it to `ROSTER_ROADMAP`
-instead — it shows on the roster screen as a real, not-yet-playable persona.
-
-## 3. The look
-
-Until approved artwork arrives, the wrestler is drawn from `rig`:
-
-```ts
-rig: {
-  scale, bulk,                    // silhouette mass
-  skin, outfit, outfitAlt, trim, boots, gloves, hair,
-  rim,                            // silhouette outline colour — pick a bright one
-  aura,                           // special-move particle colour
-  flourishes: [                   // this is what makes them recognisable
-    { kind: 'bighair',      color, color2, scale },
-    { kind: 'shoulderpads', color, color2 },
-    { kind: 'antennae' | 'carapace' | 'extraArms' | 'wings' | 'visor'
-           | 'mandibles' | 'tailStinger' | 'crown' | 'sash', color },
-  ],
-}
-```
-
-Props draw in the front hand: `briefcase`, `canister`, `syringe`, `microphone`,
-`sign`, `none`.
-
-**Silhouette test:** at phone size a player must be able to tell the two fighters
-apart from shape alone. Vary `bulk`, hair volume and flourishes, not just colour.
-
-## 4. Swapping in approved artwork
-
-When the collective supplies approved sprite sheets, drop them at
-`public/assets/characters/<id>/` (see `docs/CHARACTER_ASSETS.md`) and set
-`useExternalAtlas: true`. The procedural rig stays as the fallback so a
-half-finished art pass never breaks the build.
-
-## 5. Never
-
-- Never ship scraped photographs of a performer.
-- Never invent biography. If the real persona detail is not sourced, write the
-  short factual part and set `personaResearch: 'TEAM CONFIRMATION REQUIRED'`.
-- Never copy movesets, names or audio from a commercial wrestling game.
+- [ ] Every move, taunt and prop has a `provenance`
+- [ ] Silhouette is distinguishable from the existing roster at match camera
+- [ ] Squelsh effect has a real drawback
+- [ ] `npm run typecheck` passes
+- [ ] The pacing harness still produces a 100–180 s match with them in it

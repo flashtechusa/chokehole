@@ -1,34 +1,26 @@
 /**
  * The single control surface the game understands. The touch pad, the keyboard
- * and the AI all produce one of these; nothing downstream knows the difference.
+ * and the AI all produce one of these; nothing downstream can tell them apart.
+ *
+ * v2.0 has three buttons and no chords (Bible s9): ATTACK, GRAB, IT/SPECIAL.
+ * The reversal is a timed ATTACK tap, not a combination.
  */
 export interface Intent {
-  /** -1..1 lateral. */
+  /** Analog stick, -1..1 each, magnitude drives walk vs run. */
   moveX: number;
-  /** -1..1 depth (negative = toward the back rope). */
   moveY: number;
-  /** Edge: STRIKE pressed this frame. */
-  strike: boolean;
-  /** STRIKE is currently held (drives the heavy charge). */
-  strikeHeld: boolean;
-  /** Edge: STRIKE released this frame. */
-  strikeRelease: boolean;
-  /** Edge: GRAPPLE pressed this frame. */
-  grapple: boolean;
-  grappleHeld: boolean;
-  /** Edge: SQUELSH/SPECIAL pressed this frame. */
+  /** Edge: pressed this frame. */
+  attack: boolean;
+  grab: boolean;
   special: boolean;
-  /** STRIKE + GRAPPLE held together = block / reversal. */
-  block: boolean;
-  /** Any button pressed this frame — used for mashing out of holds and pins. */
+  /** Any of the three pressed this frame, for mashing out of holds. */
   anyPress: boolean;
 }
 
 export function neutralIntent(): Intent {
-  return {
-    moveX: 0, moveY: 0,
-    strike: false, strikeHeld: false, strikeRelease: false,
-    grapple: false, grappleHeld: false,
-    special: false, block: false, anyPress: false,
-  };
+  return { moveX: 0, moveY: 0, attack: false, grab: false, special: false, anyPress: false };
+}
+
+export function stickMagnitude(i: Intent): number {
+  return Math.min(1, Math.hypot(i.moveX, i.moveY));
 }

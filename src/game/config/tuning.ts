@@ -1,125 +1,196 @@
 /**
- * Global combat tuning. Kept in one place so the feel can be balanced without
- * hunting through systems.  All times in ms, all distances in ring units
- * (1 ring unit == 1 virtual pixel at depth 0.5).
+ * Global tuning. One file so feel can be balanced without hunting through
+ * systems. Distances in ring units, times in ms.
+ *
+ * Match length target is 60-120s for the prototype (Bible s8). The rejected 2D
+ * build defaulted to five minutes and ran out in twenty-four seconds; both
+ * numbers are now driven from here and verified by the headless sim harness.
  */
-/**
- * Design resolution. Height is fixed at 540; width follows the device's
- * landscape aspect ratio so the canvas fills a modern phone edge-to-edge
- * instead of letterboxing ~18% of the screen away from the player's thumbs.
- * Computed once at import, from the longest/shortest screen edge, so it is
- * correct even if the page loads in portrait.
- */
-function designWidth(): number {
-  if (typeof window === 'undefined') return 960;
-  const long = Math.max(window.innerWidth, window.innerHeight);
-  const short = Math.min(window.innerWidth, window.innerHeight);
-  const aspect = short > 0 ? long / short : 16 / 9;
-  return Math.round(540 * Math.max(16 / 9, Math.min(21 / 9, aspect)));
-}
-
-const VIEW_W = designWidth();
-const VIEW_H = 540;
-
 export const TUNING = {
-  /** Virtual design resolution. Landscape, height-locked. */
-  view: { width: VIEW_W, height: VIEW_H },
-
   ring: {
-    /** Screen-space centre of the ring floor. */
-    centerX: VIEW_W / 2,
-    baseY: 366,
-    /** Playable depth band, in normalised units. 0 = far rope, 1 = near rope. */
-    depthPixels: 92,
-    /** Scale of a fighter at depth 0 and depth 1. */
-    scaleBack: 1.04,
-    scaleFront: 1.38,
-    ropeBounce: 1.55,
+    /** Mat half-extent. Fighters are clamped inside this minus their radius. */
+    half: 3.1,
+    /** Mat surface height above the floor. */
+    matY: 1.06,
+    ropeHeights: [0.42, 0.72, 1.02],
+    postHeight: 1.44,
   },
 
-  fighter: {
-    /** Multiplier applied to WrestlerStats.speed for walk. */
-    walkMult: 1.32,
-    runMult: 2.0,
-    /** Depth movement is slower than lateral for a wrestling-camera feel. */
-    depthMult: 0.55,
-    accel: 3400,
-    friction: 3400,
-    gravity: 1750,
-    /** Minimum separation before bodies push each other apart. */
-    bodyRadius: 33,
-    pushForce: 340,
-    /** Double-tap threshold to break into a run. */
-    dashWindow: 260,
-    hurtboxHeight: 118,
+  move: {
+    walk: 1.0,
+    run: 1.9,
+    /** Stick magnitude above which the fighter breaks into a run. */
+    runThreshold: 0.82,
+    accel: 22,
+    friction: 18,
+    /** Air resistance. Low: a body in flight should keep going. */
+    airDrag: 0.35,
+    gravity: 16,
+    /** Bodies push apart below this centre distance. */
+    pushForce: 9,
+    /** How fast a fighter turns to face the opponent, radians/sec. */
+    turnRate: 14,
   },
 
   combat: {
-    /** Held duration on STRIKE that upgrades a light into a heavy. */
-    heavyChargeMs: 210,
-    /** Reversal is armed for this long after BLOCK is entered. */
-    reversalWindow: 260,
-    /** Block reduces damage to this fraction. */
-    blockChip: 0.22,
-    /** Guard breaks after this much blocked damage. */
-    guardBreak: 34,
-    guardRegenPerSec: 12,
-    /** Combo window: another hit inside this continues the combo counter. */
-    comboWindow: 900,
-    comboDamageFalloff: 0.86,
-    /** Grapple. */
-    grappleRange: 68,
-    grappleStartup: 170,
-    grappleHoldMs: 950,
-    grappleEscapeTaps: 4,
-    throwDamage: 13,
-    /** Down / recovery. */
-    downMs: 850,
-    getUpMs: 300,
-    getUpInvulnMs: 320,
-    downMashReduction: 90,
-    /** Pin. */
-    pinRange: 74,
-    pinCountMs: 780,
-    pinEscapeTapsBase: 7,
-    /** Fraction of max health under which a pin becomes realistically winnable. */
-    pinDangerHealth: 0.42,
-    /** Ten-count KO if a 0-health fighter is left lying there. */
-    koCountMs: 9000,
-    /** Taunt. */
-    tauntMs: 900,
-    tauntSquelsh: 9,
-    tauntHeat: 11,
+    /** A tap inside this window after the previous hit continues the combo. */
+    comboWindowMs: 620,
+    comboDamageFalloff: 0.9,
+    /** Third light in a string upgrades to the heavy automatically (Bible s9.2). */
+    autoHeavyOnCombo: 3,
+    /** An attack on a stunned opponent is also a heavy. */
+    heavyOnStunned: true,
+    /** A pressed button survives this long looking for an opening. */
+    bufferMs: 190,
+
+    grappleRange: 1.25,
+    grappleHoldMs: 1500,
+    /** Held fighter escapes after this many taps. */
+    grappleEscapeTaps: 5,
+
+    downMs: 1120,
+    getUpMs: 320,
+    getUpInvulnMs: 300,
+    /** Mashing while down shortens it by this much per press. */
+    downMashReduction: 70,
+
+    /** Fallback only; each taunt carries its own duration, IT and heat. */
+    tauntMs: 1000,
+  },
+
+  reversal: {
+    /**
+     * The cue appears this long before the attack becomes active, and a tap is
+     * accepted for the whole window. Multiplied by the defender's reversal stat
+     * and by the difficulty scale.
+     */
+    windowMs: 420,
+    /** Reversal costs the attacker this much stun. */
+    attackerStunMs: 750,
+    defenderInvulnMs: 340,
+    itGain: 18,
+    heat: 14,
+    /** Punishment for tapping ATTACK with no cue armed, so it cannot be spammed. */
+    whiffLockoutMs: 260,
+  },
+
+  pin: {
+    /**
+     * Covers are allowed from just past half health. That is deliberate: a pin
+     * you are supposed to kick out of is the near fall, and near falls are the
+     * biggest crowd moment in the game. The escape zone below does the work of
+     * making a pin at 50% survivable and a pin at 5% fatal.
+     */
+    maxHealthFrac: 0.55,
+    /** IT and heat for surviving to the last count. Near falls are the payoff. */
+    nearFallIt: 28,
+    nearFallHeat: 40,
+    range: 1.4,
+    /** One sweep of the escape marker per count. */
+    countMs: 1100,
+    /** Escape zone half-width as a fraction of the bar, at full health. */
+    zoneAtFullHealth: 0.34,
+    /** ...and at zero health. Narrower means harder to kick out. */
+    zoneAtZeroHealth: 0.06,
+    /** A finisher landed this match narrows the zone further. */
+    finisherZonePenalty: 0.55,
   },
 
   meters: {
-    squelshMax: 100,
+    itMax: 100,
     signatureCost: 50,
     finisherCost: 100,
-    /** SQUELSH gained per point of damage taken. */
-    squelshOnDamageTaken: 0.55,
-    reversalSquelsh: 14,
+    /**
+     * IT Factor per point of damage TAKEN. Deliberately small: the meter rewards
+     * entertainment, not attrition, so a dive is worth more than a minute of
+     * trading jabs.
+     */
+    itOnDamageTaken: 0.10,
+    /**
+     * Global multiplier on every IT gain. One knob so the time-to-finisher can
+     * be tuned against the sim harness without editing forty move records.
+     * Measured target: a finisher becomes available after roughly ninety
+     * seconds of genuinely entertaining work, not thirty.
+     */
+    itScale: 0.5,
+    /** Same idea for crowd heat, which used to peg at 100 inside half a minute. */
+    heatScale: 0.55,
     heatMax: 100,
-    heatDecayPerSec: 3.4,
-    heatComboBonus: 3,
-    /** Heat multiplies SQUELSH gain up to this at 100 heat. */
-    heatSquelshMult: 1.5,
+    heatDecayPerSec: 6.5,
+    /** Heat scales IT Factor gain up to this multiplier at full heat. */
+    heatItMult: 1.45,
+  },
+
+  squelsh: {
+    /** First can drops this long after the bell. */
+    firstSpawnMs: 18000,
+    respawnMs: 30000,
+    pickupRadius: 0.85,
+    /** The can bobs this far above the mat. */
+    hoverY: 0.55,
+  },
+
+  props: {
+    /** An oversized prop appears this long into the match. */
+    spawnMs: 26000,
+    respawnMs: 45000,
+    pickupRadius: 1.0,
+    /**
+     * Swings before the thing falls apart. Measured at unlimited: whoever picked
+     * a prop up simply won, twenty hits in a row, and every other system stopped
+     * mattering. Three swings makes it a spot, not a strategy.
+     */
+    uses: 3,
   },
 
   match: {
-    durationMs: 5 * 60 * 1000,
-    introMs: 5200,
-    /** Bell-to-bell delay after the intro. */
-    startDelayMs: 900,
+    /**
+     * A CHOKE HOLE match is a show with an arc: opening strikes, rope running,
+     * a prop spot, a near fall, a reversal, a dive, then the finisher. Ordinary
+     * attacks must never produce a routine twenty-second victory, so the clock
+     * is four minutes and the pin is gated behind real damage.
+     */
+    durationMs: 240000,
+    introMs: 3600,
+    bellDelayMs: 700,
+    /** Ten count for a fighter left at zero health. */
+    koCountMs: 9000,
+  },
+
+  camera: {
+    /**
+     * Three-quarter ringside, and close. The first pass sat back far enough to
+     * frame the whole building, which made two wrestlers about eighty pixels
+     * tall on a phone. The fight is the subject; the room is the backdrop.
+     */
+    baseYaw: -0.62,
+    basePitch: 0.30,
+    minDist: 5.2,
+    maxDist: 8.0,
+    /**
+     * Above the top rope and the posts (mat 1.06 + post 1.44 = 2.5). Sitting at
+     * rope height put a corner post directly through the middle of the shot.
+     */
+    height: 3.15,
+    /** Look at chest height, not at the mat, or the frame fills with canvas. */
+    lookHeight: 1.7,
+    /** The camera never comes closer to the ring centre than this. */
+    minRadius: 5.6,
+    follow: 3.2,
+    punchDecay: 7.5,
   },
 
   fx: {
-    hitStopLight: 45,
-    hitStopHeavy: 95,
-    hitStopFinisher: 260,
-    shakeLight: 0.0025,
-    shakeHeavy: 0.007,
+    hitStopLight: 42,
+    hitStopHeavy: 90,
+    hitStopFinisher: 200,
   },
 };
 
+/**
+ * Deliberately not `as const`. Marking this object const gives every field a
+ * literal type, so any variable initialised from TUNING is inferred as e.g.
+ * `-0.62` instead of `number` and cannot be reassigned. The values are only ever
+ * read, so widening them costs nothing.
+ */
 export type Tuning = typeof TUNING;

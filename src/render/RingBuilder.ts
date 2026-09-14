@@ -1,0 +1,134 @@
+import type { Scene } from '@babylonjs/core/scene';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
+import { CreateCylinder } from '@babylonjs/core/Meshes/Builders/cylinderBuilder';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { TUNING } from '@/game/config/tuning';
+import { C } from '@/game/config/canon';
+import { flatMaterial } from './rig/Skeleton';
+import { apronTexture, emissiveMat, matTexture } from './textures';
+
+export interface Ring {
+  root: TransformNode;
+  /** Rope segments, so slams can make them shudder. */
+  ropes: Mesh[];
+  posts: Mesh[];
+}
+
+/**
+ * A real 3D ring: raised apron, painted canvas, four posts, three ropes a side,
+ * turnbuckle pads. Built to the dimensions the simulation actually uses, so what
+ * the player sees is what the collision does.
+ */
+export function buildRing(scene: Scene): Ring {
+  const root = new TransformNode('ring', scene);
+  const H = TUNING.ring.half;
+  const matY = TUNING.ring.matY;
+  const outer = H + 0.55;
+
+  // --- base / apron ---
+  const base = CreateBox('ringBase', { width: outer * 2, height: matY, depth: outer * 2 }, scene);
+  base.position.y = matY / 2;
+  base.parent = root;
+  base.material = emissiveMat(scene, 'apronMat', apronTexture(scene), 0.5);
+  base.isPickable = false;
+
+  // --- canvas ---
+  const mat = CreateBox('ringMat', { width: H * 2 + 0.18, height: 0.08, depth: H * 2 + 0.18 }, scene);
+  mat.position.y = matY + 0.04;
+  mat.parent = root;
+  const matMat = emissiveMat(scene, 'matMat', matTexture(scene), 0.3);
+  mat.material = matMat;
+  mat.isPickable = false;
+
+  // --- posts ---
+  const posts: Mesh[] = [];
+  const postMat = flatMaterial(scene, C.magenta, 0.35);
+  const capMat = flatMaterial(scene, C.acid, 0.6);
+  const corners: [number, number][] = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+  for (const [sx, sz] of corners) {
+    const p = CreateCylinder('post', {
+      height: TUNING.ring.postHeight, diameterTop: 0.13, diameterBottom: 0.15, tessellation: 8,
+    }, scene);
+    p.position.set(sx * (H + 0.22), matY + TUNING.ring.postHeight / 2, sz * (H + 0.22));
+    p.parent = root;
+    p.material = postMat;
+    p.isPickable = false;
+    posts.push(p);
+
+    const cap = CreateBox('postCap', { width: 0.26, height: 0.2, depth: 0.26 }, scene);
+    cap.position.set(p.position.x, matY + TUNING.ring.postHeight, p.position.z);
+    cap.parent = root;
+    cap.material = capMat;
+    cap.isPickable = false;
+
+    // turnbuckle pads facing inward on both adjacent sides
+    for (const axis of ['x', 'z'] as const) {
+      const pad = CreateBox('pad', {
+        width: axis === 'x' ? 0.16 : 0.5, height: 0.8, depth: axis === 'x' ? 0.5 : 0.16,
+      }, scene);
+      pad.position.set(
+        p.position.x - (axis === 'x' ? sx * 0.14 : 0),
+        matY + 0.72,
+        p.position.z - (axis === 'z' ? sz * 0.14 : 0),
+      );
+      pad.parent = root;
+      pad.material = flatMaterial(scene, axis === 'x' ? C.pink : C.squelsh, 0.4);
+      pad.isPickable = false;
+    }
+  }
+
+  // --- ropes ---
+  const ropes: Mesh[] = [];
+  const ropeColors = [C.pink, C.bone, C.squelsh];
+  TUNING.ring.ropeHeights.forEach((rh, i) => {
+    const m = flatMaterial(scene, ropeColors[i % ropeColors.length]!, 0.55);
+    for (const [axis, sign] of [['x', 1], ['x', -1], ['z', 1], ['z', -1]] as const) {
+      const rope = CreateCylinder('rope', {
+        height: (H + 0.22) * 2, diameter: 0.055, tessellation: 6,
+      }, scene);
+      rope.material = m;
+      rope.parent = root;
+      rope.isPickable = false;
+      if (axis === 'x') {
+        rope.rotation.x = Math.PI / 2;
+        rope.position.set(sign * (H + 0.22), matY + rh, 0);
+      } else {
+        rope.rotation.z = Math.PI / 2;
+        rope.position.set(0, matY + rh, sign * (H + 0.22));
+      }
+      ropes.push(rope);
+    }
+  });
+
+  // --- steel skirt trim so the apron reads as built, not printed ---
+  for (const [axis, sign] of [['x', 1], ['x', -1], ['z', 1], ['z', -1]] as const) {
+    const trim = CreateBox('trim', {
+      width: axis === 'x' ? 0.08 : outer * 2, height: 0.1, depth: axis === 'x' ? outer * 2 : 0.08,
+    }, scene);
+    trim.position.set(axis === 'x' ? sign * outer : 0, matY - 0.02, axis === 'z' ? sign * outer : 0);
+    trim.parent = root;
+    trim.material = flatMaterial(scene, C.acid, 0.45);
+    trim.isPickable = false;
+  }
+
+  return { root, ropes, posts };
+}
+
+/** Soft blob shadow under a fighter. Cheaper than a shadow map and reads better. */
+export function buildBlobShadow(scene: Scene, name: string): Mesh {
+  const m = CreateCylinder(name, { height: 0.012, diameter: 1, tessellation: 14 }, scene);
+  const mat = new StandardMaterial(`${name}_mat`, scene);
+  mat.diffuseColor = new Color3(0, 0, 0);
+  mat.emissiveColor = new Color3(0, 0, 0);
+  mat.specularColor = new Color3(0, 0, 0);
+  mat.alpha = 0.34;
+  mat.disableLighting = true;
+  m.material = mat;
+  m.isPickable = false;
+  m.position = new Vector3(0, TUNING.ring.matY + 0.09, 0);
+  return m;
+}

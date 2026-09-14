@@ -1,39 +1,29 @@
-import Phaser from 'phaser';
-import { buildGameConfig } from '@/game/config/gameConfig';
-import { BootScene } from '@/game/scenes/BootScene';
-import { TitleScene } from '@/game/scenes/TitleScene';
-import { MenuScene } from '@/game/scenes/MenuScene';
-import { SelectScene } from '@/game/scenes/SelectScene';
-import { MatchScene } from '@/game/scenes/MatchScene';
-import { ResultsScene } from '@/game/scenes/ResultsScene';
-import { ArchiveScene } from '@/game/scenes/ArchiveScene';
-import { RosterScene } from '@/game/scenes/RosterScene';
-import { SettingsScene } from '@/game/scenes/SettingsScene';
-import { HowToScene } from '@/game/scenes/HowToScene';
+import './ui/ui.css';
+import { App } from './app/App';
+import { registerSW } from './app/pwa';
 
-const game = new Phaser.Game(
-  buildGameConfig([
-    BootScene, TitleScene, MenuScene, SelectScene,
-    MatchScene, ResultsScene, ArchiveScene, RosterScene,
-    SettingsScene, HowToScene,
-  ]),
-);
+/**
+ * Entry point. Boots the Babylon stage into #stage and the HTML UI into #ui.
+ * Everything visible above the 3D scene is DOM, at real device pixels.
+ */
+const canvas = document.getElementById('stage') as HTMLCanvasElement | null;
+const ui = document.getElementById('ui');
 
-// Hide the pre-Phaser splash once the first scene has painted.
-game.events.once(Phaser.Core.Events.READY, () => {
-  const splash = document.getElementById('boot-splash');
-  if (splash) {
-    splash.classList.add('hide');
-    window.setTimeout(() => splash.remove(), 420);
-  }
-});
-
-// Exposed for debugging and automated smoke tests (see docs/DEPLOYMENT.md).
-(window as unknown as { __CHOKEHOLE__: Phaser.Game }).__CHOKEHOLE__ = game;
-
-// Debug overlay: ?debug=true
-if (new URLSearchParams(window.location.search).get('debug') === 'true') {
-  document.body.dataset.debug = 'true';
+if (!canvas || !ui) {
+  throw new Error('CHOKE HOLE: missing #stage or #ui');
 }
 
-export default game;
+// Safari fires gestures at the document; keep them off the game surface.
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend'] as const) {
+  document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+}
+document.addEventListener('touchmove', (e) => {
+  if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
+
+const app = new App(canvas, ui);
+
+// Test hook for the smoke test and the headless pacing harness.
+(window as unknown as { __CHOKEHOLE__: unknown }).__CHOKEHOLE__ = app;
+
+registerSW();

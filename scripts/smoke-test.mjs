@@ -1,20 +1,19 @@
 /**
- * Headless smoke test: boots the game at an iPhone-landscape viewport, walks the
- * whole flow (title -> menu -> select -> entrance -> match -> pin -> results ->
- * archives -> roster -> how to play -> settings), screenshots each step and
- * fails loudly on any console or page error.
+ * End-to-end smoke test through the real UI: title -> archive -> match ->
+ * combat -> pin -> results -> rematch. Fails on any console error, page error
+ * or failed request.
  *
- *   npm run dev                      # in one terminal
- *   npx playwright install chromium  # once
- *   SHOT_DIR=/tmp/shots npm run smoke
- *
- * Playwright is intentionally NOT a dependency of the game; install it only if
- * you want to run this.
+ * Screenshots are captured at deviceScaleFactor 1, i.e. true phone CSS pixels.
+ * Capturing at 2 is what hid the unreadable type in the first prototype.
  */
 import { chromium } from 'playwright';
+import path from 'node:path';
+import fs from 'node:fs';
 
-const SHOT = process.env.SHOT_DIR || '/tmp/shots';
-const URL = process.env.GAME_URL || 'http://localhost:5173/';
+const SHOT = process.env.SHOT_DIR || '/tmp/chokehole-shots';
+const URL = process.env.GAME_URL || 'http://localhost:4173/';
+fs.mkdirSync(SHOT, { recursive: true });
+
 const errors = [];
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium',
@@ -22,180 +21,97 @@ const browser = await chromium.launch({
          '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'],
 });
 const ctx = await browser.newContext({
-  // deviceScaleFactor 1 == true phone CSS pixels. Capturing at 2 is what hid
-  // the unreadable type: 9 design px looked fine in a 2x screenshot and was
-  // 6.5 CSS px on the device.
   viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true,
 });
 const page = await ctx.newPage();
-page.on('console', (m) => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
-page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message + '\n' + (e.stack || '')));
-await page.goto(URL, { waitUntil: 'load' });
-await page.waitForTimeout(1500);
+page.on('console', (m) => { if (m.type() === 'error') errors.push('CONSOLE ' + m.text()); });
+page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
+page.on('requestfailed', (r) => errors.push('REQFAIL ' + r.url()));
 
-const shot = (n) => page.screenshot({ path: `${SHOT}/${n}.png` });
-const S = await page.evaluate(() => ({ w: window.__CHOKEHOLE__.scale.width, h: window.__CHOKEHOLE__.scale.height }));
-const R = await page.evaluate(() => {
-  const r = document.querySelector('#game canvas').getBoundingClientRect();
-  return { l: r.left, t: r.top, w: r.width, h: r.height };
-});
-const tap = async (dx, dy) => {
-  await page.touchscreen.tap(R.l + (dx / S.w) * R.w, R.t + (dy / S.h) * R.h);
-  await page.waitForTimeout(140);
+const shot = (n) => page.screenshot({ path: path.join(SHOT, n + '.png') });
+const tap = async (label) => {
+  const el = page.locator('button.big-btn', { hasText: label }).first();
+  await el.waitFor({ state: 'visible', timeout: 10000 });
+  await el.dispatchEvent('pointerdown');
 };
-const active = () => page.evaluate(() => window.__CHOKEHOLE__.scene.getScenes(true).map((s) => s.scene.key));
-
-/**
- * Interactive hit-zones of a scene, in design coordinates, each tagged with the
- * label of the button it belongs to. Buttons are Containers holding a Text and
- * a Zone, so the label comes from the Container's first Text child.
- */
-const zones = (key) => page.evaluate((k) => {
-  const sc = window.__CHOKEHOLE__.scene.getScene(k);
-  const out = [];
-  const walk = (o, label) => {
-    if (o.type === 'Container') {
-      const own = o.list.find((c) => c.type === 'Text' && c.text);
-      const next = own ? own.text : label;
-      o.list.forEach((c) => walk(c, next));
-      return;
-    }
-    if (o.type === 'Zone' && o.input) {
-      const m = o.getWorldTransformMatrix();
-      out.push({ x: Math.round(m.tx), y: Math.round(m.ty), label: label || '' });
-    }
+const state = () => page.evaluate(() => {
+  const d = window.__CHOKEHOLE__.debug();
+  const s = d.sim;
+  return {
+    screen: d.screen, fps: d.fps, quality: d.quality,
+    phase: s ? s.phase : null,
+    h1: s ? Math.round(s.p1.health) : null,
+    h2: s ? Math.round(s.p2.health) : null,
+    s1: s ? s.p1.state : null, s2: s ? s.p2.state : null,
   };
-  sc.children.list.forEach((o) => walk(o, ''));
-  return out;
-}, key);
-
-/** Taps the nth button of a scene by its real hit-zone, not a guessed pixel. */
-const tapZone = async (key, index) => {
-  const z = await zones(key);
-  if (!z[index]) { console.log('no zone', index, 'in', key, '(found', z.length + ')'); return false; }
-  await tap(z[index].x, z[index].y);
-  return true;
-};
-
-/** Taps the button whose label matches, so layout changes cannot break the test. */
-const tapLabel = async (key, label) => {
-  const z = await zones(key);
-  const hit = z.find((b) => b.label === label);
-  if (!hit) {
-    console.log('no button', label, 'in', key, '— saw', z.map((b) => b.label).join(' | '));
-    return false;
-  }
-  await tap(hit.x, hit.y);
-  return true;
-};
-const waitScene = async (key, ms = 15000) => {
-  const t0 = Date.now();
-  for (;;) {
-    const s = await active();
-    if (s.includes(key)) return true;
-    if (Date.now() - t0 > ms) { console.log('TIMEOUT waiting', key, 'saw', s); return false; }
-    await page.waitForTimeout(150);
-  }
-};
-
-// ---- to the match ----
-await tap(S.w / 2, 440); await page.waitForTimeout(700);
-await tap(S.w / 2, 440); await waitScene('Menu'); await page.waitForTimeout(400);
-await shot('menu');
-await tap(S.w / 2, 194); await waitScene('Select'); await page.waitForTimeout(400);
-await shot('select-1');
-const spacing = Math.min(370, (S.w - 90) / 2);
-await tap(S.w / 2 - spacing / 2, 466); await page.waitForTimeout(500);   // JASSY
-await tap(S.w / 2 + spacing / 2, 466); await page.waitForTimeout(500);   // RAID
-await shot('select-arena');
-await tap(S.w - 150, 486); await waitScene('Match'); await page.waitForTimeout(1000);
-await shot('entrance');
-await tap(S.w / 2, 470); await page.waitForTimeout(1800);
-await shot('match');
-
-const hold = async (k, ms) => { await page.keyboard.down(k); await page.waitForTimeout(ms); await page.keyboard.up(k); };
-const st = () => page.evaluate(() => {
-  const m = window.__CHOKEHOLE__.scene.getScene('Match');
-  if (!m || !m.scene.isActive()) return null;
-  return { phase: m.phase, heat: Math.round(m.heat), h1: Math.round(m.p1.health), h2: Math.round(m.p2.health),
-           sq1: Math.round(m.p1.squelsh), s1: m.p1.state, s2: m.p2.state };
 });
 
-// ---- build SQUELSH and land a signature + finisher ----
-for (let i = 0; i < 10; i++) {
-  await hold('ArrowRight', 260);
-  await hold('j', 60); await page.waitForTimeout(180);
-  await hold('j', 340); await page.waitForTimeout(320);
-  const s = await st();
-  if (s && s.sq1 >= 50) break;
-}
-console.log('before special', JSON.stringify(await st()));
-await hold('ArrowRight', 220);
-await hold('l', 60);
-await page.waitForTimeout(500);
-await shot('signature');
-console.log('after signature', JSON.stringify(await st()));
+await page.goto(URL, { waitUntil: 'load' });
+await page.waitForFunction(() => !!window.__CHOKEHOLE__, null, { timeout: 30000 });
+await page.waitForTimeout(1800);
+await shot('01-title');
+console.log('title   ', JSON.stringify(await state()));
 
-// ---- harness nudge: put the AI one hit from zero, then finish it legitimately ----
+await tap('HOW TO');
+await page.waitForTimeout(500);
+await shot('02-howto');
+await tap('BACK');
+await page.waitForTimeout(400);
+
+await tap('FIGHT');
+await page.waitForTimeout(600);
+await shot('03-archive');
+await tap('RING THE BELL');
+await page.waitForTimeout(4500);
+await shot('04-match');
+console.log('match   ', JSON.stringify(await state()));
+
+// real button presses through the touch layer
+const attack = page.locator('.btn-attack');
+const grab = page.locator('.btn-grab');
+for (let i = 0; i < 26; i++) {
+  const b = i % 5 === 4 ? grab : attack;
+  await b.dispatchEvent('pointerdown');
+  await b.dispatchEvent('pointerup');
+  await page.waitForTimeout(170);
+}
+await shot('05-fighting');
+console.log('fought  ', JSON.stringify(await state()));
+
+// Force the finish so the pin, results and rematch paths are exercised. The
+// opponent has to be flattened and covered in the same tick, or they simply get
+// back up before the cover lands.
 await page.evaluate(() => {
-  const m = window.__CHOKEHOLE__.scene.getScene('Match');
-  m.p2.health = 0.6;
+  const s = window.__CHOKEHOLE__.debug().sim;
+  const d = s.p2;
+  d.health = 0;
+  d.exhausted = true;
+  d.action = null;
+  d.setState('DOWN');
+  d.y = d.groundY;
+  s.p1.action = null;
+  s.p1.setState('IDLE');
+  s.p1.x = d.x + 0.5; s.p1.z = d.z;
+  s.p1.events.push({ type: 'wantsPin' });
 });
-let downed = false;
-for (let i = 0; i < 40 && !downed; i++) {
-  const s = await st();
-  if (!s) break;
-  await hold('ArrowRight', 150);
-  await hold('j', 60);
-  await page.waitForTimeout(220);
-  const s2 = await st();
-  if (s2 && (s2.s2 === 'DOWN' || s2.h2 <= 0)) downed = true;
-}
-console.log('downed?', downed, JSON.stringify(await st()));
-await shot('down');
+await page.waitForTimeout(1500);
+await shot('06-pin');
+console.log('pin     ', JSON.stringify(await state()));
 
-// walk in and cover
-for (let i = 0; i < 40; i++) {
-  const s = await st();
-  if (!s || s.phase === 'PIN' || s.phase === 'ENDING') break;
-  await hold('ArrowRight', 120);
-  await hold('k', 60);
-  await page.waitForTimeout(200);
-}
-console.log('pin?', JSON.stringify(await st()));
-await page.waitForTimeout(900);
-await shot('pin');
-console.log('end state', JSON.stringify(await st()));
+await page.waitForTimeout(8000);
+await shot('07-results');
+const after = await state();
+console.log('results ', JSON.stringify(after));
+if (after.screen !== 'RESULT') errors.push(`expected RESULT screen, got ${after.screen}`);
 
-// the 1-2-3 count plus the post-match beat has to finish before Results exists
-if (!(await waitScene('Results', 25000))) {
-  errors.push('Results scene never opened after the pin');
-}
-await page.waitForTimeout(1200);
-await shot('results');
-console.log('scenes', await active());
-
-// ---- other screens, driven by real hit-zones ----
-if (!(await tapLabel('Results', 'HOME'))) errors.push('Results: no HOME button');
-if (!(await waitScene('Menu'))) errors.push('HOME did not return to the menu');
-await page.waitForTimeout(500);
-
-for (const [menuLabel, key] of [
-  ['CHOKE HOLE ARCHIVES', 'Archive'],
-  ['ROSTER', 'Roster'],
-  ['HOW TO PLAY', 'HowTo'],
-  ['SETTINGS', 'Settings'],
-]) {
-  if (!(await tapLabel('Menu', menuLabel))) { errors.push(`Menu: no ${menuLabel} button`); continue; }
-  if (!(await waitScene(key))) { errors.push(`${menuLabel} did not open ${key}`); continue; }
-  await page.waitForTimeout(700);
-  await shot(key.toLowerCase());
-  if (!(await tapLabel(key, 'BACK'))) errors.push(`${key}: no BACK button`);
-  if (!(await waitScene('Menu'))) errors.push(`${key}: BACK did not return to the menu`);
-  await page.waitForTimeout(400);
-}
+await tap('REMATCH');
+await page.waitForTimeout(3000);
+const again = await state();
+console.log('rematch ', JSON.stringify(again));
+if (again.screen !== 'MATCH') errors.push(`rematch did not start a match: ${again.screen}`);
+await shot('08-rematch');
 
 console.log('=== ERRORS ===');
-console.log(errors.length ? errors.join('\n---\n') : 'none');
+console.log(errors.length ? errors.slice(0, 10).join('\n') : 'none');
 await browser.close();
 process.exit(errors.length ? 1 : 0);

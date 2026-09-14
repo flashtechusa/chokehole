@@ -1,115 +1,127 @@
-# GAME_DESIGN.md — implementation-facing design
+# Game design
 
-The authority is the **Master Game Design Bible v1.1**. This file is the
-condensed, code-facing version: what exists, where it lives, and how the systems
-actually behave in this repository.
+Every number below was set against the headless pacing harness
+(`scripts/pace.mjs`), which stops the render loop and steps `MatchSim` at a
+fixed 16.67 ms with a scripted player. Nothing here is a guess about feel that
+was never measured.
 
-## 1. Pillars, as implemented
+## The loop
 
-| Pillar | How the code honours it |
+`MOVE → HIT → IMPACT → CROWD REACTS → IT FACTOR RISES → GRAB → SLAM → SPECIAL →
+FINISHER → PIN → REMATCH`
+
+## Controls: three buttons, about twenty moves
+
+There are no chords, no hold timings and no double-tap to run. The move you get
+depends on where you are and what your opponent is doing.
+
+| Situation | ATTACK | GRAB |
+| --- | --- | --- |
+| Standing | 3-hit string, third is automatically heavy | tie-up |
+| Opponent stunned | heavy | tie-up |
+| Running the ropes | running attack, then rebound attack | rebound grapple |
+| On the turnbuckle | dive (or dive to the floor) | climb down |
+| In a corner, opponent away | — | climb the turnbuckle |
+| Opponent in a corner | corner mount | tie-up |
+| Opponent down and hurt | ground attack | **cover for the pin** |
+| Opponent down and healthy | ground attack | pick them up |
+| On the apron | dive / running attack | roll back in |
+| Carrying a prop | swing it | drop it |
+| Holding someone | slam | throw — direction chosen by the stick |
+
+A throw's destination is chosen by the stick: forward, backwards, into a corner,
+whipped into the ropes, or out of the ring entirely.
+
+The ATTACK button relabels itself for the current context (`DIVE`, `STOMP`,
+`SWING`, `RUNNING`) with a hint chip. With this many moves on one button, saying
+what is about to happen is the difference between depth and confusion.
+
+### Reversal
+
+One large cue, one timed ATTACK tap. Tapping with no cue armed costs a short
+lockout so it cannot be mashed. Difficulty scales only the AI's window, never
+the player's.
+
+## IT Factor rewards the show, not the grind
+
+| Action | IT |
 | --- | --- |
-| Phone first | Landscape design surface whose width follows the device aspect (`config/tuning.ts`), floating thumb-stick, three ~63 CSS-px buttons, safe-area insets read from CSS `env()`. |
-| Arcade, not simulation | 2–5 minute matches, exaggerated frame data, hit-stop, impact frames, no stamina/momentum sim. |
-| Real personas | `data/characters/*` separates `publicPersonaSummary` (real, sourced) from moves/stats (fiction). |
-| Real places | `data/arenas/*` and `data/worldtour/venues.ts` carry `RealHistory` records with research status and source URLs. |
-| Choke Hole world-building | IBS bug, fictional viewer count, SQUELSH meter, fake sponsors, broadcast corruption, archive-tape framing. |
-| Exaggeration | Screen-filling callouts, camera flashes, confetti rigs, corrupted-signal overlays. |
-| Short sessions, deep replay | Unlockable arenas, SQUELSH rating, records per wrestler, archive progression. |
-| Data-driven | Adding a wrestler or an arena is a new data file plus one registry line. |
+| Jab | 2 |
+| Heavy | 5 |
+| Throw | 8–9 |
+| Running / rebound attack | 10–15 |
+| Prop swing | 18 |
+| Reversal | 22 |
+| Top-rope dive | 26–28 |
+| Dive to the floor | 32–36 |
+| Kickout at two | 28 |
+| Crowd taunt | 21–26 |
 
-## 2. Match structure
+Damage taken pays 0.10 per point. A global `itScale` keeps time-to-finisher
+near ninety seconds of genuinely entertaining work.
 
-```
-ENTRANCE  archive-tape card + name slams + quotes (skippable, pad hidden)
-BELL      bell, crowd pop, "FIGHT"
-LIVE      the match
-PIN       cover, 1-2-3 count, kick-out window
-ENDING    winner pose, bell, confetti, results hand-off
-PAUSED    any time outside the finisher cinematic
-```
+**Measured:** a player who only jabs and throws *loses* on NORMAL; a player who
+uses the ring wins. The most entertaining way to play is the strongest.
 
-Win conditions: **pinfall** (primary), **KO** (a fighter left on the mat at zero
-health past the ten-count), **time limit** (most health remaining), **draw**.
+## Damage is the same story
 
-## 3. Combat model
+Basic strikes do 2.4–3.8 on an 800/840 health pool — they chip. Dives, rebounds,
+props, signatures and finishers do 20–66. You cannot grind someone down with
+jabs inside the match clock.
 
-Everything lives in `combat/Fighter.ts` (state + physics) and
-`combat/CombatSystem.ts` (contact). Both the player and the AI drive a `Fighter`
-through the same `Intent` shape, so the AI has no privileged actions.
+## Taunting is gameplay
 
-**States** — `IDLE WALK RUN ATTACK GRAPPLE_START GRAPPLING GRAPPLED BLOCK
-REVERSAL STUN DOWN GET_UP TAUNT PIN PINNED WIN LOSE`.
+Four taunts per wrestler, chosen by context: a quick one up close, a
+disrespectful one over a downed opponent, and a long crowd taunt when you have
+room — worth ten times a jab, and it leaves you standing still while someone
+runs at you.
 
-**Ring space** is 2.5D: `x` is lateral, `depth` is 0 (far rope) to 1 (near rope),
-`z` is height. Screen position is `centerX + x`, `baseY + depth * ringDepth - z`;
-scale interpolates between `scaleBack` and `scaleFront`, and draw order sorts on
-depth. An attack must match on **all three** axes, so footwork on the depth axis
-is a real defensive option.
+## Squelsh is a power-up, not a second meter
 
-**Frame data** — every move declares `startup / active / recovery`. The hitbox
-opens only during `active`, and the reversal window sits at the end of `startup`,
-which is why heavy attacks are punishable.
+A can drops in the ring. Walking over it grants a timed buff with a real
+drawback, and the two wrestlers get opposite trades:
 
-**Attacks**
-- *Light*: tap STRIKE. Chains into `lightAlt` when a combo is already running.
-- *Heavy*: hold STRIKE past `heavyChargeMs`; it fires on the threshold with a
-  charge ring as the tell. Knocks down.
-- *Grapple*: GRAPPLE inside `grappleRange` locks a clinch. In the clinch,
-  STRIKE = knees (max 3), GRAPPLE = throw, SQUELSH = signature/finisher throw.
-  The victim mashes to escape; escaping stuns the attacker.
-- *Signature* (50 SQUELSH): character-specific, usually applies a `FighterBuff`.
-- *Finisher* (100 SQUELSH): 2–4s, screen flash, arena event, huge damage.
-- *Taunt*: SQUELSH with an insufficient meter (or a double-tap). Heat + meter,
-  and a wide-open recovery.
+- **Jassy — LIQUIDITY EVENT:** +34% damage, −16% speed. The drink calms you down.
+- **RAID — UNSTABLE BATCH:** +38% speed, +85% IT gain, but +18% damage taken.
 
-**Defence**
-- *Block*: STRIKE + GRAPPLE held. Chips damage to 22%, drains guard, breaks.
-- *Reversal*: block entered within `reversalWindow` of contact. Cancels the hit,
-  stuns the attacker, pays SQUELSH and a large HEAT spike.
+## Props
 
-**Meters**
-- *Health*: never an instant loss. At zero a wrestler is `exhausted` — cannot
-  stand, cannot kick out — and is pinned or counted out.
-- *SQUELSH* (0–100): gained by hitting, being hit, reversing, taunting; scaled by
-  the wrestler's `squelshGain` and by crowd HEAT.
-- *Crowd HEAT* (0–100, shared, decaying): fed by combos, reversals, specials,
-  taunts, rope work. Drives crowd volume, music intensity, lighting, the
-  fictional viewer count, arena events and the post-match rating.
+An oversized prop lands in the ring mid-match. **Three swings and it breaks.**
+Measured unlimited: whoever picked one up simply won, twenty hits in a row, and
+every other system stopped mattering.
 
-## 4. Arena mechanics
+## The pin is a finish, not an opener
 
-`ArenaConfig.event.kind` selects behaviour, triggered above ~66% HEAT:
+Covers are allowed from 55% health down. The escape is one timed tap on a
+sweeping bar, and the zone is weighted per count: **the first count cannot be
+escaped at all**, the second is moderate, the third is generous. So the ordinary
+outcome is the kickout at two — the biggest crowd moment in a match — and a
+flattened opponent stays pinned.
 
-| kind | Behaviour |
-| --- | --- |
-| `lightFlicker` | The DIY rig browns out and strobes (original warehouse). |
-| `crowdPress` | The usable ring width shrinks as the crowd closes in (Superchief). |
-| `confettiRig` | The condiment rig hydraulics up; a finisher fires the cannons (Times Square). |
-| `freezeRay` `projectionSwap` `roulette` `marchingBand` | Declared in the type, awaiting their arenas. |
+Taps at the ends of the sweep do not burn your attempt, so players who mash out
+of habit are not silently punished.
 
-Every effect is suppressed by the **reduce flash** accessibility setting.
+## Crowd heat
 
-## 5. AI
+Under the hood (Bible s10.4). It drives the lighting rig browning out, crowd
+animation, audio, IT gain and the post-match rating. The HUD shows one word.
 
-`ai/AIController.ts` picks a plan every `thinkMs` (approach, space, strike,
-heavy, grapple, special, pin, block, taunt) and executes it through `Intent`. It
-reads only visible information — the opponent's attack startup and charge tell —
-and reacts after a profile-specific delay. Difficulty changes reaction and
-tendency windows only; it never touches damage or health.
+## Measured match shape
 
-## 6. Presentation
+Three runs per difficulty, human-paced scripted player, showman style:
 
-Characters are drawn at runtime by `render/FighterView.ts` from a `RigSpec`
-(colours, bulk, flourishes, prop) posed by keyframed clips in `render/poses.ts`.
-A rim pass behind an inked body pass keeps silhouettes readable at phone size.
-Arenas are drawn by `render/ArenaView.ts` from a list of parallax backdrop layer
-recipes plus a procedurally built ring. Both exist so that gameplay never waited
-on artwork — and both are designed to be replaced by approved assets.
+- length 100–180 s
+- dives thrown 6–18, landed 4–11
+- reversals 7–20
+- pins 0–5, kickouts 0–4, near falls when a pin goes long
+- props used, taunts fired, finishers landed 1–3
 
-## 7. Where the two layers live
+## Known gaps
 
-`RealHistory` is the only place factual claims appear, and every one carries a
-`research` status and `sources`. Everything else — moves, hazards, quotes,
-objectives, sponsors, the whole IBS layer — is game fiction and is labelled as
-such wherever the two appear together (the entrance card, the archive cards, the
-roster cards).
+- Difficulty separation between NORMAL and BRUTAL is within run-to-run noise.
+  The AI's aggression and reaction differ; its measured win rate does not
+  separate cleanly yet.
+- The KO count (nine seconds at zero health) sometimes finishes a match that
+  would be more satisfying as a pin, when neither fighter covers.
+- Frame rate has only been measured under software rendering (25–30 fps), which
+  says nothing about a real phone GPU. Untested on hardware.

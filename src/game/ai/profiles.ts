@@ -1,51 +1,67 @@
+export type Difficulty = 'EASY' | 'NORMAL' | 'BRUTAL';
+
 export interface AIProfile {
-  id: 'EASY' | 'NORMAL' | 'BRUTAL';
+  id: Difficulty;
   label: string;
-  /** ms between decisions. */
+  /** ms between plan changes. */
   thinkMs: number;
-  /** ms of reaction delay before responding to a telegraphed attack. */
+  /** Reaction delay before responding to a telegraphed attack. */
   reactionMs: number;
-  /** Probability of attempting a block/reversal when a hit is telegraphed. */
-  blockChance: number;
-  /** Probability of committing to a grapple when in range. */
-  grappleChance: number;
-  /** Probability of chasing rather than repositioning. */
+  /** Probability of attempting a reversal when the cue is armed. */
+  reversalChance: number;
+  /** How much of the reversal window the AI gets, relative to the player's. */
+  reversalWindowScale: number;
+  grabChance: number;
   aggression: number;
-  /** Probability of using a signature the moment it is available. */
   specialEagerness: number;
-  /** Probability of going for a pin when the opponent is down and hurt. */
   pinEagerness: number;
-  /** Probability of taunting in a lull. */
   tauntChance: number;
-  /** Chance to mash out of grapples/pins per opportunity. */
+  /** Probability of going for the Squelsh can when one is on the mat. */
+  canChance: number;
+  /** Probability of going for an oversized prop at ringside. */
+  propChance: number;
+  /**
+   * How often the AI reaches for the theatrical option — ropes, turnbuckle,
+   * dives — instead of the safe one. The opponent has to be entertaining too.
+   */
+  spectacle: number;
+  /** Accuracy of the pin-escape timing tap, 0..1. */
+  pinSkill: number;
+  /** Probability of mashing out of a grapple on any given opportunity. */
   mashRate: number;
 }
 
 /**
- * Difficulty changes reaction and tendency windows only. No hidden damage or
- * health multipliers — the AI runs the same Fighter/CombatSystem as the player.
+ * Difficulty changes reaction and tendency windows only. It never touches
+ * damage, health or reach, and the AI never reads input before it happens
+ * (Bible s28).
  */
-export const AI_PROFILES: Record<AIProfile['id'], AIProfile> = {
+export const AI_PROFILES: Record<Difficulty, AIProfile> = {
   EASY: {
     id: 'EASY', label: 'ROOKIE',
-    thinkMs: 600, reactionMs: 480, blockChance: 0.12, grappleChance: 0.18,
-    aggression: 0.48, specialEagerness: 0.3, pinEagerness: 0.45,
-    tauntChance: 0.22, mashRate: 0.25,
+    thinkMs: 620, reactionMs: 430,
+    reversalChance: 0.10, reversalWindowScale: 0.7,
+    grabChance: 0.20, aggression: 0.52, specialEagerness: 0.35,
+    pinEagerness: 0.5, tauntChance: 0.20, canChance: 0.35,
+    propChance: 0.4, spectacle: 0.22,
+    pinSkill: 0.3, mashRate: 0.3,
   },
   NORMAL: {
     id: 'NORMAL', label: 'CARD MATCH',
-    thinkMs: 380, reactionMs: 280, blockChance: 0.3, grappleChance: 0.38,
-    aggression: 0.66, specialEagerness: 0.62, pinEagerness: 0.78,
-    tauntChance: 0.14, mashRate: 0.55,
+    thinkMs: 400, reactionMs: 260,
+    reversalChance: 0.24, reversalWindowScale: 1,
+    grabChance: 0.34, aggression: 0.68, specialEagerness: 0.66,
+    pinEagerness: 0.8, tauntChance: 0.12, canChance: 0.6,
+    propChance: 0.6, spectacle: 0.38,
+    pinSkill: 0.58, mashRate: 0.55,
   },
   BRUTAL: {
     id: 'BRUTAL', label: 'MAIN EVENT',
-    // Aggression sat at 0.92, which kept BRUTAL permanently busy attacking: it
-    // never reached the threat check, so the hardest difficulty was also the one
-    // that never blocked or reversed. Leaving it room to defend is what makes it
-    // read as smarter rather than merely faster.
-    thinkMs: 190, reactionMs: 130, blockChance: 0.56, grappleChance: 0.55,
-    aggression: 0.82, specialEagerness: 0.95, pinEagerness: 0.95,
-    tauntChance: 0.04, mashRate: 0.9,
+    thinkMs: 220, reactionMs: 150,
+    reversalChance: 0.42, reversalWindowScale: 1.25,
+    grabChance: 0.48, aggression: 0.82, specialEagerness: 0.92,
+    pinEagerness: 0.95, tauntChance: 0.04, canChance: 0.85,
+    propChance: 0.85, spectacle: 0.52,
+    pinSkill: 0.85, mashRate: 0.85,
   },
 };
