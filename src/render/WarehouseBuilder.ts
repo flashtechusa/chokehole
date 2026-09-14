@@ -189,6 +189,13 @@ export function buildWarehouse(scene: Scene, arena: ArenaConfig): Warehouse {
     const count = arena.crowd.density + row * 8;
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + rng.range(-0.03, 0.03);
+      /*
+       * Nobody sits on the camera side. The shot is a broadcast hard camera:
+       * side-on, orthographic, and looking across the ring, so anyone placed
+       * between the lens and the ropes stands full-size in front of the match.
+       * Real hard cameras look over an empty aisle for exactly this reason.
+       */
+      if (Math.sin(angle) < -0.24) continue;
       const src = sources[Math.floor(rng.next() * sources.length)]!;
       const inst = src.createInstance(`crowd_${row}_${i}`);
       const jitter = rng.range(-0.14, 0.14);

@@ -1,7 +1,7 @@
 import type { Scene } from '@babylonjs/core/scene';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector3, Vector4 } from '@babylonjs/core/Maths/math.vector';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { CreateCylinder } from '@babylonjs/core/Meshes/Builders/cylinderBuilder';
@@ -34,11 +34,27 @@ export function buildRing(scene: Scene): Ring {
   const outerZ = HZ + 0.55;
 
   // --- base / apron ---
-  const base = CreateBox('ringBase', { width: outer * 2, height: matY, depth: outerZ * 2 }, scene);
+  const apronMat = emissiveMat(scene, 'apronMat', apronTexture(scene), 0.5);
+  /*
+   * A box maps its two Z faces as mirror images of each other, so the sponsor
+   * text on the apron came out backwards on whichever side you were looking at.
+   * With a dead side-on camera that band runs across the whole bottom of the
+   * screen, so it has to read. Both Z faces get their U flipped; only one of
+   * them is ever visible, and this way it is the right one either way.
+   */
+  const flipU = new Vector4(1, 0, 0, 1);
+  const plain = new Vector4(0, 0, 1, 1);
+  const faceUV = [flipU, flipU, plain, plain, plain, plain];
+  const base = CreateBox(
+    'ringBase',
+    { width: outer * 2, height: matY, depth: outerZ * 2, faceUV },
+    scene,
+  );
   base.position.y = matY / 2;
   base.parent = root;
-  base.material = emissiveMat(scene, 'apronMat', apronTexture(scene), 0.5);
+  base.material = apronMat;
   base.isPickable = false;
+
 
   // --- canvas ---
   const mat = CreateBox('ringMat', { width: H * 2 + 0.18, height: 0.08, depth: HZ * 2 + 0.18 }, scene);

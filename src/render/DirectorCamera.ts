@@ -1,4 +1,5 @@
 import type { Scene } from '@babylonjs/core/scene';
+import { Camera } from '@babylonjs/core/Cameras/camera';
 import { UniversalCamera } from '@babylonjs/core/Cameras/universalCamera';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { TUNING } from '@/game/config/tuning';
@@ -11,16 +12,30 @@ export type CamMode =
 export interface CamTarget { x: number; y: number; z: number }
 
 /**
- * A FIXED three-quarter wrestling camera.
+ * How far back the camera physically stands. With an orthographic projection
+ * this changes nothing about the picture's scale, so it is chosen purely to put
+ * the whole arena — crowd included — behind the lens.
+ */
+const CAMERA_STANDOFF = 12.5;
+
+/**
+ * A FIXED, ORTHOGRAPHIC, dead side-on wrestling camera.
  *
- * During normal play the angle never changes. It pans laterally with the
- * action, shifts a little with depth, and zooms inside a tight range — nothing
- * else. Continuous orbiting is what made free-3D play hard to read: the
- * player's sense of left and right moved with the camera, so the stick stopped
- * meaning anything stable.
+ * Orthographic is the whole point. A perspective lens gives the ring vanishing
+ * points: the ropes converge toward the edges of the screen and the mat opens
+ * out below the fighters as a receding trapezoid. However far back you put that
+ * camera and however square you aim it, the picture reads as a three-dimensional
+ * box you are looking into. With no perspective divide at all, parallel lines
+ * stay parallel: the ropes are horizontal, the mat is a flat band, the posts are
+ * vertical, and the arena reads as a painted stage with 3D actors on it. That is
+ * what 2.5D looks like.
  *
- * Cinematic modes may move the camera anywhere. They always return to exactly
- * the same gameplay angle, so the familiar view is never lost for long.
+ * `dist` is kept, and still drives every zoom rule, but it now sets the
+ * orthographic half-height rather than pushing the camera away from the subject.
+ *
+ * During normal play the angle never changes. It pans laterally with the action
+ * and zooms inside a tight range — nothing else. Cinematic modes may move the
+ * camera, and always return to exactly the same gameplay framing.
  */
 export class DirectorCamera {
   readonly cam: UniversalCamera;
@@ -38,15 +53,37 @@ export class DirectorCamera {
   private orbit = 0;
   private focus: CamTarget | null = null;
   private reduceShake = false;
+  private readonly scene: Scene;
 
   constructor(scene: Scene) {
+    this.scene = scene;
     this.cam = new UniversalCamera('director', new Vector3(0, 3, -8), scene);
+    this.cam.mode = Camera.ORTHOGRAPHIC_CAMERA;
+    /*
+     * The camera stands well back and the orthographic box does the framing.
+     * Distance no longer changes how big anything is, so it is free to be large
+     * enough that nothing in the arena crosses the near plane.
+     */
     this.cam.minZ = 0.1;
-    this.cam.maxZ = 90;
+    this.cam.maxZ = 120;
     this.cam.fov = TUNING.camera.fov;
     // No manual camera control anywhere in the game.
     this.cam.inputs.clear();
     scene.activeCamera = this.cam;
+  }
+
+  /**
+   * Sizes the orthographic box. `dist` is the same number every zoom rule
+   * already produces, read as "how much world fits on screen" instead of "how
+   * far away the camera stands".
+   */
+  private applyOrtho(): void {
+    const halfH = this.dist * Math.tan(TUNING.camera.fov * 0.5);
+    const aspect = this.scene.getEngine().getAspectRatio(this.cam) || 2.16;
+    this.cam.orthoTop = halfH;
+    this.cam.orthoBottom = -halfH;
+    this.cam.orthoLeft = -halfH * aspect;
+    this.cam.orthoRight = halfH * aspect;
   }
 
   setReduceShake(v: boolean): void { this.reduceShake = v; }
@@ -106,27 +143,32 @@ export class DirectorCamera {
         // room", close enough that the wrestlers still read as people.
         wantDist = 6.2;
         wantHeight = 2.9;
-        wantYaw = T.yaw - 0.22 + Math.sin(this.modeTimer / 1500) * 0.16;
+        wantYaw = T.yaw - 0.10 + Math.sin(this.modeTimer / 1500) * 0.07;
         follow = 1.8;
         break;
 
       case 'SIGNATURE':
-        // One decisive shift, not a spin: swing to the other shoulder and hold.
-        wantYaw = T.yaw + 0.5;
+        // A push in, not a swing. The whole point of the fixed side-on view is
+        // that it never stops being the fixed side-on view; drama comes from the
+        // zoom, the slow motion and the lighting, not from moving the camera off
+        // its axis and making the player relearn left and right.
+        wantYaw = T.yaw + 0.14;
         wantDist = 5.2;
         wantHeight = 2.62;
-        lookY = 2.18;
+        lookY = 2.46;
         follow = 6.5;
         if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; }
         break;
 
       case 'FINISHER': {
-        // The one place the camera is allowed to move for its own sake.
+        // The one place the camera moves for its own sake — and even here it
+        // only leans, because an orthographic view spun off its axis stops
+        // reading as a stage and starts reading as a 3D model on a turntable.
         this.orbit += dt / 1000;
-        wantYaw = T.yaw + 0.7 + this.orbit * 0.5;
+        wantYaw = T.yaw + 0.10 + Math.sin(this.orbit * 1.6) * 0.12;
         wantDist = clamp(5.3 + spreadX * 0.15, 5.0, 6.5);
         wantHeight = lerp(3.3, 2.5, clamp(this.modeTimer / 1500, 0, 1));
-        lookY = 2.12;
+        lookY = 2.42;
         follow = 4.2;
         if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; }
         break;
@@ -134,7 +176,7 @@ export class DirectorCamera {
 
       case 'NEARFALL':
         // Snap in tight on the kickout. Short and violent.
-        wantDist = 4.6;
+        wantDist = 5.1;
         wantHeight = 2.15;
         lookY = 1.72;
         follow = 9;
@@ -142,7 +184,7 @@ export class DirectorCamera {
         break;
 
       case 'PIN':
-        wantDist = 5.0;
+        wantDist = 5.3;
         wantHeight = 2.45;
         lookY = 1.78;
         follow = 5.0;
@@ -153,10 +195,10 @@ export class DirectorCamera {
         this.orbit += dt / 1000;
         const f = this.focus;
         if (f) { lookX = f.x + T.lookBias * biasT; }
-        wantYaw = T.yaw + this.orbit * 0.3;
+        wantYaw = T.yaw + Math.sin(this.orbit * 0.9) * 0.14;
         wantDist = 5.9;
         wantHeight = 2.95;
-        lookY = 2.28;
+        lookY = 2.52;
         follow = 2.6;
         break;
       }
@@ -176,9 +218,15 @@ export class DirectorCamera {
     const sx = this.shake * 0.13 * Math.sin(this.modeTimer / 11);
     const sy = this.shake * 0.11 * Math.sin(this.modeTimer / 7 + 1.3);
 
-    this.pos.x = this.look.x + Math.sin(this.yaw) * this.dist + sx;
-    this.pos.z = this.look.z - Math.cos(this.yaw) * this.dist;
+    /*
+     * The stand-off is fixed, not the zoom: an orthographic camera renders the
+     * same picture from anywhere along its own axis, so it sits far enough back
+     * that the crowd and the barricade never cross in front of the ring.
+     */
+    this.pos.x = this.look.x + Math.sin(this.yaw) * CAMERA_STANDOFF + sx;
+    this.pos.z = this.look.z - Math.cos(this.yaw) * CAMERA_STANDOFF;
     this.pos.y = this.height + sy;
+    this.applyOrtho();
 
     this.cam.position.copyFrom(this.pos);
     this.cam.setTarget(this.look);

@@ -1,5 +1,45 @@
 # Changelog
 
+## v3.1 — the camera is orthographic now
+
+v3.0 put the combat logic on a 2D plane, which was the right fix and only half
+the job: the picture was still a perspective camera looking down into a ring
+from above the top rope, and it still read as 3D.
+
+A perspective lens gives the ring vanishing points — the ropes converge, the mat
+opens out below the fighters as a receding trapezoid, the posts lean. No camera
+position fixes that, because the projection is what is doing it.
+
+- **Orthographic projection.** Parallel lines stay parallel: horizontal ropes,
+  vertical posts, a flat mat band, an arena that reads as a painted stage with
+  3D actors on it.
+- **Yaw is exactly zero**, not "nearly zero". Any yaw turns the ring back into
+  an object seen from a corner.
+- **The camera stands at rope height** (2.22, against a top rope at 2.08)
+  instead of above it at 2.45–2.64.
+- `dist` now sizes the orthographic box instead of pushing the camera away, so
+  every zoom rule that already existed keeps working untouched. The physical
+  stand-off is fixed at 12.5 units — inside the building, behind the crowd.
+- **Nobody sits on the camera side.** An orthographic lens renders a near-side
+  spectator at full size in front of the match. Real broadcast hard cameras look
+  over an empty aisle for the same reason. It also bought 4–6 fps.
+- **Cinematic modes lean rather than swing.** A signature used to swing the
+  camera half a radian and a finisher orbited; an orthographic view spun off its
+  axis stops reading as a stage. Drama is the zoom, the slow motion and the
+  lighting instead.
+
+### Fixed
+The apron's sponsor text was printed backwards. The apron is a box, a box maps
+its two Z faces as mirror images, and nobody had noticed while the camera was
+angled — side-on it runs across the whole bottom of the screen.
+
+### Measured
+Framing check passes at all 17 positions and all 7 camera modes: a wrestler is
+49–62% of the screen height, tops clear of the HUD, feet in frame, clear of the
+buttons. Smoke test clean. A match still runs 134 s with 32 rope runs and 11
+rebounds.
+
+
 ## v3.0 — 2.5D for real: the fight happens on a plane
 
 Two releases tried to fix "this looks 3D, not 2.5D" by moving the camera. Both

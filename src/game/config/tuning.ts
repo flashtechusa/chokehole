@@ -214,15 +214,15 @@ export const TUNING = {
 
   camera: {
     /**
-     * A 2.5D camera: 3D models and a 3D arena, shot from the side.
+     * A 2.5D camera: 3D models and a 3D arena, shot DEAD side-on.
      *
-     * The fight happens on a line (see combat/ring.ts), so the camera sits
-     * square to that line and never leaves it. Two earlier passes tried to fix
-     * "it looks 3D" by nudging this angle, which was the wrong lever — what
-     * made it read as 3D was the fight moving in depth. With the simulation on
-     * one axis, the camera's only jobs are to stay square and stay close.
+     * Zero, not "nearly zero". Any yaw at all turns the ring into an object
+     * you are looking at from a corner: the ropes converge, the mat becomes a
+     * receding trapezoid, and the picture reads as 3D no matter what the
+     * simulation is doing underneath. Square on, the ropes are horizontal
+     * lines, the posts line up, and the ring reads as a stage.
      */
-    yaw: -0.055,
+    yaw: 0,
     /**
      * Lateral pan, in ring units. The camera tracks the fight along the line,
      * which is now the only thing it has to follow.
@@ -240,30 +240,35 @@ export const TUNING = {
      * geometry and spreads the mat out below the fighters. 0.72 flattens the
      * perspective so the ring reads as a backdrop behind the action.
      */
-    fov: 0.72,
+    fov: 0.66,
     /**
-     * Set from the VERTICAL field of view, which is what limits how big a
-     * wrestler can be: at minDist a 2-unit wrestler is about 60% of the screen
-     * height, at maxDist about 48%. The horizontal width at these distances is
-     * seven to nine units on a 2.16:1 phone — wider than the ring — so both
-     * fighters stay framed however far apart they get.
+     * Read as "how much world fits on screen", not "how far the camera stands"
+     * — the projection is orthographic, so distance changes nothing about
+     * scale. At minDist a 2-unit wrestler is about 62% of the screen height, at
+     * maxDist about 49%. The horizontal span is six to eight units on a 2.16:1
+     * phone — wider than the ring — so both fighters stay framed however far
+     * apart they get.
      */
-    minDist: 4.9,
-    maxDist: 6.1,
+    minDist: 4.7,
+    maxDist: 5.9,
     /** Widening per unit of separation along the line. */
     spreadZoom: 0.26,
     /**
-     * Only 0.4 above the look point, so the camera looks ACROSS the mat at
-     * about four degrees rather than down into it. Every extra degree of tilt
-     * turns another band of empty mat into foreground.
+     * The camera sits at ROPE HEIGHT, not above it.
      *
-     * Both values sit ~0.2 above a standing wrestler's centre of mass, which
-     * translates the whole rig up without changing the tilt and so puts the
-     * fighters slightly BELOW the middle of the frame. That matters on a phone:
-     * the HUD owns the top quarter of a 390px-tall screen.
+     * The top rope is at 2.08 (mat 1.06 + 1.02). Every previous pass put the
+     * camera at 2.45-2.64 — above the ropes, looking down into the ring — and
+     * that is what made the mat spread out below the fighters as a big
+     * receding surface. From 2.22 the camera looks ACROSS: the ropes are
+     * horizontal lines, the mat is a thin band at the fighters' feet, and the
+     * far side of the ring and the crowd sit behind them like scenery.
+     *
+     * The look point is slightly ABOVE the camera, so the lens tilts up by a
+     * degree rather than down. That both flattens the mat further and drops the
+     * fighters clear of a HUD that owns the top quarter of a 390px screen.
      */
-    height: 2.64,
-    lookHeight: 2.24,
+    height: 2.40,
+    lookHeight: 2.46,
     follow: 3.4,
     punchDecay: 7.5,
     /** Extra distance when a fighter is out on the floor. */
@@ -274,8 +279,8 @@ export const TUNING = {
      * the camera backs off and raises its look point to sit the taller
      * arrangement lower in frame and out from under the HUD.
      */
-    verticalZoom: 0.85,
-    verticalLift: 0.38,
+    verticalZoom: 1.25,
+    verticalLift: 0.16,
     /** How much of the pair's average height the look point follows. */
     verticalFollow: 0.5,
   },

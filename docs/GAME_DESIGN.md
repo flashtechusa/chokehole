@@ -57,20 +57,55 @@ into a rope is now simply what happens when you hold a direction. Getting behind
 someone is exact rather than a cone test. A throw has five destinations and the
 player can tell them apart.
 
-### The camera
+### The camera is ORTHOGRAPHIC
 
-Square to the line and close: an 11-degree yaw for solidity, a 41-degree lens so
-the ring reads as a backdrop rather than a box, a 4-degree downward tilt, and a
-distance set from the VERTICAL field of view — which is what limits how big a
-wrestler can be. Framing for the *width* is what used to push the camera back: a
-2.16:1 phone is over seven units wide at these distances, wider than the ring.
+This is the other half of 2.5D, and it took three attempts to get right.
 
-The camera rig sits slightly above the fighters' centre of mass so they land
-below the middle of the frame, clear of a HUD that owns the top quarter. The
-look point is pushed left, tapering to nothing at the left rope, so the
-right-hand wrestler never disappears behind the three buttons.
+A perspective lens gives the ring vanishing points. The ropes converge toward
+the edges of the screen, the mat opens out below the fighters as a receding
+trapezoid, and the posts lean. However far back you put that camera and however
+square you aim it, the picture reads as a three-dimensional box you are looking
+into — which is exactly what it is. Moving the camera cannot fix that, because
+the projection is what is doing it.
+
+With no perspective divide at all, parallel lines stay parallel: the ropes are
+horizontal, the posts are vertical, the mat is a flat band, and the arena reads
+as a painted stage with 3D actors standing on it.
+
+Everything else follows from that:
+
+- **Yaw is exactly zero.** Not "nearly". Any yaw turns the ring back into an
+  object seen from a corner.
+- **The camera stands at rope height** (2.22 world, against a top rope at 2.08),
+  not above it. Earlier passes sat at 2.45–2.64 — over the ropes, looking down —
+  which is what spread the mat out below the fighters.
+- **`dist` now sizes the orthographic box** rather than pushing the camera away.
+  Every zoom rule that already existed — separation, a fighter on the floor,
+  vertical spread, the hit punch — keeps working unchanged.
+- **The camera's physical stand-off is fixed at 12.5 units**, chosen only to sit
+  inside the building (walls at 15) and behind the crowd. With an orthographic
+  projection it changes nothing about scale.
+- **Nobody sits on the camera side.** The shot is a broadcast hard camera, and
+  an orthographic lens renders a near-side spectator at full size directly in
+  front of the match. Real hard cameras look over an empty aisle for the same
+  reason.
+- **Cinematic modes lean, they do not swing.** A signature used to swing the
+  camera half a radian; an orthographic view spun off its axis stops reading as
+  a stage. Drama comes from the zoom, the slow motion and the lighting instead.
+
+The rig sits slightly above the fighters' centre of mass so they land below the
+middle of the frame, clear of a HUD that owns the top quarter. The look point is
+pushed left, tapering to nothing at the left rope, so the right-hand wrestler
+never disappears behind the three buttons.
 
 `npm run framing` measures all of this in screen pixels rather than by eye.
+
+### One more thing the flat camera exposed
+
+The ring's apron is a box, and a box maps its two Z faces as mirror images, so
+the sponsor text printed across it came out backwards. Nobody had noticed while
+the camera was angled; side-on it runs across the whole bottom of the screen.
+Both Z faces now have their U flipped.
 
 ## Controls: the stick is left, right, and two modifiers
 
