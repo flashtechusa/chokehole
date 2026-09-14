@@ -42,6 +42,27 @@ export type FighterEvent =
   | { type: 'footstep'; running: boolean }
   | { type: 'reversalWhiff' };
 
+/** Where a directional throw puts the victim once the attacker lets go. */
+interface PendingRelease {
+  victim: Fighter;
+  vx: number;
+  vz: number;
+  vy: number;
+  state: FS | null;
+  place?: { x: number; z: number };
+}
+
+/**
+ * Throw aiming. A throw leaves the ring only when there is less than EDGE_ROOM
+ * of mat left in the aimed direction — you drag someone to the ropes before you
+ * put them over them. A throw counts as aimed at a corner when the point where
+ * the aim leaves the mat is past CORNER_AIM of the half-extent on BOTH axes,
+ * which in a wide shallow ring means a diagonal push. Geometry, not feel, so
+ * these live here rather than in TUNING.
+ */
+const EDGE_ROOM = 1.4;
+const CORNER_AIM = 0.55;
+
 /**
  * Pure-logic wrestler. Owns position on and around the ring, the state machine,
  * meters and timers. Imports no renderer.
@@ -111,6 +132,8 @@ export class Fighter {
    * flattened could never actually be counted out.
    */
   exhaustedMs = 0;
+  /** Per-move crowd interest, 0..1. See TUNING.meters.freshnessDrop. */
+  private readonly freshness = new Map<string, number>();
   stridePhase = 0;
   /** Set while rebounding off the ropes; drives the boosted run speed. */
   reboundBoost = 0;
@@ -136,6 +159,20 @@ export class Fighter {
    * shoved with an impulse. Cleared at the move's release point.
    */
   pairVictim: Fighter | null = null;
+  /**
+   * A directional throw's impulse, applied at the choreography's release frame.
+   * A paired throw holds the victim for most of its length and zeroes their
+   * velocity every frame, so setting it when the throw starts did nothing and
+   * releasePair's own knockback then sent them along the attacker's facing.
+   * That quietly broke aimed throws: "throw them out" landed them on the apron.
+   */
+  private pendingRelease: PendingRelease | null = null;
+  /**
+   * Set while a body thrown over the ropes is still out of the ring. Without it
+   * `applyBounds` shoves anyone who lands in the apron band straight back onto
+   * the mat, which meant a throw to the floor could never actually finish.
+   */
+  ejected = false;
   /** Set on the victim so the renderer knows to play the receiving clip. */
   pairClip: string | null = null;
   pairProgress = 0;
@@ -206,6 +243,26 @@ export class Fighter {
     this.setState(FS.THROWN);
   }
 
+  /**
+   * How interested the crowd still is in a given move. Returns the value BEFORE
+   * this use and marks the move as just seen, so the first one pays in full.
+   */
+  consumeFreshness(id: string): number {
+    const f = this.freshness.get(id) ?? 1;
+    this.freshness.set(id, Math.max(TUNING.meters.freshnessFloor, f - TUNING.meters.freshnessDrop));
+    return f;
+  }
+
+  private updateFreshness(dt: number): void {
+    if (this.freshness.size === 0) return;
+    const back = dt / TUNING.meters.freshnessRecoverMs;
+    for (const [id, f] of this.freshness) {
+      const next = f + back;
+      if (next >= 1) this.freshness.delete(id);
+      else this.freshness.set(id, next);
+    }
+  }
+
   addIt(amount: number, heat01 = 0): void {
     if (amount <= 0) return;
     const heatBonus = 1 + heat01 * (TUNING.meters.heatItMult - 1);
@@ -245,9 +302,9 @@ export class Fighter {
    * damage
    * ------------------------------------------------------------------ */
 
-  takeHit(move: MoveDef, attacker: Fighter, comboFalloff: number): number {
+  takeHit(move: MoveDef, attacker: Fighter, comboFalloff: number, counter = 1): number {
     const dmg = move.damage * attacker.damageMult * this.damageTakenMult
-      * comboFalloff * this.matchDamageScale;
+      * comboFalloff * this.matchDamageScale * counter;
     this.health = Math.max(0, this.health - dmg);
     this.hitFlash = 1;
     this.comboIndex = 0;
@@ -289,6 +346,7 @@ export class Fighter {
     this.reboundBoost = Math.max(0, this.reboundBoost - dt / 900);
     this.propCooldown = Math.max(0, this.propCooldown - dt);
     if (this.exhausted) this.exhaustedMs += dt;
+    this.updateFreshness(dt);
     if (this.comboTimer > 0) {
       this.comboTimer -= dt;
       if (this.comboTimer <= 0) this.comboIndex = 0;
@@ -449,7 +507,10 @@ export class Fighter {
     const r = this.cfg.stats.radius;
     const flying = this.isAirborne || this.state === FS.AERIAL || this.state === FS.THROWN;
 
-    if (this.outside) {
+    // Back on the mat under their own power: the throw is over.
+    if (this.ejected && !flying && insideRing(this.x, this.z)) this.ejected = false;
+
+    if (this.outside || this.ejected) {
       const c = clampFloor(this.x, this.z, r);
       if (c.x !== this.x || c.z !== this.z) { this.vx *= -0.3; this.vz *= -0.3; }
       this.x = c.x; this.z = c.z;
@@ -920,7 +981,8 @@ export class Fighter {
     const taunt = this.pickTaunt(opponent, dist);
     this.activeTaunt = taunt;
     this.setState(FS.TAUNT);
-    this.addIt(taunt.it, heat01);
+    // The same taunt twice in a row is not a taunt, it is a tic.
+    this.addIt(taunt.it * this.consumeFreshness(taunt.id), heat01);
     this.events.push({ type: 'taunt', taunt });
     return true;
   }
@@ -946,6 +1008,8 @@ export class Fighter {
 
   startMove(move: MoveDef, guaranteed = false, target?: Fighter): void {
     if (target) this.assistFacing(target, move);
+    // A throw that never reached its release frame does not get to fire late.
+    this.pendingRelease = null;
     this.action = { move, elapsed: 0, hasHit: false, guaranteed, launched: false };
     this.activeTaunt = null;
     this.setState(move.leap ? FS.AERIAL : FS.ATTACK);
@@ -1004,6 +1068,12 @@ export class Fighter {
     this.pairVictim = null;
     v.pairClip = null;
     v.pairProgress = 0;
+    const pending = this.pendingRelease;
+    if (pending && pending.victim === v) {
+      this.pendingRelease = null;
+      applyRelease(pending);
+      return;
+    }
     if (move.knockdown) {
       v.vx = Math.cos(this.facing) * move.knockback;
       v.vz = Math.sin(this.facing) * move.knockback;
@@ -1135,15 +1205,6 @@ export class Fighter {
     const backwards = stick > 0.45
       && (dirX * Math.cos(this.facing) + dirZ * Math.sin(this.facing)) < -0.45;
 
-    // Where would this throw send them?
-    const targetX = this.x + dirX * 3.4;
-    const targetZ = this.z + dirZ * 3.4;
-    const towardOutside = Math.abs(targetX) > RING.half + 0.4 || Math.abs(targetZ) > RING.half + 0.4;
-    const towardCorner = nearestCorner(targetX, targetZ).dist < RING.cornerR * 1.25
-      && !towardOutside;
-    const towardRopes = !towardOutside && !towardCorner
-      && (Math.abs(targetX) > RING.half - RING.ropeBand || Math.abs(targetZ) > RING.half - RING.ropeBand);
-
     /*
      * A destination only counts when the player actually pushed the stick.
      * Without that check the geometry alone could claim the throw — a neutral
@@ -1151,11 +1212,35 @@ export class Fighter {
      * the rear throw could never come out of a waistlock.
      */
     const directed = stick > 0.45;
+
+    /*
+     * How much mat is left in the aimed direction, and where the aim leaves it.
+     * Measuring room rather than a fixed projection is what makes position
+     * matter: an Irish whip works from anywhere, but you cannot throw someone
+     * over the top rope from the middle of the ring — you drag them there first.
+     * Each axis uses its own half-extent, because the mat is wide and shallow.
+     */
+    const tx = dirX > 0 ? (RING.half - this.x) / dirX
+      : dirX < 0 ? (-RING.half - this.x) / dirX : Infinity;
+    const tz = dirZ > 0 ? (RING.halfZ - this.z) / dirZ
+      : dirZ < 0 ? (-RING.halfZ - this.z) / dirZ : Infinity;
+    const room = Math.max(0, Math.min(tx, tz));
+    const exitX = Math.abs(this.x + dirX * room) / RING.half;
+    const exitZ = Math.abs(this.z + dirZ * room) / RING.halfZ;
+    const towardCorner = directed && Math.min(exitX, exitZ) >= CORNER_AIM;
+    const nearEdge = directed && room <= EDGE_ROOM;
+
+    /*
+     * From behind there is one throw and it is the rear throw — that is what
+     * makes walking round someone worth doing. Otherwise the stick picks the
+     * destination and the button decides what happens when you get there: GRAB
+     * keeps them in and whips them off the ropes, ATTACK puts them over the top.
+     */
     let move: MoveDef;
-    if (directed && towardOutside) move = m.throwOutside;
-    else if (directed && towardCorner) move = m.throwCorner;
-    else if (directed && towardRopes && intent.grab) move = m.irishWhip;
-    else if (this.rearHold) move = m.rearThrow;
+    if (this.rearHold) move = m.rearThrow;
+    else if (towardCorner) move = m.throwCorner;
+    else if (directed && intent.grab) move = m.irishWhip;
+    else if (nearEdge) move = m.throwOutside;
     else if (backwards) move = m.throwBack;
     else move = m.throwForward;
 
@@ -1165,22 +1250,34 @@ export class Fighter {
     opponent.takeHit(move, this, 1);
     this.addIt(move.itGain, heat01);
 
-    // The throw's destination is what makes the ring matter.
+    // The throw's destination is what makes the ring matter. It is queued, not
+    // applied: a paired throw does not let go until the choreography says so.
     if (move === m.irishWhip) {
-      opponent.setState(FS.WHIPPED);
-      opponent.vx = dirX * 13;
-      opponent.vz = dirZ * 13;
+      this.queueRelease({ victim: opponent, vx: dirX * 13, vz: dirZ * 13, vy: 0, state: FS.WHIPPED });
     } else if (move === m.throwCorner) {
-      const c = nearestCorner(targetX, targetZ).corner;
-      opponent.x = c.x * 0.88;
-      opponent.z = c.z * 0.88;
-      opponent.setState(FS.CORNERED);
+      const c = nearestCorner(this.x + dirX * room, this.z + dirZ * room).corner;
+      this.queueRelease({
+        victim: opponent, vx: 0, vz: 0, vy: 0, state: FS.CORNERED,
+        place: { x: c.x * 0.88, z: c.z * 0.88 },
+      });
     } else if (move === m.throwOutside) {
-      opponent.vx = dirX * 9;
-      opponent.vz = dirZ * 9;
-      opponent.vy = 4.4;
+      /*
+       * High and long on purpose. At 9 units/s the arc died on the apron even
+       * from mid-ring, so "throw them out" quietly meant "throw them onto the
+       * ledge". This clears the apron from anywhere on the mat and reaches the
+       * barricade from the ropes.
+       */
+      this.queueRelease({
+        victim: opponent, vx: dirX * 11.5, vz: dirZ * 11.5, vy: 5.6, state: FS.THROWN,
+      });
       opponent.events.push({ type: 'leftRing' });
     }
+  }
+
+  /** Applies a throw's destination now, or at the release frame if it is paired. */
+  private queueRelease(r: PendingRelease): void {
+    if (this.pairVictim === r.victim) this.pendingRelease = r;
+    else applyRelease(r);
   }
 
   private detachGrapple(opponent: Fighter): void {
@@ -1255,4 +1352,15 @@ export class Fighter {
 /** Rebound grapple, pulled out so the rope-run switch stays readable. */
 function m2(f: Fighter): MoveDef {
   return f.cfg.moves.reboundGrapple;
+}
+
+/** Puts a thrown fighter where the throw aimed them. */
+function applyRelease(r: PendingRelease): void {
+  const v = r.victim;
+  v.ejected = r.state === FS.THROWN;
+  if (r.place) { v.x = r.place.x; v.z = r.place.z; }
+  v.vx = r.vx;
+  v.vz = r.vz;
+  v.vy = r.vy;
+  if (r.state !== null) v.setState(r.state);
 }

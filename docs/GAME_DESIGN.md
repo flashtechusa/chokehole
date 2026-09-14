@@ -102,8 +102,25 @@ the player's.
 Damage taken pays 0.10 per point. A global `itScale` keeps time-to-finisher
 near ninety seconds of genuinely entertaining work.
 
-**Measured:** a player who only jabs and throws *loses* on NORMAL; a player who
-uses the ring wins. The most entertaining way to play is the strongest.
+### The crowd stops caring about a move it just saw
+
+Every move and taunt carries a **freshness** value, per fighter, starting at 1.
+Each use drops it by 0.3 (floor 0.18) and it recovers fully over fourteen
+seconds. IT Factor and crowd heat are multiplied by the freshness the move had
+*before* this use; damage is untouched.
+
+This is the whole "entertainment, not damage" rule expressed as a mechanic. The
+same jab still hurts exactly as much the twentieth time — it just stops being
+worth anything, and the player who works through a varied repertoire earns the
+finisher first without any single move needing to be nerfed.
+
+### Catching someone off the ropes
+
+An Irish whip does five damage. It is not an attack, it is a setup: a hit landed
+on someone in `WHIPPED` or `ROPE_RUN` is a **counter**, worth ×2.1 damage and IT
+and ×1.8 crowd heat, and the broadcast calls it. That is what makes spending a
+grapple on a whip correct, and it is the mechanical reason running the ring
+beats standing still and trading.
 
 ## Damage is the same story, and it has an arc
 
@@ -193,16 +210,38 @@ of habit are not silently punished.
 Under the hood (Bible s10.4). It drives the lighting rig browning out, crowd
 animation, audio, IT gain and the post-match rating. The HUD shows one word.
 
+## Throw aiming
+
+While holding someone, the stick picks the destination and the button picks what
+happens there. The classification is measured in *room* — how much mat is left in
+the aimed direction — not in a fixed projection, because the mat is wide and
+shallow and each axis has to be judged against its own half-extent.
+
+| Input | Result |
+| --- | --- |
+| No direction | Forward throw (or the rear throw, from a waistlock) |
+| Direction, held back | Back throw |
+| Diagonal (both axes committed) | Corner throw |
+| Any direction + GRAB | **Irish whip** — they run and rebound |
+| Any direction + ATTACK, with under 1.4 of mat left that way | **Over the top** to the apron or the floor |
+
+From a rear waistlock there is one throw and it is the rear throw. That is what
+makes walking round someone worth doing.
+
+You cannot throw someone over the top rope from the middle of the ring. You drag
+them to the ropes first, which is the whole reason position matters.
+
 ## Measured match shape
 
-Scripted player, showman style, one run per difficulty:
+Scripted player, showman style, NORMAL, across several runs:
 
-- length 106–197 s
-- dives thrown 4–8, landed 2–6
-- reversals 11–30
-- signatures 2–4, finishers 1–3
-- rear throws 3–4, back attacks 0–3
-- near falls, props and taunts all firing
+- length 106–178 s against the 3–5 minute target
+- every run finished on a **pin**, none on the knockout count
+- dives thrown 5–14, landed 1–7
+- reversals 10–21
+- signatures 1–4, finishers 0–3
+- rear throws 0–6, back attacks 0–2
+- near falls, props, counters and taunts all firing
 
 ## Known gaps
 
@@ -214,7 +253,12 @@ Scripted player, showman style, one run per difficulty:
 - **Difficulty separation is not measured.** The scripted player is crude and
   loses more often than a person would; run-to-run variance swamps the gap
   between NORMAL and BRUTAL.
-- The KO count sometimes finishes a match that would be better as a pin, when
-  neither fighter covers.
+- **"Spectacle beats grinding" is no longer proven, only plausible.** The claim
+  held while a directed throw wrongly resolved as a throw to the floor from
+  anywhere on the mat; with that fixed, the crude close-range bot and the
+  ring-using bot now trade wins roughly evenly over four runs each. The
+  freshness rule and the rope counter were added to tilt it back and did, but
+  four runs a side is inside the noise. It needs a better scripted player, or a
+  human, before it can be claimed again.
 - **Frame rate is unverified.** Software rendering reports 16–30 fps and says
   nothing about a phone GPU. Untested on hardware.

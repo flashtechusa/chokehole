@@ -367,6 +367,10 @@ export class App {
 
     if (p.carrying) {
       this.pad.setAttackContext('SWING', p.carrying.name);
+    } else if (p.state === FS.GRAPPLING) {
+      // While holding someone the stick aims the throw and the button picks
+      // what happens at the ropes, so both labels have to say so.
+      this.pad.setAttackContext('THROW', 'AIM WITH THE STICK');
     } else if (p.state === FS.PERCH) {
       this.pad.setAttackContext(foe.outside ? 'DIVE OUT' : 'DIVE', 'OFF THE TOP');
     } else if (p.state === FS.ROPE_RUN) {
@@ -385,7 +389,9 @@ export class App {
     // GRAB changes meaning too, and the rear grapple is the whole reason
     // turning exists — it has to be visible that it is available.
     if (p.carrying) this.pad.setGrabContext('DROP', null);
-    else if (foe.isDown && dist < TUNING.pin.range) {
+    else if (p.state === FS.GRAPPLING) {
+      this.pad.setGrabContext('WHIP', 'AIM AT THE ROPES');
+    } else if (foe.isDown && dist < TUNING.pin.range) {
       const pinnable = foe.healthFrac <= TUNING.pin.maxHealthFrac || foe.exhausted;
       this.pad.setGrabContext(pinnable ? 'PIN' : 'PICK UP', pinnable ? 'COVER THEM' : null);
     } else if (p.state === FS.PERCH) this.pad.setGrabContext('CLIMB DOWN', null);

@@ -1,5 +1,53 @@
 # Changelog
 
+## v2.2 — the ring pays
+
+Follow-up to the 2.5D rework, driven by probing the four mechanics the pacing
+harness never exercised: the Irish whip, ground moves, prop spots and the two
+taunt kinds.
+
+### Throw aiming was broken, and it was hiding a balance problem
+- **The Irish whip was unreachable.** A throw's destination was classified by
+  distance to a corner point, but the corner radius is larger than the ring's
+  depth half-extent, so the four corner circles covered the entire long side and
+  every lateral throw resolved as a corner throw.
+- **A throw along the depth axis could not leave the ring at all**, because both
+  axes were tested against the lateral half-extent.
+- **A directional throw's impulse was overwritten.** Paired choreography holds
+  the victim and zeroes their velocity every frame, then released them along the
+  attacker's facing — so the direction the player aimed was discarded. Aimed
+  throws now queue their impulse to the choreography's release frame.
+- **"Throw them out" landed them on the apron**, which `applyBounds` then shoved
+  back onto the mat.
+
+Throw aiming is now measured in the room left in the aimed direction: a whip
+works from anywhere, a corner throw needs a committed diagonal, and you cannot
+put someone over the top rope from mid-ring — you drag them to the ropes first.
+
+With that fixed, a throw to the floor stopped firing from everywhere, which
+turned out to be what had been carrying the "spectacle beats grinding" result.
+Two mechanics were added to earn it honestly:
+
+- **Freshness.** Every move and taunt loses 0.3 of its crowd interest per use
+  (floor 0.18, full recovery over 14 s). IT and heat scale with it; damage does
+  not. The same jab hurts exactly as much the twentieth time, it is just worth
+  nothing.
+- **The rope counter.** A hit on someone in `WHIPPED` or `ROPE_RUN` is worth
+  ×2.1 damage and IT and ×1.8 heat, and the broadcast calls it. An Irish whip
+  does five damage on its own; this is what it is for.
+
+### Finishes
+The AI now drops whatever it was doing to cover an opponent at zero health, and
+to strike someone coming back off the ropes. Before this it ran out its current
+plan while the knockout count expired underneath it: half of all matches ended
+on health attrition. Across the latest runs every match finished on a pin.
+
+### Verified by direct probe
+Irish whip (lateral and depth, victim rebounds off the ropes), corner throw,
+throw to the floor from the ropes, forward throw on a neutral stick, the ground
+move, prop spawn → pickup → swing → 17 damage, and the crowd taunt and opponent
+taunt resolving to different moves at different IT.
+
 ## v2.1 — 3D rendered, 2.5D played
 
 The free-3D Babylon build was playtested and rejected: the fight wandered, the

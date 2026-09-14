@@ -10,6 +10,10 @@ export interface HitReport {
   move: MoveDef;
   damage: number;
   combo: number;
+  /** True when the defender was caught coming off the ropes. */
+  counter: boolean;
+  /** Crowd interest in this move, 0..1, before this use. */
+  fresh: number;
   /** Contact point in world space, for sparks and the camera punch. */
   x: number;
   y: number;
@@ -77,11 +81,22 @@ export class CombatResolver {
     // victim up into its choreography from the moment of contact.
     if (m.paired && !attacker.pairVictim) attacker.beginPair(defender, m);
 
-    const damage = defender.takeHit(m, attacker, falloff);
-    attacker.addIt(m.itGain, heat01);
+    /*
+     * Catching someone as they come back off the ropes. An Irish whip does five
+     * damage on its own; this is what it is for, and it is why running the ring
+     * beats standing still and trading.
+     */
+    const running = defender.state === FS.ROPE_RUN || defender.state === FS.WHIPPED;
+    const counter = running && m.kind !== 'ground' ? TUNING.combat.runningCounterMult : 1;
+
+    // The crowd has seen this before. Damage is untouched; interest is not.
+    const fresh = attacker.consumeFreshness(m.id);
+
+    const damage = defender.takeHit(m, attacker, falloff, counter);
+    attacker.addIt(m.itGain * counter * fresh, heat01);
 
     return {
-      attacker, defender, move: m, damage, combo: chain + 1,
+      attacker, defender, move: m, damage, combo: chain + 1, counter: counter > 1, fresh,
       x: attacker.x + Math.cos(attacker.facing) * m.reach * 0.65,
       y: 1.05 + (m.kind === 'ground' ? -0.75 : 0),
       z: attacker.z + Math.sin(attacker.facing) * m.reach * 0.65,

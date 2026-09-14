@@ -81,6 +81,13 @@ export const TUNING = {
     /** Mashing while down shortens it by this much per press. */
     downMashReduction: 70,
 
+    /**
+     * Catching someone as they come back off the ropes. This is the payoff the
+     * Irish whip exists to set up, and it is what makes a whip worth spending a
+     * grapple on: on its own the whip does 5 damage.
+     */
+    runningCounterMult: 2.1,
+
     /** Fallback only; each taunt carries its own duration, IT and heat. */
     tauntMs: 1000,
   },
@@ -140,6 +147,18 @@ export const TUNING = {
      * seconds of genuinely entertaining work, not thirty.
      */
     itScale: 0.5,
+    /**
+     * Repetition. IT Factor is a crowd meter, and a crowd stops caring about a
+     * move it has just seen: each use of a move drops its freshness by
+     * `freshnessDrop`, never below `freshnessFloor`, and it recovers fully over
+     * `freshnessRecoverMs`. Damage is untouched — hitting the same jab still
+     * hurts, it just stops being worth anything. This is what stops a
+     * one-button grinder out-earning someone who uses the ring.
+     */
+    freshnessDrop: 0.3,
+    freshnessFloor: 0.18,
+    freshnessRecoverMs: 14000,
+
     /** Same idea for crowd heat, which used to peg at 100 inside half a minute. */
     heatScale: 0.55,
     heatMax: 100,

@@ -301,7 +301,8 @@ export class MatchSim {
   }
 
   private onHit(r: HitReport): void {
-    this.heat.add(r.move.heat * (1 + r.combo * 0.12));
+    // Catching someone off the ropes is a crowd moment, not just extra damage.
+    this.heat.add(r.move.heat * (1 + r.combo * 0.12) * (r.counter ? 1.8 : 1) * r.fresh);
     this.hitStop = r.move.hitStopMs
       ?? (r.move.kind === 'finisher' ? TUNING.fx.hitStopFinisher
         : r.move.kind === 'heavy' || r.move.kind === 'throw' ? TUNING.fx.hitStopHeavy
@@ -332,6 +333,12 @@ export class MatchSim {
       this.emit({
         type: 'callout', text: r.move.name, sub: r.move.shout, accent: r.attacker.cfg.accent,
       });
+    } else if (r.counter) {
+      this.emit({
+        type: 'callout', text: 'CAUGHT COMING BACK', sub: r.move.name,
+        accent: r.attacker.cfg.accent,
+      });
+      this.emit({ type: 'glitch', strength: 0.5 });
     }
   }
 

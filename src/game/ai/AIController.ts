@@ -160,7 +160,24 @@ export class AIController {
       }
     }
 
-    if (this.thinkTimer <= 0) {
+    /*
+     * A flattened opponent interrupts whatever the plan was. Nobody keeps
+     * stomping someone who cannot stand — they cover. Without this the AI ran
+     * out the current plan while the knockout count expired underneath it, and
+     * half the matches ended on health attrition instead of a three-count.
+     */
+    if ((foe.state === FS.WHIPPED || foe.state === FS.ROPE_RUN)
+      && this.plan !== 'STRIKE' && !me.isBusy) {
+      // Someone coming back off the ropes is the best target in the game. It is
+      // also the whole reason to spend a grapple on a whip.
+      this.plan = 'STRIKE';
+      this.planTime = 0;
+      this.thinkTimer = this.profile.thinkMs * 0.5;
+    } else if (foe.exhausted && foe.isDown && this.plan !== 'PIN' && !me.isBusy) {
+      this.plan = 'PIN';
+      this.planTime = 0;
+      this.thinkTimer = this.profile.thinkMs;
+    } else if (this.thinkTimer <= 0) {
       this.thinkTimer = this.profile.thinkMs * this.rng.range(0.7, 1.3);
       this.plan = this.choosePlan(me, foe, dist);
       this.planTime = 0;

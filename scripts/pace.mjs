@@ -53,7 +53,7 @@ const out = await page.evaluate(async (opts) => {
   const log = {
     steps:0, attacks:0, ropeRuns:0, rebounds:0, perches:0, divesThrown:0, divesLanded:0,
     taunts:{}, props:0, nearFalls:0, reversals:0, kickouts:0, pinsStarted:0,
-    outcomes:{clean:0, whiff:0}, byKind:{}, hp:[], it:[], heat:[], phaseSeen:{},
+    outcomes:{clean:0, whiff:0}, byKind:{}, counters:0, hp:[], it:[], heat:[], phaseSeen:{},
   };
 
   let cad = 0, mash = 0, plan = 'fight', planT = 0;
@@ -100,6 +100,36 @@ const out = await page.evaluate(async (opts) => {
         else if (r < 0.58) plan = 'ropes';
         else if (r < 0.68) plan = 'taunt';
         else plan = 'fight';
+      }
+
+      // Holding someone: pick a destination worth throwing them at, the same
+      // way the AI does. Without this the bot only ever dumped people forward
+      // and the whip loop could not be measured at all.
+      if (p.state === 'GRAPPLING' && cad <= 0) {
+        cad = 300;
+        const r = rnd();
+        if (opts.mode !== 'basic' && r < 0.45) {
+          // whip them at the nearest rope and meet them coming back
+          const rx = Math.abs(p.x) > 1.2 ? -Math.sign(p.x) : (rnd() < 0.5 ? 1 : -1);
+          i.moveX = rx; i.moveY = 0; i.grab = true;
+        } else if (opts.mode !== 'basic' && r < 0.62) {
+          const c = nearestCornerTo(p.x, p.z, T);
+          const m = Math.hypot(c.x - p.x, c.z - p.z) || 1;
+          i.moveX = (c.x - p.x)/m; i.moveY = (c.z - p.z)/m; i.grab = true;
+        } else {
+          i.attack = true;
+        }
+        i.anyPress = true;
+        return runOne(i);
+      }
+
+      // Someone coming back off the ropes is the best target in the game, and
+      // the reason a whip is worth a grapple. A bot that ignores it cannot
+      // measure whether running the ring pays.
+      if ((a.state === 'WHIPPED' || a.state === 'ROPE_RUN') && dist < 2.2 && cad <= 0) {
+        cad = 240; i.attack = true; i.anyPress = true;
+        log.attacks++;
+        return runOne(i);
       }
 
       if (p.state === 'PERCH') {
@@ -167,6 +197,7 @@ const out = await page.evaluate(async (opts) => {
         if (e.report.attacker === sim.p1) {
           log.outcomes.clean++;
           if (k === 'aerial' || k === 'dive') log.divesLanded++;
+          if (e.report.counter) log.counters++;
         }
       }
       if (e.type === 'reversal' && e.by === sim.p1) log.reversals++;
@@ -180,6 +211,8 @@ const out = await page.evaluate(async (opts) => {
       if (e.type === 'spot') { log.spots = log.spots || {}; log.spots[e.kind] = (log.spots[e.kind]||0)+1; }
       if (e.type === 'hit' && e.report.attacker === sim.p1) {
         const id = e.report.move.id;
+        if (id.includes('_whip')) log.whips = (log.whips||0)+1;
+        if (id.includes('_to')) log.ejections = (log.ejections||0)+1;
         if (id.includes('rearthrow')) log.rearThrows = (log.rearThrows||0)+1;
         if (id.includes('_back')) log.backAttacks = (log.backAttacks||0)+1;
       }
