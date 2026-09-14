@@ -33,7 +33,7 @@ export const RAID: WrestlerConfig = {
   accent: C.squelsh,
 
   stats: {
-    health: 840,
+    health: 940,
     speed: 2.45,
     power: 0.97,
     reversal: 0.92,
@@ -135,6 +135,30 @@ export const RAID: WrestlerConfig = {
       shout: 'EVERYBODY OUT',
     }),
 
+    /* ---- behind them: what turning unlocks ---- */
+    backAttack: mv({
+      id: 'raid_back', name: 'FROM THE WALLS', kind: 'light', clip: 'backAttack', provenance: G,
+      startupMs: 100, activeMs: 95, recoveryMs: 165,
+      damage: 10, reach: 1.42, arc: 1.05, knockback: 4.0, hitstunMs: 400,
+      itGain: 7, heat: 9, lunge: 1.4, reversible: false,
+      cameraPunch: 0.6, shout: 'BEHIND YOU',
+    }),
+    rearGrapple: mv({
+      id: 'raid_reargrab', name: 'LATCH ON', kind: 'grapple', clip: 'rearGrapple', provenance: G,
+      startupMs: 125, activeMs: 0, recoveryMs: 210,
+      damage: 0, reach: 1.6, arc: 1.4, knockback: 0, hitstunMs: 0,
+      itGain: 0, heat: 4, reversible: false,
+    }),
+    rearThrow: mv({
+      id: 'raid_rearthrow', name: 'CARRY THEM OFF', kind: 'throw', clip: 'rearThrow', provenance: G,
+      startupMs: 265, activeMs: 150, recoveryMs: 330,
+      damage: 26, reach: 1.4, arc: 3.2, knockback: 5.4, hitstunMs: 720,
+      knockdown: true, launch: 6.0,
+      itGain: 14, heat: 18, reversible: false,
+      cameraPunch: 1.3, hitStopMs: 110, shout: 'INTO THE NEST',
+      paired: { victimClip: 'takenBack', hold: [0.4, 0.36, 0], releaseAt: 0.7 },
+    }),
+
     /* ---- grappling: long reach, less finish ---- */
     grapple: mv({
       id: 'raid_grab', name: 'INFESTATION', kind: 'grapple', clip: 'grappleStart', provenance: G,
@@ -149,6 +173,7 @@ export const RAID: WrestlerConfig = {
       damage: 14, reach: 1.4, arc: 3.2, knockback: 7.4, hitstunMs: 570,
       knockdown: true, launch: 4.4,
       itGain: 8, heat: 11, reversible: false, shout: 'RENT IS THEFT',
+      paired: { victimClip: 'takenFront', hold: [1.0, 0.15, 0], releaseAt: 0.62 },
     }),
     throwBack: mv({
       id: 'raid_tb', name: 'NEST DROP', kind: 'throw', clip: 'throwBack', provenance: G,
@@ -156,6 +181,7 @@ export const RAID: WrestlerConfig = {
       damage: 17, reach: 1.4, arc: 3.2, knockback: 5.8, hitstunMs: 610,
       knockdown: true, launch: 5.4,
       itGain: 9, heat: 12, reversible: false,
+      paired: { victimClip: 'takenBack', hold: [0.6, 0.3, 0], releaseAt: 0.66 },
     }),
     throwCorner: mv({
       id: 'raid_tc', name: 'BOARD THEM IN', kind: 'throw', clip: 'throwForward', provenance: G,
@@ -169,6 +195,7 @@ export const RAID: WrestlerConfig = {
       damage: 24, reach: 1.45, arc: 3.2, knockback: 11.5, hitstunMs: 980,
       knockdown: true, launch: 5.8,
       itGain: 16, heat: 22, reversible: false, cameraPunch: 1.5,
+      paired: { victimClip: 'takenFront', hold: [1.1, 0.2, 0], releaseAt: 0.6 },
     }),
     irishWhip: mv({
       id: 'raid_whip', name: 'SHOO', kind: 'throw', clip: 'throwForward', provenance: G,
@@ -199,6 +226,7 @@ export const RAID: WrestlerConfig = {
       knockdown: true, launch: 4.2,
       itGain: 0, heat: 26, lunge: 2.6, cost: 50, reversible: true,
       cameraPunch: 1.5, hitStopMs: 140, shout: 'I WAS BUILT IN A LAB',
+      paired: { victimClip: 'takenFront', hold: [0.95, 0.18, 0], releaseAt: 0.66 },
     }),
     finisher: mv({
       id: 'raid_fin', name: 'BUGS BITE BACK', kind: 'finisher', clip: 'finisher', provenance: G,
@@ -208,6 +236,7 @@ export const RAID: WrestlerConfig = {
       itGain: 0, heat: 50, lunge: 3.0, cost: 100,
       cinematic: true, reversible: false, hitStopMs: 220,
       shout: 'YOU BUILT ME. NOW PAY THE RENT.',
+      paired: { victimClip: 'takenFront', hold: [0.9, 0.3, 0], releaseAt: 0.72 },
     }),
   },
 

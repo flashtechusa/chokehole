@@ -10,7 +10,7 @@ import type { Rng } from '@/game/util/rng';
 
 type Plan =
   | 'APPROACH' | 'STRIKE' | 'GRAB' | 'SPECIAL' | 'SPACE' | 'TAUNT' | 'PIN'
-  | 'CAN' | 'PROP' | 'ROPES' | 'CLIMB' | 'CHASE_OUTSIDE';
+  | 'CAN' | 'PROP' | 'ROPES' | 'CLIMB' | 'CHASE_OUTSIDE' | 'FLANK';
 
 interface Spot { x: number; z: number }
 
@@ -58,6 +58,17 @@ export class AIController {
     const dist = Math.hypot(dx, dz);
     const toFoeX = dist > 0.001 ? dx / dist : 1;
     const toFoeZ = dist > 0.001 ? dz / dist : 0;
+
+    /**
+     * Facing now follows the stick for everyone, so the AI has to actually aim
+     * itself before swinging — it can no longer rely on being magnetically
+     * pointed at the player. A light push toward the target turns it without
+     * meaningfully closing the gap.
+     */
+    const aim = (i: Intent, amount = 0.34): void => {
+      i.moveX = toFoeX * amount;
+      i.moveY = toFoeZ * amount;
+    };
 
     // --- mashing out of holds and knockdowns ---
     if (me.state === FS.GRAPPLED || me.state === FS.DOWN || me.state === FS.DRAGGED) {
@@ -159,29 +170,29 @@ export class AIController {
       case 'APPROACH': {
         const closeAt = me.cfg.moves.light1.reach * 0.7;
         if (dist > closeAt) { it.moveX = toFoeX; it.moveY = toFoeZ; }
-        else if (this.tapTimer <= 0) { this.tapTimer = 240; it.attack = true; it.anyPress = true; }
+        else if (this.tapTimer <= 0) { this.tapTimer = 240; aim(it); it.attack = true; it.anyPress = true; }
         break;
       }
       case 'STRIKE': {
         const closeAt = me.cfg.moves.light1.reach * 0.82;
         if (dist > closeAt) { it.moveX = toFoeX * 0.9; it.moveY = toFoeZ * 0.9; }
         if (dist <= closeAt && this.tapTimer <= 0) {
-          this.tapTimer = 230; it.attack = true; it.anyPress = true;
+          this.tapTimer = 230; aim(it); it.attack = true; it.anyPress = true;
         }
         break;
       }
       case 'GRAB': {
         if (dist > me.cfg.moves.grapple.reach * 0.8) { it.moveX = toFoeX; it.moveY = toFoeZ; }
-        else if (this.tapTimer <= 0) { this.tapTimer = 420; it.grab = true; it.anyPress = true; }
+        else if (this.tapTimer <= 0) { this.tapTimer = 420; aim(it); it.grab = true; it.anyPress = true; }
         break;
       }
       case 'SPECIAL':
         if (dist > me.cfg.moves.signature.reach * 0.7) { it.moveX = toFoeX; it.moveY = toFoeZ; }
-        else if (this.tapTimer <= 0) { this.tapTimer = 500; it.special = true; it.anyPress = true; }
+        else if (this.tapTimer <= 0) { this.tapTimer = 500; aim(it); it.special = true; it.anyPress = true; }
         break;
       case 'PIN':
         if (dist > TUNING.pin.range * 0.7) { it.moveX = toFoeX; it.moveY = toFoeZ; }
-        else if (this.tapTimer <= 0) { this.tapTimer = 320; it.grab = true; it.anyPress = true; }
+        else if (this.tapTimer <= 0) { this.tapTimer = 320; aim(it); it.grab = true; it.anyPress = true; }
         break;
       case 'ROPES': {
         // Sprint at the nearest rope away from the opponent, then rebound back.
@@ -202,7 +213,7 @@ export class AIController {
       case 'CHASE_OUTSIDE': {
         it.moveX = toFoeX; it.moveY = toFoeZ;
         if (dist < 1.6 && this.tapTimer <= 0) {
-          this.tapTimer = 260; it.attack = true; it.anyPress = true;
+          this.tapTimer = 260; aim(it); it.attack = true; it.anyPress = true;
         }
         break;
       }
@@ -216,6 +227,22 @@ export class AIController {
       case 'TAUNT':
         if (this.tapTimer <= 0) { this.tapTimer = 900; it.special = true; it.anyPress = true; }
         break;
+      case 'FLANK': {
+        /*
+         * Circle round to the opponent's back, then take the waistlock. This
+         * exists to show the player that turning matters: being grabbed from
+         * behind teaches it faster than any tutorial card.
+         */
+        const behindX = foe.x - Math.cos(foe.facing) * 1.0;
+        const behindZ = foe.z - Math.sin(foe.facing) * 1.0;
+        const d = norm(behindX - me.x, behindZ - me.z);
+        const gap = Math.hypot(behindX - me.x, behindZ - me.z);
+        if (gap > 0.55) { it.moveX = d.x; it.moveY = d.z; }
+        else if (this.tapTimer <= 0) {
+          this.tapTimer = 420; aim(it); it.grab = true; it.anyPress = true;
+        }
+        break;
+      }
       case 'SPACE': {
         it.moveX = -toFoeZ * 0.7 - toFoeX * 0.25;
         it.moveY = toFoeX * 0.7 - toFoeZ * 0.25;
@@ -261,6 +288,8 @@ export class AIController {
     // The ropes are the AI's bread and butter at range: it should look like it
     // knows the ring is there.
     if (dist > 2.8 && this.rng.chance(p.spectacle)) return 'ROPES';
+    // Someone facing away is asking to be taken from behind.
+    if (dist < 3.2 && this.rng.chance(p.flankChance)) return 'FLANK';
     if (dist < TUNING.combat.grappleRange * 1.4 && this.rng.chance(p.grabChance)) return 'GRAB';
     if (dist < 2.6) {
       const r = this.rng.next();

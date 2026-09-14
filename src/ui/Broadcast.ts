@@ -14,15 +14,43 @@ export class Broadcast {
   readonly root: HTMLElement;
   private glitch: HTMLElement;
   private censor: HTMLElement;
+  private blackout: HTMLElement;
+  private spot: HTMLElement;
+  private spotName: HTMLElement;
+  private spotShout: HTMLElement;
   private glitchTimer = 0;
   private censorTimer = 0;
+  private spotTimer = 0;
   private reduceFlash = false;
 
   constructor() {
     this.root = h('div');
+    this.blackout = h('div', 'blackout');
+    this.spot = h('div', 'spot');
+    this.spot.appendChild(h('div', 'spot-burst'));
+    this.spotName = h('div', 'spot-name');
+    this.spotShout = h('div', 'spot-shout');
+    this.spot.append(this.spotName, this.spotShout);
     this.glitch = h('div', 'glitch');
     this.censor = h('div', 'censor');
-    this.root.append(this.glitch, this.censor);
+    this.root.append(this.blackout, this.spot, this.glitch, this.censor);
+  }
+
+  /**
+   * A signature or finisher spot: the arena drops out, a slammed title card
+   * lands, and the wrestler's own colour takes over the screen. A finisher is
+   * supposed to look like the broadcast has lost control of itself.
+   */
+  showSpot(kind: 'signature' | 'finisher', name: string, accent: string, shout?: string): void {
+    this.spot.style.setProperty('--spot-accent', accent);
+    toggle(this.spot, 'finisher', kind === 'finisher');
+    this.spotName.textContent = name;
+    this.spotShout.textContent = shout ?? '';
+    this.spotShout.style.display = shout ? '' : 'none';
+    toggle(this.spot, 'on', true);
+    if (!this.reduceFlash) toggle(this.blackout, 'on', kind === 'finisher');
+    this.spotTimer = kind === 'finisher' ? 2100 : 1200;
+    this.tear(kind === 'finisher' ? 1 : 0.6);
   }
 
   setReduceFlash(v: boolean): void {
@@ -62,13 +90,23 @@ export class Broadcast {
       this.censorTimer -= dt;
       if (this.censorTimer <= 0) toggle(this.censor, 'on', false);
     }
+    if (this.spotTimer > 0) {
+      this.spotTimer -= dt;
+      if (this.spotTimer <= 0) {
+        toggle(this.spot, 'on', false);
+        toggle(this.blackout, 'on', false);
+      }
+    }
   }
 
   clear(): void {
     this.glitchTimer = 0;
     this.censorTimer = 0;
+    this.spotTimer = 0;
     toggle(this.glitch, 'on', false);
     toggle(this.censor, 'on', false);
+    toggle(this.spot, 'on', false);
+    toggle(this.blackout, 'on', false);
   }
 }
 

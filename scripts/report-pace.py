@@ -12,4 +12,6 @@ print('  spectacle   : ropeRuns=%d rebounds=%d perches=%d dives=%d/%d props=%d' 
     j['ropeRuns'], j['rebounds'], j['perches'], j['divesLanded'], j['divesThrown'], j['props']))
 print('  drama       : reversals=%d pins=%d kickouts=%d nearFalls=%d taunts=%s' % (
     j['reversals'], j['pinsStarted'], j['kickouts'], j['nearFalls'], json.dumps(j['taunts'])))
+print('  turning     : rearThrows=%d backAttacks=%d   spots=%s' % (
+    j.get('rearThrows', 0), j.get('backAttacks', 0), json.dumps(j.get('spots', {}))))
 print('  hits by kind: %s' % json.dumps(j['byKind']))

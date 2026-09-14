@@ -5,10 +5,10 @@ import { stickMagnitude } from '@/game/input/Intent';
 import { TUNING } from '@/game/config/tuning';
 import { ACTIONABLE, FS, GROUNDED, LOCKED } from './states';
 import {
-  RING, clampFloor, clampMat, groundAt, inCorner, insideRing, nearestCorner, onApron,
-  ropeAhead, zoneAt,
+  RING, clampFloor, clampMat, groundAt, inCorner, insideRing, isBehind, nearestCorner,
+  onApron, ropeAhead, zoneAt,
 } from './ring';
-import { approachAngle, clamp } from '@/game/util/math';
+import { angleDelta, approachAngle, clamp } from '@/game/util/math';
 
 export interface ActiveAction {
   move: MoveDef;
@@ -95,6 +95,11 @@ export class Fighter {
   propUses = 0;
   /** Blocks re-taking a prop you just dropped, which was an instant loop. */
   propCooldown = 0;
+  /**
+   * Where the match is, as a damage multiplier. Set by MatchSim each frame so
+   * the fight has an arc: feeling-out early, decisive late.
+   */
+  matchDamageScale = 1;
 
   // --- misc ---
   invuln = 0;
@@ -114,6 +119,8 @@ export class Fighter {
   runDirZ = 0;
   /** Counts rope-to-rope trips, so the third is faster and louder. */
   ropeLaps = 0;
+  /** After a bounce, the stick cannot cancel the run for this long. */
+  private reboundGrace = 0;
   activeTaunt: TauntDef | null = null;
   /** Kickouts at the last possible count, tracked for the results card. */
   nearFalls = 0;
@@ -122,6 +129,16 @@ export class Fighter {
   grappleTimer = 0;
   grappleTaps = 0;
   partner: Fighter | null = null;
+  /** True while this fighter is holding someone from behind. */
+  rearHold = false;
+  /**
+   * The victim of a paired throw, carried through the choreography rather than
+   * shoved with an impulse. Cleared at the move's release point.
+   */
+  pairVictim: Fighter | null = null;
+  /** Set on the victim so the renderer knows to play the receiving clip. */
+  pairClip: string | null = null;
+  pairProgress = 0;
 
   // --- input buffering ---
   private pending: 'attack' | 'grab' | 'special' | null = null;
@@ -229,7 +246,8 @@ export class Fighter {
    * ------------------------------------------------------------------ */
 
   takeHit(move: MoveDef, attacker: Fighter, comboFalloff: number): number {
-    const dmg = move.damage * attacker.damageMult * this.damageTakenMult * comboFalloff;
+    const dmg = move.damage * attacker.damageMult * this.damageTakenMult
+      * comboFalloff * this.matchDamageScale;
     this.health = Math.max(0, this.health - dmg);
     this.hitFlash = 1;
     this.comboIndex = 0;
@@ -241,9 +259,13 @@ export class Fighter {
     // actually entertaining the room.
     this.addIt(dmg * TUNING.meters.itOnDamageTaken);
 
-    const push = move.knockback;
-    this.vx += Math.cos(attacker.facing) * push;
-    this.vz += Math.sin(attacker.facing) * push;
+    // A paired throw carries the victim; an impulse here would drag them out of
+    // the choreography mid-move.
+    if (attacker.pairVictim !== this) {
+      const push = move.knockback;
+      this.vx += Math.cos(attacker.facing) * push;
+      this.vz += Math.sin(attacker.facing) * push;
+    }
 
     if (this.health <= 0) {
       this.exhausted = true;
@@ -281,7 +303,7 @@ export class Fighter {
     }
 
     this.zone = this.state === FS.PERCH ? 'PERCH' : zoneAt(this.x, this.z);
-    this.faceOpponent(dt, opponent);
+    this.updateFacing(dt, intent);
 
     switch (this.state) {
       case FS.ATTACK: this.updateAttack(dt); break;
@@ -317,23 +339,57 @@ export class Fighter {
     this.integrate(dt);
   }
 
-  private faceOpponent(dt: number, opponent: Fighter): void {
-    if (this.isDown || this.state === FS.PINNED) return;
-    // While running the ropes the fighter faces where they are going, not the
-    // opponent, or the rebound reads as sliding backwards.
+  /**
+   * Facing follows the STICK, never the opponent.
+   *
+   * The fighter used to be magnetically rotated toward the other wrestler every
+   * frame, which quietly removed half of wrestling: you could not turn your
+   * back, run past someone, be grabbed from behind, or face the crowd. Now the
+   * only automatic turning is toward your own movement, plus a single light
+   * assist when an attack starts (see assistFacing).
+   */
+  private updateFacing(dt: number, intent: Intent): void {
+    if (this.isDown || this.state === FS.PINNED || this.state === FS.PIN) return;
+
+    const step = TUNING.move.turnRate * (dt / 1000);
+
+    // Committed momentum states face where the body is actually going.
     if (this.state === FS.ROPE_RUN || this.state === FS.WHIPPED || this.state === FS.AERIAL) {
       const m = Math.hypot(this.vx, this.vz);
       if (m > 0.4) {
-        const want = Math.atan2(this.vz, this.vx);
-        this.facing = approachAngle(this.facing, want, TUNING.move.turnRate * 1.6 * (dt / 1000));
+        this.facing = approachAngle(this.facing, Math.atan2(this.vz, this.vx), step * 1.6);
       }
       return;
     }
-    const want = Math.atan2(opponent.z - this.z, opponent.x - this.x);
-    this.facing = approachAngle(this.facing, want, TUNING.move.turnRate * (dt / 1000));
+
+    // Anything else that locks the body also locks the facing.
+    if (!ACTIONABLE.has(this.state)) return;
+
+    const mag = Math.hypot(intent.moveX, intent.moveY);
+    if (mag > 0.2) {
+      this.facing = approachAngle(this.facing, Math.atan2(intent.moveY, intent.moveX), step);
+    }
+  }
+
+  /**
+   * Light target assistance, applied ONCE as a move starts. It nudges toward an
+   * opponent who is already roughly in front and in range; it will not turn you
+   * around, and it does nothing at all to someone behind you.
+   */
+  private assistFacing(opponent: Fighter, move: MoveDef): void {
+    if (move.cinematic) return;
+    const dist = this.distanceTo(opponent);
+    if (dist > move.reach * TUNING.combat.assistRangeMult) return;
+    const to = Math.atan2(opponent.z - this.z, opponent.x - this.x);
+    const d = angleDelta(this.facing, to);
+    if (Math.abs(d) > TUNING.combat.assistCone) return;
+    this.facing += d * TUNING.combat.assistStrength;
   }
 
   private integrate(dt: number): void {
+    // Being carried through someone else's throw overrides physics entirely.
+    if (this.pairClip) return;
+
     const s = dt / 1000;
     const g = this.groundY;
 
@@ -461,12 +517,15 @@ export class Fighter {
        * does not trip it, and ropeAhead() refuses corners and glancing angles.
        */
       if (running && insideRing(this.x, this.z) && !inCorner(this.x, this.z)) {
+        /*
+         * Sprinting into a rope starts a rope run. There is deliberately no
+         * run-up requirement: pressing into the ropes from against them is
+         * exactly how a wrestler pushes off, and requiring clear space meant a
+         * fighter who ended up on the ropes just ground against them forever.
+         * A full-magnitude stick is already a deliberate sprint.
+         */
         const rope = ropeAhead(this.x, this.z, nx, nz, 0.75);
-        if (rope) {
-          // Distance already travelled toward that rope: no run-up, no rebound.
-          const against = Math.abs(this.x * rope.nx + this.z * rope.nz);
-          if (against < RING.half - 0.5) { this.startRopeRun(nx, nz); return; }
-        }
+        if (rope) { this.startRopeRun(nx, nz); return; }
       }
 
       const speed = this.cfg.stats.speed * this.speedMult
@@ -526,6 +585,7 @@ export class Fighter {
     this.runDirX = nx;
     this.runDirZ = nz;
     this.ropeLaps = 0;
+    this.reboundGrace = 0;
     this.setState(FS.ROPE_RUN);
     this.events.push({ type: 'ropeRun' });
   }
@@ -574,28 +634,38 @@ export class Fighter {
 
     // Hit the far ropes: bounce back with more speed each time.
     const r = this.cfg.stats.radius;
-    const limit = RING.half - r;
+    const limX = RING.half - r;
+    const limZ = RING.halfZ - r;
     let bounced = false;
-    if (Math.abs(this.x) >= limit && Math.sign(this.x) === Math.sign(this.runDirX) && this.runDirX !== 0) {
-      this.x = Math.sign(this.x) * limit;
+    if (Math.abs(this.x) >= limX && Math.sign(this.x) === Math.sign(this.runDirX) && this.runDirX !== 0) {
+      this.x = Math.sign(this.x) * limX;
       this.runDirX *= -1;
       bounced = true;
     }
-    if (Math.abs(this.z) >= limit && Math.sign(this.z) === Math.sign(this.runDirZ) && this.runDirZ !== 0) {
-      this.z = Math.sign(this.z) * limit;
+    if (Math.abs(this.z) >= limZ && Math.sign(this.z) === Math.sign(this.runDirZ) && this.runDirZ !== 0) {
+      this.z = Math.sign(this.z) * limZ;
       this.runDirZ *= -1;
       bounced = true;
     }
     if (bounced) {
       this.ropeLaps += 1;
       this.reboundBoost = 1;
+      this.reboundGrace = TUNING.combat.reboundGraceMs;
       this.events.push({ type: 'rebound' });
     }
 
-    // Steering off the line, or running too long, drops back to normal movement.
+    /*
+     * Steering hard against the run drops out of it — but not straight after a
+     * bounce. Holding the stick through the rebound is the natural thing to do,
+     * and without this grace the run direction flipping under the player's
+     * thumb read as an instant cancel: the rebound existed for five frames and
+     * could never be attacked out of.
+     */
+    this.reboundGrace = Math.max(0, this.reboundGrace - dt);
     const mag = stickMagnitude(intent);
     const along = intent.moveX * this.runDirX + intent.moveY * this.runDirZ;
-    if ((mag > 0.4 && along < -0.2) || this.ropeLaps > 3 || this.stateTime > 4200) {
+    const steeringOff = this.reboundGrace <= 0 && mag > 0.4 && along < -0.35;
+    if (steeringOff || this.ropeLaps > 3 || this.stateTime > 4600) {
       this.setState(FS.IDLE);
     }
   }
@@ -610,10 +680,11 @@ export class Fighter {
   private updateWhipped(dt: number): void {
     void dt;
     const r = this.cfg.stats.radius;
-    const limit = RING.half - r;
-    if (Math.abs(this.x) >= limit || Math.abs(this.z) >= limit) {
-      if (Math.abs(this.x) >= limit) { this.x = Math.sign(this.x) * limit; this.vx *= -0.92; }
-      if (Math.abs(this.z) >= limit) { this.z = Math.sign(this.z) * limit; this.vz *= -0.92; }
+    const limX = RING.half - r;
+    const limZ = RING.halfZ - r;
+    if (Math.abs(this.x) >= limX || Math.abs(this.z) >= limZ) {
+      if (Math.abs(this.x) >= limX) { this.x = Math.sign(this.x) * limX; this.vx *= -0.92; }
+      if (Math.abs(this.z) >= limZ) { this.z = Math.sign(this.z) * limZ; this.vz *= -0.92; }
       this.events.push({ type: 'rebound' });
       this.setState(FS.ROPE_RUN);
       const m = Math.hypot(this.vx, this.vz) || 1;
@@ -733,20 +804,28 @@ export class Fighter {
     const dist = this.distanceTo(opponent);
 
     if (this.carrying) {
-      this.startMove(this.carrying.swing);
+      this.startMove(this.carrying.swing, false, opponent);
       this.spendProp();
       return true;
     }
     if (this.state === FS.PERCH) {
-      this.startMove(opponent.outside ? m.topRopeDiveOutside : m.topRopeDive);
+      this.startMove(opponent.outside ? m.topRopeDiveOutside : m.topRopeDive, false, opponent);
       return true;
     }
     if (opponent.state === FS.CORNERED && dist < m.cornerAttack.reach + opponent.cfg.stats.radius) {
-      this.startMove(m.cornerAttack);
+      this.startMove(m.cornerAttack, false, opponent);
       return true;
     }
     if (opponent.isDown && dist < m.ground.reach + opponent.cfg.stats.radius) {
-      this.startMove(m.ground);
+      this.startMove(m.ground, false, opponent);
+      return true;
+    }
+
+    // Behind someone who is upright and unaware: a back attack, not a jab.
+    if (!opponent.isDown && this.behind(opponent)
+      && dist < m.backAttack.reach + opponent.cfg.stats.radius) {
+      this.comboIndex = 0;
+      this.startMove(m.backAttack, false, opponent);
       return true;
     }
 
@@ -760,7 +839,7 @@ export class Fighter {
 
     this.comboIndex = move.kind === 'heavy' ? 0 : this.comboIndex + 1;
     this.comboTimer = TUNING.combat.comboWindowMs;
-    this.startMove(move);
+    this.startMove(move, false, opponent);
     return true;
   }
 
@@ -803,10 +882,21 @@ export class Fighter {
     }
 
     if (opponent.isDown) return false;
-    if (dist > m.grapple.reach + opponent.cfg.stats.radius) return false;
-    this.startMove(m.grapple);
+
+    // Front tie-up or rear waistlock, decided by where you are standing
+    // relative to THEIR facing. This is the payoff for being able to turn.
+    const rear = this.behind(opponent);
+    const grab = rear ? m.rearGrapple : m.grapple;
+    if (dist > grab.reach + opponent.cfg.stats.radius) return false;
+    this.rearHold = rear;
+    this.startMove(grab, false, opponent);
     this.setState(FS.GRAPPLE_START);
     return true;
+  }
+
+  /** True when this fighter is behind `other`, measured from other's facing. */
+  behind(other: Fighter): boolean {
+    return isBehind(this.x, this.z, other.x, other.z, other.facing);
   }
 
   /**
@@ -854,7 +944,8 @@ export class Fighter {
     }
   }
 
-  startMove(move: MoveDef, guaranteed = false): void {
+  startMove(move: MoveDef, guaranteed = false, target?: Fighter): void {
+    if (target) this.assistFacing(target, move);
     this.action = { move, elapsed: 0, hasHit: false, guaranteed, launched: false };
     this.activeTaunt = null;
     this.setState(move.leap ? FS.AERIAL : FS.ATTACK);
@@ -866,6 +957,8 @@ export class Fighter {
     if (!a) { this.setState(FS.IDLE); return; }
     a.elapsed += dt;
 
+    this.updatePair(a.move, this.actionProgress);
+
     if (a.move.lunge && a.elapsed < a.move.startupMs) {
       const l = a.move.lunge;
       this.vx += Math.cos(this.facing) * l * (dt / 1000) * 12;
@@ -875,9 +968,58 @@ export class Fighter {
     const total = a.move.startupMs + a.move.activeMs + a.move.recoveryMs;
     if (a.elapsed >= total) {
       if (!a.hasHit) this.events.push({ type: 'whiff', move: a.move });
+      this.releasePair(a.move);
       this.action = null;
       this.setState(FS.IDLE);
     }
+  }
+
+  /**
+   * Drives a paired throw. The victim is carried at a fixed offset in the
+   * attacker's own frame and plays the receiving half of the choreography, so a
+   * suplex looks like a suplex instead of two people sliding apart.
+   */
+  private updatePair(move: MoveDef, progress: number): void {
+    const v = this.pairVictim;
+    const p = move.paired;
+    if (!v || !p) return;
+
+    if (progress >= p.releaseAt) { this.releasePair(move); return; }
+
+    const [fwd, up, side] = p.hold;
+    const c = Math.cos(this.facing);
+    const sn = Math.sin(this.facing);
+    v.x = this.x + c * fwd - sn * side;
+    v.z = this.z + sn * fwd + c * side;
+    v.y = this.y + up;
+    v.vx = 0; v.vz = 0; v.vy = 0;
+    v.facing = this.facing;
+    v.pairProgress = progress / Math.max(0.001, p.releaseAt);
+  }
+
+  /** Lets the victim go at the choreographed moment, with the throw's impulse. */
+  private releasePair(move: MoveDef): void {
+    const v = this.pairVictim;
+    if (!v) return;
+    this.pairVictim = null;
+    v.pairClip = null;
+    v.pairProgress = 0;
+    if (move.knockdown) {
+      v.vx = Math.cos(this.facing) * move.knockback;
+      v.vz = Math.sin(this.facing) * move.knockback;
+      v.vy = Math.max(v.vy, 0.6);
+      if (v.state !== FS.THROWN && !v.exhausted) v.knockDown(0.4);
+    }
+  }
+
+  /** Begins carrying `victim` through a paired move. */
+  beginPair(victim: Fighter, move: MoveDef): void {
+    if (!move.paired) return;
+    this.pairVictim = victim;
+    victim.pairClip = move.paired.victimClip;
+    victim.pairProgress = 0;
+    victim.action = null;
+    victim.partner = null;
   }
 
   /** A committed leap. Once you are in the air you cannot change your mind. */
@@ -965,7 +1107,8 @@ export class Fighter {
     opponent.x = hx; opponent.z = hz;
     opponent.y = this.y;
     opponent.vx = 0; opponent.vz = 0;
-    opponent.facing = this.facing + Math.PI;
+    // A waistlock holds them facing AWAY from you; a tie-up faces them at you.
+    opponent.facing = this.rearHold ? this.facing : this.facing + Math.PI;
 
     if (this.grappleTimer <= 0 || opponent.state !== FS.GRAPPLED) {
       this.releaseGrapple();
@@ -1001,15 +1144,24 @@ export class Fighter {
     const towardRopes = !towardOutside && !towardCorner
       && (Math.abs(targetX) > RING.half - RING.ropeBand || Math.abs(targetZ) > RING.half - RING.ropeBand);
 
+    /*
+     * A destination only counts when the player actually pushed the stick.
+     * Without that check the geometry alone could claim the throw — a neutral
+     * release near a corner was being read as "toward the corner", which meant
+     * the rear throw could never come out of a waistlock.
+     */
+    const directed = stick > 0.45;
     let move: MoveDef;
-    if (towardOutside && stick > 0.45) move = m.throwOutside;
-    else if (towardCorner && stick > 0.45) move = m.throwCorner;
-    else if (towardRopes && stick > 0.45 && intent.grab) move = m.irishWhip;
+    if (directed && towardOutside) move = m.throwOutside;
+    else if (directed && towardCorner) move = m.throwCorner;
+    else if (directed && towardRopes && intent.grab) move = m.irishWhip;
+    else if (this.rearHold) move = m.rearThrow;
     else if (backwards) move = m.throwBack;
     else move = m.throwForward;
 
     this.detachGrapple(opponent);
     this.startMove(move, true);
+    if (move.paired) this.beginPair(opponent, move);
     opponent.takeHit(move, this, 1);
     this.addIt(move.itGain, heat01);
 
@@ -1035,6 +1187,7 @@ export class Fighter {
     this.grappleTimer = 0;
     this.partner = null;
     opponent.partner = null;
+    this.rearHold = false;
   }
 
   private updateGrappled(intent: Intent): void {
@@ -1057,6 +1210,7 @@ export class Fighter {
     const other = this.partner;
     this.partner = null;
     this.grappleTimer = 0;
+    this.rearHold = false;
     if (this.state === FS.GRAPPLING || this.state === FS.DRAGGING) this.setState(FS.IDLE);
     if (other) {
       other.partner = null;

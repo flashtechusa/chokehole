@@ -694,6 +694,97 @@ export function buildClips(s: Style): Record<string, Clip> {
     { t: 1, pose: stance() },
   ]);
 
+  /* ---------------- behind them ---------------- */
+
+  /** A clubbing blow to the back of someone who is not looking. */
+  const backAttack = makeClip('backAttack', 460, false, [
+    { t: 0, pose: stance() },
+    { t: 0.3, pose: mix(stance(), {
+      rootRz: -0.14, chest: v(0, -0.55, -0.2),
+      upperArmL: v(-1.7 * A, 0, -0.3), forearmL: v(0, 0, 1.3),
+      upperArmR: v(1.7 * A, 0, -0.3), forearmR: v(0, 0, 1.3),
+    }) },
+    { t: 0.5, pose: mix(stance(), {
+      rootX: 0.1, rootRz: 0.24, spine: v(0, 0, s.lean + 0.45),
+      upperArmL: v(-0.3, 0, 1.75 * A), forearmL: v(0, 0, 0.12),
+      upperArmR: v(0.3, 0, 1.75 * A), forearmR: v(0, 0, 0.12),
+      thighL: v(-0.1, 0, 0.35),
+    }) },
+    { t: 0.74, pose: mix(stance(), { rootRz: 0.12, spine: v(0, 0, s.lean + 0.2) }) },
+    { t: 1, pose: stance() },
+  ]);
+
+  /** Waistlock from behind: arms low and clamped, weight dropped. */
+  const rearHold = (): Pose => mix(stance(), {
+    rootX: 0.06, rootY: -0.06,
+    spine: v(0, 0, s.lean + 0.2),
+    upperArmL: v(-0.85, 0, 1.15 * A), forearmL: v(0, 0, 0.75),
+    upperArmR: v(0.85, 0, 1.15 * A), forearmR: v(0, 0, 0.75),
+    thighL: v(-0.14 * s.stance, 0, 0.3), shinL: v(0, 0, -0.5),
+    thighR: v(0.14 * s.stance, 0, 0.3), shinR: v(0, 0, -0.5),
+    midArmL: v(-1.1, 0, 1.0), midArmR: v(1.1, 0, 1.0),
+  });
+
+  const rearGrapple = makeClip('rearGrapple', 340, false, [
+    { t: 0, pose: stance() },
+    { t: 0.55, pose: mix(rearHold(), { rootX: 0.12 }) },
+    { t: 1, pose: rearHold() },
+  ]);
+
+  /** Back suplex: arch up and over, landing behind. */
+  const rearThrow = makeClip('rearThrow', 900, false, [
+    { t: 0, pose: rearHold() },
+    { t: 0.26, pose: mix(rearHold(), {
+      rootY: -0.16, spine: v(0, 0, s.lean + 0.55),
+      thighL: v(-0.16, 0, 0.9), shinL: v(0, 0, -1.3),
+      thighR: v(0.16, 0, 0.9), shinR: v(0, 0, -1.3),
+    }) },
+    { t: 0.48, pose: mix(rearHold(), {
+      rootY: 0.2, rootRz: -0.75,
+      spine: v(0, 0, s.lean - 0.5), chest: v(0, 0, -0.3), head: v(0, 0, 0.4),
+      upperArmL: v(-0.6, 0, 1.5), upperArmR: v(0.6, 0, 1.5),
+      thighL: v(-0.14, 0, -0.35), thighR: v(0.14, 0, -0.35),
+    }) },
+    { t: 0.72, pose: mix(stance(), {
+      rootY: -0.3, rootRz: -1.25,
+      spine: v(0, 0, 0.1), head: v(0, 0, 0.2),
+      upperArmL: v(-1.0, 0, 0.6), upperArmR: v(1.0, 0, 0.6),
+      thighL: v(-0.2, 0, 0.5), shinL: v(0, 0, -0.9),
+    }) },
+    { t: 1, pose: mix(stance(), { rootY: -0.12, rootRz: -0.3 }) },
+  ]);
+
+  /** The victim half of a rear throw: folded backwards over the attacker. */
+  const takenBack = makeClip('takenBack', 900, false, [
+    { t: 0, pose: mix(stance(), { rootRz: 0.1, head: v(0, 0, -0.3) }) },
+    { t: 0.3, pose: mix(stance(), {
+      rootY: 0.1, rootRz: 0.5, spine: v(0, 0, -0.35),
+      upperArmL: v(-1.4, 0, -0.7), upperArmR: v(1.4, 0, -0.7),
+      thighL: v(-0.12, 0, -0.5), thighR: v(0.12, 0, -0.5),
+    }) },
+    { t: 0.52, pose: {
+      rootY: 0.34, rootRz: 1.5,
+      spine: v(0, 0, 0.1), head: v(0, 0, 0.5),
+      upperArmL: v(-1.5, 0, -0.5), upperArmR: v(1.5, 0, -0.5),
+      thighL: v(-0.2, 0, 0.3), thighR: v(0.2, 0, 0.25),
+      shinL: v(0, 0, -0.4), shinR: v(0, 0, -0.35),
+    } },
+    { t: 0.78, pose: flatPose() },
+    { t: 1, pose: flatPose() },
+  ]);
+
+  /** The victim half of a front throw: picked up and driven down. */
+  const takenFront = makeClip('takenFront', 820, false, [
+    { t: 0, pose: mix(stance(), { rootRz: -0.12, head: v(0, 0, -0.35) }) },
+    { t: 0.3, pose: mix(stance(), {
+      rootY: 0.3, rootRz: -0.9,
+      upperArmL: v(-1.5, 0, -0.4), upperArmR: v(1.5, 0, -0.4),
+      thighL: v(-0.16, 0, -0.4), thighR: v(0.16, 0, -0.4),
+    }) },
+    { t: 0.58, pose: mix(flatPose(), { rootY: -0.3, rootRz: -1.6 }) },
+    { t: 1, pose: flatPose() },
+  ]);
+
   /* ---------------- taunts: gameplay, not decoration ---------------- */
 
   const tauntShort = makeClip('tauntShort', 620, false, [
@@ -768,6 +859,7 @@ export function buildClips(s: Style): Record<string, Clip> {
     climb, perch, topRopeDive, cornerAttack, cornered,
     hitFront, hitBack, reversal,
     grappleStart, grappleHold, grappled, throwForward, throwBack, pickUp, propSwing,
+    backAttack, rearGrapple, rearThrow, takenBack, takenFront,
     knockdown, grounded, getUp, pin, pinned,
     taunt, tauntShort, tauntBig, tauntCrowd, tauntOpponent,
     signature, finisher, victory, defeat, entrance,

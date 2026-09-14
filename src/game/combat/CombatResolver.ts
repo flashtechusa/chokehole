@@ -73,6 +73,10 @@ export class CombatResolver {
     const falloff = Math.pow(TUNING.combat.comboDamageFalloff, chain);
     attacker.bestCombo = Math.max(attacker.bestCombo, chain + 1);
 
+    // A paired move that connects at range (a signature, a finisher) picks the
+    // victim up into its choreography from the moment of contact.
+    if (m.paired && !attacker.pairVictim) attacker.beginPair(defender, m);
+
     const damage = defender.takeHit(m, attacker, falloff);
     attacker.addIt(m.itGain, heat01);
 

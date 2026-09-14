@@ -25,19 +25,23 @@ export interface Ring {
  */
 export function buildRing(scene: Scene): Ring {
   const root = new TransformNode('ring', scene);
+  // Wide across, shallow in depth: the 2.5D play space, built to the exact
+  // dimensions the simulation clamps to.
   const H = TUNING.ring.half;
+  const HZ = TUNING.ring.halfZ;
   const matY = TUNING.ring.matY;
   const outer = H + 0.55;
+  const outerZ = HZ + 0.55;
 
   // --- base / apron ---
-  const base = CreateBox('ringBase', { width: outer * 2, height: matY, depth: outer * 2 }, scene);
+  const base = CreateBox('ringBase', { width: outer * 2, height: matY, depth: outerZ * 2 }, scene);
   base.position.y = matY / 2;
   base.parent = root;
   base.material = emissiveMat(scene, 'apronMat', apronTexture(scene), 0.5);
   base.isPickable = false;
 
   // --- canvas ---
-  const mat = CreateBox('ringMat', { width: H * 2 + 0.18, height: 0.08, depth: H * 2 + 0.18 }, scene);
+  const mat = CreateBox('ringMat', { width: H * 2 + 0.18, height: 0.08, depth: HZ * 2 + 0.18 }, scene);
   mat.position.y = matY + 0.04;
   mat.parent = root;
   const matMat = emissiveMat(scene, 'matMat', matTexture(scene), 0.3);
@@ -53,7 +57,7 @@ export function buildRing(scene: Scene): Ring {
     const p = CreateCylinder('post', {
       height: TUNING.ring.postHeight, diameterTop: 0.13, diameterBottom: 0.15, tessellation: 8,
     }, scene);
-    p.position.set(sx * (H + 0.22), matY + TUNING.ring.postHeight / 2, sz * (H + 0.22));
+    p.position.set(sx * (H + 0.22), matY + TUNING.ring.postHeight / 2, sz * (HZ + 0.22));
     p.parent = root;
     p.material = postMat;
     p.isPickable = false;
@@ -84,13 +88,32 @@ export function buildRing(scene: Scene): Ring {
   // --- ropes ---
   const ropes: Mesh[] = [];
   const ropeColors = [C.pink, C.bone, C.squelsh];
+  /*
+   * The rope nearest the camera is drawn faint. A solid near rope cuts straight
+   * across both wrestlers from a three-quarter view, and the ring reads
+   * perfectly well with it ghosted — this is the same trick wrestling broadcasts
+   * use with a hard camera.
+   */
+  const nearMats = ropeColors.map((c) => {
+    const m = new StandardMaterial(`ropeNear_${c}`, scene);
+    const col = Color3.FromHexString(c);
+    m.diffuseColor = col;
+    m.emissiveColor = col.scale(0.5);
+    m.specularColor = new Color3(0, 0, 0);
+    m.alpha = 0.26;
+    return m;
+  });
   TUNING.ring.ropeHeights.forEach((rh, i) => {
     const m = flatMaterial(scene, ropeColors[i % ropeColors.length]!, 0.55);
     for (const [axis, sign] of [['x', 1], ['x', -1], ['z', 1], ['z', -1]] as const) {
+      // A rope spanning the X sides runs along Z, and vice versa.
+      const span = axis === 'x' ? (HZ + 0.22) * 2 : (H + 0.22) * 2;
       const rope = CreateCylinder('rope', {
-        height: (H + 0.22) * 2, diameter: 0.055, tessellation: 6,
+        height: span, diameter: 0.055, tessellation: 6,
       }, scene);
-      rope.material = m;
+      // -Z is the camera side.
+      const near = axis === 'z' && sign === -1;
+      rope.material = near ? nearMats[i % nearMats.length]! : m;
       rope.parent = root;
       rope.isPickable = false;
       if (axis === 'x') {
@@ -98,7 +121,7 @@ export function buildRing(scene: Scene): Ring {
         rope.position.set(sign * (H + 0.22), matY + rh, 0);
       } else {
         rope.rotation.z = Math.PI / 2;
-        rope.position.set(0, matY + rh, sign * (H + 0.22));
+        rope.position.set(0, matY + rh, sign * (HZ + 0.22));
       }
       ropes.push(rope);
     }
@@ -107,9 +130,9 @@ export function buildRing(scene: Scene): Ring {
   // --- steel skirt trim so the apron reads as built, not printed ---
   for (const [axis, sign] of [['x', 1], ['x', -1], ['z', 1], ['z', -1]] as const) {
     const trim = CreateBox('trim', {
-      width: axis === 'x' ? 0.08 : outer * 2, height: 0.1, depth: axis === 'x' ? outer * 2 : 0.08,
+      width: axis === 'x' ? 0.08 : outer * 2, height: 0.1, depth: axis === 'x' ? outerZ * 2 : 0.08,
     }, scene);
-    trim.position.set(axis === 'x' ? sign * outer : 0, matY - 0.02, axis === 'z' ? sign * outer : 0);
+    trim.position.set(axis === 'x' ? sign * outer : 0, matY - 0.02, axis === 'z' ? sign * outerZ : 0);
     trim.parent = root;
     trim.material = flatMaterial(scene, C.acid, 0.45);
     trim.isPickable = false;

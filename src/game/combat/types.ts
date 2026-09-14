@@ -56,6 +56,19 @@ export interface MoveDef {
   shout?: string;
   /** Missing a committed aerial hurts: extra recovery and a hard landing. */
   whiffPenaltyMs?: number;
+  /**
+   * Paired choreography. A throw is two synchronised performances, not one
+   * animation plus knockback: the victim plays `victimClip` on the attacker's
+   * own playhead, held at `hold` relative to the attacker, and is only released
+   * into physics at `releaseAt`.
+   */
+  paired?: {
+    victimClip: string;
+    /** Offset from the attacker, in attacker-local space: forward, up, side. */
+    hold: [number, number, number];
+    /** 0..1 through the move at which the victim is let go. */
+    releaseAt: number;
+  };
 }
 
 export type TauntKind = 'short' | 'big' | 'opponent' | 'crowd';
@@ -138,6 +151,12 @@ export interface MoveSet {
   topRopeDiveOutside: MoveDef;
   // grappling
   grapple: MoveDef;
+  /** Entered by grabbing someone from behind. Turning is what unlocks it. */
+  rearGrapple: MoveDef;
+  /** Released from a rear grapple: a back-suplex family throw. */
+  rearThrow: MoveDef;
+  /** A strike landed on someone who is not looking at you. */
+  backAttack: MoveDef;
   throwForward: MoveDef;
   throwBack: MoveDef;
   throwCorner: MoveDef;

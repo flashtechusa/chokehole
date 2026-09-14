@@ -248,6 +248,9 @@ export class App {
           if (e.type === 'callout') this.hud.showCallout(e.text, e.sub, e.accent);
           if (e.type === 'pinCount') this.hud.flashCue(String(e.count), 500);
           if (e.type === 'glitch') this.broadcast.tear(e.strength);
+          if (e.type === 'spot') {
+            this.broadcast.showSpot(e.kind, e.name, e.who.cfg.accent, e.shout);
+          }
           if (e.type === 'hit' && e.report.move.kind === 'finisher') {
             this.broadcast.censorBar(1900);
             this.broadcast.tear(1);
@@ -315,6 +318,12 @@ export class App {
         case 'propSpawn': this.audio.play('static', 0.6); break;
         case 'propTaken': this.audio.play('crowdPop', 0.9); break;
         case 'propBroke': this.audio.play('rope', 1); this.audio.play('crowdPop', 0.6); break;
+        case 'spot':
+          // A sting on top of the hit itself, and the room loses its mind.
+          this.audio.play(e.kind === 'finisher' ? 'finisher' : 'reversal', 1);
+          this.audio.play('crowdPop', 1);
+          if (e.kind === 'finisher') this.audio.play('static', 0.55);
+          break;
         case 'pinStart': this.audio.play('crowdPop', 0.8); break;
         case 'pinCount': this.audio.play('pinSlap', 1); this.audio.playVO(1); break;
         case 'pinEscape':
@@ -354,6 +363,8 @@ export class App {
     const foe = this.sim!.p2;
     const dist = p.distanceTo(foe);
 
+    const behind = p.behind(foe);
+
     if (p.carrying) {
       this.pad.setAttackContext('SWING', p.carrying.name);
     } else if (p.state === FS.PERCH) {
@@ -364,10 +375,25 @@ export class App {
       this.pad.setAttackContext('CORNER', 'MOUNT THEM');
     } else if (foe.isDown && dist < 1.8) {
       this.pad.setAttackContext('STOMP', 'GROUND ATTACK');
+    } else if (behind && dist < 2) {
+      this.pad.setAttackContext('BLINDSIDE', 'THEY CANNOT SEE YOU');
     } else {
       const inCorner = nearestCorner(p.x, p.z).dist <= RING.cornerR && dist > 1.9;
       this.pad.setAttackContext(null, inCorner ? 'GRAB TO CLIMB' : null);
     }
+
+    // GRAB changes meaning too, and the rear grapple is the whole reason
+    // turning exists — it has to be visible that it is available.
+    if (p.carrying) this.pad.setGrabContext('DROP', null);
+    else if (foe.isDown && dist < TUNING.pin.range) {
+      const pinnable = foe.healthFrac <= TUNING.pin.maxHealthFrac || foe.exhausted;
+      this.pad.setGrabContext(pinnable ? 'PIN' : 'PICK UP', pinnable ? 'COVER THEM' : null);
+    } else if (p.state === FS.PERCH) this.pad.setGrabContext('CLIMB DOWN', null);
+    else if (p.state === FS.APRON) this.pad.setGrabContext('ROLL IN', null);
+    else if (behind && dist < 2.2) this.pad.setGrabContext('REAR GRAPPLE', 'FROM BEHIND');
+    else if (nearestCorner(p.x, p.z).dist <= RING.cornerR && dist > 1.9) {
+      this.pad.setGrabContext('CLIMB', 'UP TOP');
+    } else this.pad.setGrabContext(null, null);
   }
 
   /**

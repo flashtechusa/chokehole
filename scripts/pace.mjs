@@ -94,6 +94,7 @@ const out = await page.evaluate(async (opts) => {
         // A "showman" player uses the ring; a "basic" one only punches.
         if (opts.mode === 'basic') plan = 'fight';
         else if (a.isDown && (a.healthFrac <= 0.55 || a.exhausted)) { plan = 'fight'; planT = 900; }
+        else if (r < 0.12) { plan = 'flank'; planT = 2600; }
         else if (sim.prop && !p.carrying && r < 0.20) { plan = 'prop'; planT = 3200; }
         else if (r < 0.38) { plan = 'climb'; planT = 3400; }
         else if (r < 0.58) plan = 'ropes';
@@ -104,7 +105,7 @@ const out = await page.evaluate(async (opts) => {
       if (p.state === 'PERCH') {
         if (cad <= 0) { cad = 260; i.attack = true; i.anyPress = true; }
       } else if (p.state === 'ROPE_RUN') {
-        if (dist < 2.6 && cad <= 0) { cad = 260; i.attack = true; i.anyPress = true; }
+        if (dist < 2.8 && cad <= 0) { cad = 260; i.attack = true; i.anyPress = true; }
       } else if (p.state === 'APRON') {
         if (cad <= 0) { cad = 300; i.grab = true; i.anyPress = true; }
       } else if (plan === 'climb') {
@@ -112,16 +113,20 @@ const out = await page.evaluate(async (opts) => {
         const cd = Math.hypot(c.x - p.x, c.z - p.z);
         if (cd > 0.7) { const m = cd||1; i.moveX = (c.x-p.x)/m; i.moveY = (c.z-p.z)/m; }
         else if (cad <= 0) { cad = 400; i.grab = true; i.anyPress = true; }
+      } else if (plan === 'flank') {
+        // walk round to their back, then take the waistlock
+        const bx = a.x - Math.cos(a.facing) * 0.95;
+        const bz = a.z - Math.sin(a.facing) * 0.95;
+        const g = Math.hypot(bx - p.x, bz - p.z) || 1;
+        if (g > 0.5) { i.moveX = (bx - p.x)/g; i.moveY = (bz - p.z)/g; }
+        else if (cad <= 0) { cad = 420; i.moveX = nx*0.35; i.moveY = nz*0.35; i.grab = true; i.anyPress = true; }
       } else if (plan === 'prop' && sim.prop && !p.carrying) {
         const t = sim.prop;
         const m = Math.hypot(t.x - p.x, t.z - p.z) || 1;
         i.moveX = (t.x - p.x)/m; i.moveY = (t.z - p.z)/m;
       } else if (plan === 'ropes') {
-        // sprint at the nearest rope away from the opponent
-        const ax = Math.abs(p.x) >= Math.abs(p.z);
-        const dirx = ax ? -Math.sign(nx || 1) : 0;
-        const dirz = ax ? 0 : -Math.sign(nz || 1);
-        i.moveX = dirx; i.moveY = dirz;
+        // sprint laterally at the far rope: the long axis is the good one
+        i.moveX = -Math.sign(nx || 1); i.moveY = 0;
       } else if (plan === 'taunt') {
         if (cad <= 0) { cad = 1200; i.special = true; i.anyPress = true; }
       } else {
@@ -131,7 +136,7 @@ const out = await page.evaluate(async (opts) => {
         } else if (dist > 1.25) { i.moveX = nx*0.7; i.moveY = nz*0.7; }
         else if (cad <= 0) {
           cad = opts.mode === 'basic' ? 340 : 480;
-          if (a.isDown && dist < 1.6) { i.grab = true; }
+          if (a.isDown && dist < 1.6) { i.moveX = nx*0.34; i.moveY = nz*0.34; i.grab = true; }
           else if (rnd() < 0.26) { i.grab = true; }
           else { i.attack = true; }
           i.anyPress = true;
@@ -143,8 +148,8 @@ const out = await page.evaluate(async (opts) => {
   };
 
   function nearestCornerTo(x, z, T) {
-    const h = T.ring.half;
-    const cs = [[h,h],[h,-h],[-h,h],[-h,-h]];
+    const h = T.ring.half, hz = T.ring.halfZ;
+    const cs = [[h,hz],[h,-hz],[-h,hz],[-h,-hz]];
     let best = cs[0], bd = Infinity;
     for (const c of cs) { const d = (c[0]-x)**2 + (c[1]-z)**2; if (d < bd) { bd = d; best = c; } }
     return { x: best[0], z: best[1] };
@@ -172,6 +177,12 @@ const out = await page.evaluate(async (opts) => {
       if (e.type === 'pinStart') { window.__lastPinCount = 0; log.pinHealth = log.pinHealth || []; log.pinHealth.push(+(e.defender.healthFrac).toFixed(2)); }
       if (e.type === 'pinEscape') log.kickouts++;
       if (e.type === 'propTaken' && e.who === sim.p1) log.props++;
+      if (e.type === 'spot') { log.spots = log.spots || {}; log.spots[e.kind] = (log.spots[e.kind]||0)+1; }
+      if (e.type === 'hit' && e.report.attacker === sim.p1) {
+        const id = e.report.move.id;
+        if (id.includes('rearthrow')) log.rearThrows = (log.rearThrows||0)+1;
+        if (id.includes('_back')) log.backAttacks = (log.backAttacks||0)+1;
+      }
       if (e.type === 'fighter' && e.who === sim.p1) {
         const ev = e.event;
         if (ev.type === 'ropeRun') log.ropeRuns++;

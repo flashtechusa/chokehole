@@ -31,12 +31,19 @@ export interface Warehouse {
   /** Practical lamps, dimmed and strobed by the BAD WIRING spectacle. */
   lamps: Lamp[];
   update(dt: number, heat01: number, spectacle: boolean): void;
+  /**
+   * The rig reacting to a theatrical spot: everything drops except one colour,
+   * which is the cheapest possible way to make a finisher feel like the room
+   * changed rather than the animation got bigger.
+   */
+  spotlight(accent: string, ms: number): void;
 }
 
 interface CrowdMember {
   node: InstancedMesh;
   baseY: number;
-  baseR: number;
+  baseRX: number;
+  baseRZ: number;
   angle: number;
   phase: number;
 }
@@ -50,6 +57,7 @@ export function buildWarehouse(scene: Scene, arena: ArenaConfig): Warehouse {
   const root = new TransformNode('warehouse', scene);
   const rng = new Rng(0xc40c3a17);
   const H = TUNING.ring.half;
+  const HZ = TUNING.ring.halfZ;
 
   // --- floor ---
   const floor = CreateBox('floor', { width: 40, height: 0.4, depth: 40 }, scene);
@@ -173,32 +181,41 @@ export function buildWarehouse(scene: Scene, arena: ArenaConfig): Warehouse {
     return merged;
   });
 
-  const ringEdge = H + 0.9;
+  // The audience rings a wide, shallow mat, so the crowd is an ellipse rather
+  // than a circle — a circular crowd left big empty gaps off the short sides.
   for (let row = 0; row < arena.crowd.rows; row++) {
-    const radius = ringEdge + 0.55 + row * 0.72;
+    const rx = H + 1.45 + row * 0.72;
+    const rz = HZ + 1.45 + row * 0.72;
     const count = arena.crowd.density + row * 8;
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + rng.range(-0.03, 0.03);
       const src = sources[Math.floor(rng.next() * sources.length)]!;
       const inst = src.createInstance(`crowd_${row}_${i}`);
-      const r = radius + rng.range(-0.14, 0.14);
-      inst.position.set(Math.cos(angle) * r, 0, Math.sin(angle) * r);
+      const jitter = rng.range(-0.14, 0.14);
+      inst.position.set(Math.cos(angle) * (rx + jitter), 0, Math.sin(angle) * (rz + jitter));
       inst.rotation.y = -angle + Math.PI / 2;
       const scale = rng.range(0.88, 1.14);
       inst.scaling.setAll(scale);
       inst.parent = root;
       inst.isPickable = false;
-      crowd.push({ node: inst, baseY: 0, baseR: r, angle, phase: rng.range(0, Math.PI * 2) });
+      crowd.push({ node: inst, baseY: 0, baseRX: rx + jitter, baseRZ: rz + jitter, angle, phase: rng.range(0, Math.PI * 2) });
     }
   }
 
   let t = 0;
   let flicker = 1;
+  let spotMs = 0;
+  let spotColor = Color3.FromHexString('#FFFFFF');
 
   return {
     root, crowd, lamps,
+    spotlight(accent: string, ms: number): void {
+      spotColor = Color3.FromHexString(accent);
+      spotMs = ms;
+    },
     update(dt: number, heat01: number, spectacle: boolean): void {
       t += dt / 1000;
+      if (spotMs > 0) spotMs -= dt;
 
       // Crowd bobs harder and creeps toward the ring as the room heats up.
       const bob = 0.02 + heat01 * 0.16;
@@ -207,9 +224,8 @@ export function buildWarehouse(scene: Scene, arena: ArenaConfig): Warehouse {
         const c = crowd[i]!;
         const s = Math.sin(t * (3.2 + heat01 * 4.4) + c.phase);
         c.node.position.y = c.baseY + Math.max(0, s) * bob;
-        const r = c.baseR - press;
-        c.node.position.x = Math.cos(c.angle) * r;
-        c.node.position.z = Math.sin(c.angle) * r;
+        c.node.position.x = Math.cos(c.angle) * (c.baseRX - press);
+        c.node.position.z = Math.sin(c.angle) * (c.baseRZ - press);
       }
 
       // GAME FICTION: BAD WIRING. The rig browns out and strobes at high heat.
@@ -217,13 +233,17 @@ export function buildWarehouse(scene: Scene, arena: ArenaConfig): Warehouse {
         ? 0.35 + Math.abs(Math.sin(t * 19)) * 0.85 + Math.sin(t * 3.1) * 0.15
         : 1 + heat01 * 0.2;
       flicker += (target - flicker) * Math.min(1, dt / 40);
+      const inSpot = spotMs > 0;
       for (const l of lamps) {
         const mat = l.mesh.material as StandardMaterial;
         const cm = l.cone.material as StandardMaterial;
-        const k = l.intensity * flicker;
-        mat.emissiveColor.set(l.color.r * k, l.color.g * k, l.color.b * k);
-        cm.emissiveColor.set(l.color.r * 0.5 * flicker, l.color.g * 0.5 * flicker, l.color.b * 0.5 * flicker);
-        cm.alpha = (0.085 + heat01 * 0.03) * flicker;
+        // During a spot the whole rig goes one colour and burns brighter.
+        const col = inSpot ? spotColor : l.color;
+        const k = l.intensity * (inSpot ? 2.1 : flicker);
+        mat.emissiveColor.set(col.r * k, col.g * k, col.b * k);
+        const cone = inSpot ? 1.4 : 0.5 * flicker;
+        cm.emissiveColor.set(col.r * cone, col.g * cone, col.b * cone);
+        cm.alpha = inSpot ? 0.3 : (0.085 + heat01 * 0.03) * flicker;
       }
     },
   };

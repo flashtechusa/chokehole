@@ -4,21 +4,28 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { TUNING } from '@/game/config/tuning';
 import { clamp, damp, lerp } from '@/game/util/math';
 
-export type CamMode = 'PLAY' | 'PIN' | 'SIGNATURE' | 'FINISHER' | 'VICTORY' | 'ENTRANCE';
+export type CamMode =
+  | 'PLAY' | 'PIN' | 'SIGNATURE' | 'FINISHER' | 'VICTORY' | 'ENTRANCE' | 'NEARFALL';
 
 export interface CamTarget { x: number; y: number; z: number }
 
 /**
- * The camera is part of the entertainment (Bible s12), but it must never lose
- * the fighters, induce nausea, or make touch input unpredictable — so every
- * move is damped, the yaw only ever drifts, and the player never controls it.
+ * A FIXED three-quarter wrestling camera.
+ *
+ * During normal play the angle never changes. It pans laterally with the
+ * action, shifts a little with depth, and zooms inside a tight range — nothing
+ * else. Continuous orbiting is what made free-3D play hard to read: the
+ * player's sense of left and right moved with the camera, so the stick stopped
+ * meaning anything stable.
+ *
+ * Cinematic modes may move the camera anywhere. They always return to exactly
+ * the same gameplay angle, so the familiar view is never lost for long.
  */
 export class DirectorCamera {
   readonly cam: UniversalCamera;
   mode: CamMode = 'PLAY';
 
-  private yaw = TUNING.camera.baseYaw;
-  private yawTarget = TUNING.camera.baseYaw;
+  private yaw = TUNING.camera.yaw;
   private dist = TUNING.camera.maxDist;
   private height = TUNING.camera.height;
   private look = new Vector3(0, TUNING.camera.lookHeight, 0);
@@ -43,126 +50,119 @@ export class DirectorCamera {
 
   setReduceShake(v: boolean): void { this.reduceShake = v; }
 
-  /**
-   * Current yaw. The touch stick is camera-relative — pushing up means "away
-   * from me", not "toward world +Z" — so the app needs this to rotate input.
-   */
-  get yawNow(): number { return this.yaw; }
+  /** The gameplay yaw. Input is rotated by this so the stick stays consistent. */
+  get yawNow(): number { return TUNING.camera.yaw; }
 
-  /** A hit impulse: a fast micro push-in plus shake, decaying quickly. */
   punch(amount: number): void {
     this.punchAmount = Math.min(1.6, this.punchAmount + amount);
     if (!this.reduceShake) this.shake = Math.min(1, this.shake + amount * 0.6);
   }
 
-  /** Switches framing for a big moment. `focus` frames a single fighter. */
   setMode(mode: CamMode, focus?: CamTarget): void {
     if (this.mode === mode) return;
     this.mode = mode;
     this.modeTimer = 0;
+    this.orbit = 0;
     this.focus = focus ?? null;
-    // A signature or finisher swings to the other side of the ring for impact.
-    if (mode === 'SIGNATURE') this.yawTarget = TUNING.camera.baseYaw - 0.55;
-    else if (mode === 'FINISHER') this.yawTarget = TUNING.camera.baseYaw + 0.85;
-    else if (mode === 'PIN') this.yawTarget = TUNING.camera.baseYaw - 0.3;
-    else this.yawTarget = TUNING.camera.baseYaw;
   }
 
   setFocus(focus: CamTarget | null): void { this.focus = focus; }
 
-  update(dt: number, a: CamTarget, b: CamTarget): void {
+  update(dt: number, a: CamTarget, b: CamTarget, outside = false): void {
     this.modeTimer += dt;
     const T = TUNING.camera;
 
     const midX = (a.x + b.x) * 0.5;
     const midZ = (a.z + b.z) * 0.5;
-    const spread = Math.hypot(a.x - b.x, a.z - b.z);
+    const spreadX = Math.abs(a.x - b.x);
 
-    let wantDist = clamp(T.minDist + spread * 0.55, T.minDist, T.maxDist);
+    // --- the stable gameplay framing ---
+    let wantYaw = T.yaw;
+    let wantDist = clamp(T.minDist + spreadX * T.spreadZoom, T.minDist, T.maxDist)
+      + (outside ? T.outsidePull : 0);
     let wantHeight = T.height;
     let lookY = T.lookHeight;
-    let lookX = midX;
-    let lookZ = midZ;
+    let lookX = clamp(midX, -T.panLimit, T.panLimit);
+    let lookZ = midZ * T.depthShift;
     let follow = T.follow;
 
     switch (this.mode) {
       case 'ENTRANCE':
-        wantDist = 7.6;
-        wantHeight = 3.4;
-        this.yawTarget = T.baseYaw + Math.sin(this.modeTimer / 1400) * 0.35;
-        follow = 1.6;
+        wantDist = 6.4;
+        wantHeight = 3.0;
+        wantYaw = T.yaw - 0.3 + Math.sin(this.modeTimer / 1500) * 0.22;
+        follow = 1.8;
         break;
+
       case 'SIGNATURE':
-        wantDist = clamp(T.minDist - 0.4 + spread * 0.3, 4.6, 6.4);
-        wantHeight = 2.5;
-        lookY = 1.7;
+        // One decisive shift, not a spin: swing to the other shoulder and hold.
+        wantYaw = T.yaw + 0.5;
+        wantDist = 4.4;
+        wantHeight = 2.3;
+        lookY = 1.5;
         follow = 6.5;
+        if (this.focus) { lookX = this.focus.x; lookZ = this.focus.z * T.depthShift; }
         break;
+
       case 'FINISHER': {
-        // Slow orbit, tight on the pair, for 2-4 seconds of spectacle.
+        // The one place the camera is allowed to move for its own sake.
         this.orbit += dt / 1000;
-        wantDist = clamp(5.0 + spread * 0.2, 4.4, 6.2);
-        wantHeight = lerp(3.4, 2.1, clamp(this.modeTimer / 1400, 0, 1));
-        lookY = 1.7;
-        this.yawTarget = T.baseYaw + 0.85 + this.orbit * 0.42;
+        wantYaw = T.yaw + 0.7 + this.orbit * 0.5;
+        wantDist = clamp(4.1 + spreadX * 0.15, 3.7, 5.2);
+        wantHeight = lerp(3.2, 1.9, clamp(this.modeTimer / 1500, 0, 1));
+        lookY = 1.5;
         follow = 4.2;
+        if (this.focus) { lookX = this.focus.x; lookZ = this.focus.z * T.depthShift; }
         break;
       }
-      case 'PIN':
-        // Low, mat level: the count should feel like it is happening to you.
-        // Above the ropes looking down, or the cover happens behind them.
-        wantDist = 4.4;
-        wantHeight = 2.95;
-        lookY = 1.25;
-        follow = 5.0;
-        if (this.focus) { lookX = this.focus.x; lookZ = this.focus.z; }
+
+      case 'NEARFALL':
+        // Snap in tight on the kickout. Short and violent.
+        wantDist = 3.6;
+        wantHeight = 1.9;
+        lookY = 1.15;
+        follow = 9;
+        if (this.focus) { lookX = this.focus.x; lookZ = this.focus.z * T.depthShift; }
         break;
+
+      case 'PIN':
+        wantDist = 4.2;
+        wantHeight = 2.5;
+        lookY = 1.2;
+        follow = 5.0;
+        if (this.focus) { lookX = this.focus.x; lookZ = this.focus.z * T.depthShift; }
+        break;
+
       case 'VICTORY': {
         this.orbit += dt / 1000;
         const f = this.focus;
-        if (f) { lookX = f.x; lookZ = f.z; }
-        wantDist = 5.4;
-        wantHeight = 2.9;
-        lookY = 1.8;
-        this.yawTarget = T.baseYaw + this.orbit * 0.28;
+        if (f) { lookX = f.x; lookZ = f.z * T.depthShift; }
+        wantYaw = T.yaw + this.orbit * 0.3;
+        wantDist = 5.0;
+        wantHeight = 2.7;
+        lookY = 1.6;
         follow = 2.6;
         break;
       }
-      default:
-        // Subtle drift keeps the posts from parking in front of the action.
-        this.yawTarget = T.baseYaw + Math.sin(this.modeTimer / 5200) * 0.2
-          + clamp(midX * 0.06, -0.22, 0.22);
     }
 
     this.punchAmount = damp(this.punchAmount, 0, T.punchDecay, dt);
     this.shake = damp(this.shake, 0, T.punchDecay * 1.4, dt);
 
-    this.yaw = damp(this.yaw, this.yawTarget, follow, dt);
-    this.dist = damp(this.dist, wantDist - this.punchAmount * 0.7, follow, dt);
+    this.yaw = damp(this.yaw, wantYaw, follow, dt);
+    this.dist = damp(this.dist, wantDist - this.punchAmount * 0.55, follow, dt);
     this.height = damp(this.height, wantHeight, follow, dt);
 
     this.look.x = damp(this.look.x, lookX, follow, dt);
     this.look.y = damp(this.look.y, lookY, follow, dt);
     this.look.z = damp(this.look.z, lookZ, follow, dt);
 
-    const sx = this.shake * 0.14 * Math.sin(this.modeTimer / 11);
-    const sy = this.shake * 0.12 * Math.sin(this.modeTimer / 7 + 1.3);
+    const sx = this.shake * 0.13 * Math.sin(this.modeTimer / 11);
+    const sy = this.shake * 0.11 * Math.sin(this.modeTimer / 7 + 1.3);
 
     this.pos.x = this.look.x + Math.sin(this.yaw) * this.dist + sx;
     this.pos.z = this.look.z - Math.cos(this.yaw) * this.dist;
     this.pos.y = this.height + sy;
-
-    /*
-     * Keep the camera outside the ring. Following the midpoint at close range
-     * could otherwise walk it in past a corner post, which then filled the shot
-     * and hid the fight behind it.
-     */
-    const radial = Math.hypot(this.pos.x, this.pos.z);
-    if (radial < T.minRadius && radial > 0.001) {
-      const k = T.minRadius / radial;
-      this.pos.x *= k;
-      this.pos.z *= k;
-    }
 
     this.cam.position.copyFrom(this.pos);
     this.cam.setTarget(this.look);

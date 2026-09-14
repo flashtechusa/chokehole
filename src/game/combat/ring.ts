@@ -9,8 +9,10 @@ import type { Zone } from './types';
  */
 
 export const RING = {
-  /** Mat half-extent (inside the ropes). */
+  /** Mat half-extent across the lateral axis (inside the ropes). */
   half: TUNING.ring.half,
+  /** Mat half-extent along the shallow depth axis. */
+  halfZ: TUNING.ring.halfZ,
   /** Within this of an edge counts as "at the ropes". */
   ropeBand: 0.62,
   /**
@@ -21,17 +23,19 @@ export const RING = {
   cornerR: 1.55,
   /** The apron is the walkable ledge between the ropes and the drop. */
   apronOuter: TUNING.ring.half + 0.62,
+  apronOuterZ: TUNING.ring.halfZ + 0.62,
   /** Ringside floor extent. Beyond this you are against the barricade. */
-  floorHalf: TUNING.ring.half + 3.4,
+  floorHalf: TUNING.ring.half + 2.6,
+  floorHalfZ: TUNING.ring.halfZ + 1.9,
 };
 
 export interface Corner { x: number; z: number }
 
 export const CORNERS: Corner[] = [
-  { x: RING.half, z: RING.half },
-  { x: RING.half, z: -RING.half },
-  { x: -RING.half, z: RING.half },
-  { x: -RING.half, z: -RING.half },
+  { x: RING.half, z: RING.halfZ },
+  { x: RING.half, z: -RING.halfZ },
+  { x: -RING.half, z: RING.halfZ },
+  { x: -RING.half, z: -RING.halfZ },
 ];
 
 /** Squared distance, for comparisons that never need the square root. */
@@ -57,22 +61,22 @@ export function inCorner(x: number, z: number): boolean {
 
 /** Inside the ropes, but close enough to an edge to use them. */
 export function atRopes(x: number, z: number): boolean {
-  const edge = Math.max(Math.abs(x), Math.abs(z));
-  return edge >= RING.half - RING.ropeBand;
+  return Math.abs(x) >= RING.half - RING.ropeBand
+    || Math.abs(z) >= RING.halfZ - RING.ropeBand;
 }
 
 export function insideRing(x: number, z: number): boolean {
-  return Math.abs(x) <= RING.half && Math.abs(z) <= RING.half;
+  return Math.abs(x) <= RING.half && Math.abs(z) <= RING.halfZ;
 }
 
 export function onApron(x: number, z: number): boolean {
   if (insideRing(x, z)) return false;
-  return Math.abs(x) <= RING.apronOuter && Math.abs(z) <= RING.apronOuter;
+  return Math.abs(x) <= RING.apronOuter && Math.abs(z) <= RING.apronOuterZ;
 }
 
 /** The surface height a body at this position falls to. */
 export function groundAt(x: number, z: number): number {
-  return Math.abs(x) <= RING.apronOuter && Math.abs(z) <= RING.apronOuter
+  return Math.abs(x) <= RING.apronOuter && Math.abs(z) <= RING.apronOuterZ
     ? TUNING.ring.matY
     : 0;
 }
@@ -106,14 +110,14 @@ export function ropeAhead(
 ): RopeHit | null {
   const fx = x + dx * lookahead;
   const fz = z + dz * lookahead;
-  if (Math.abs(fx) < RING.half && Math.abs(fz) < RING.half) return null;
+  if (Math.abs(fx) < RING.half && Math.abs(fz) < RING.halfZ) return null;
 
   // Whichever axis breaches first is the rope being hit.
   const ox = Math.abs(fx) - RING.half;
-  const oz = Math.abs(fz) - RING.half;
+  const oz = Math.abs(fz) - RING.halfZ;
   const hit: RopeHit = ox >= oz
     ? { nx: Math.sign(fx) || 1, nz: 0, cx: Math.sign(fx) * RING.half, cz: fz }
-    : { nx: 0, nz: Math.sign(fz) || 1, cx: fx, cz: Math.sign(fz) * RING.half };
+    : { nx: 0, nz: Math.sign(fz) || 1, cx: fx, cz: Math.sign(fz) * RING.halfZ };
 
   if (inCorner(hit.cx, hit.cz)) return null;
   // Must be heading fairly square at the ropes, not sliding along them.
@@ -124,18 +128,35 @@ export function ropeAhead(
 
 /** Clamps a body to the ringside floor so it cannot wander into the crowd. */
 export function clampFloor(x: number, z: number, r: number): { x: number; z: number } {
-  const lim = RING.floorHalf - r;
+  const lx = RING.floorHalf - r;
+  const lz = RING.floorHalfZ - r;
   return {
-    x: Math.max(-lim, Math.min(lim, x)),
-    z: Math.max(-lim, Math.min(lim, z)),
+    x: Math.max(-lx, Math.min(lx, x)),
+    z: Math.max(-lz, Math.min(lz, z)),
   };
 }
 
 /** Clamps a body to the mat. */
 export function clampMat(x: number, z: number, r: number): { x: number; z: number } {
-  const lim = RING.half - r;
+  const lx = RING.half - r;
+  const lz = RING.halfZ - r;
   return {
-    x: Math.max(-lim, Math.min(lim, x)),
-    z: Math.max(-lim, Math.min(lim, z)),
+    x: Math.max(-lx, Math.min(lx, x)),
+    z: Math.max(-lz, Math.min(lz, z)),
   };
+}
+
+/**
+ * True when `me` is behind `target`, measured from the target's own facing.
+ * This is what makes turning matter: it is the difference between a tie-up and
+ * a rear grapple.
+ */
+export function isBehind(
+  meX: number, meZ: number, targetX: number, targetZ: number, targetFacing: number,
+): boolean {
+  const toMe = Math.atan2(meZ - targetZ, meX - targetX);
+  let d = (toMe - targetFacing) % (Math.PI * 2);
+  if (d > Math.PI) d -= Math.PI * 2;
+  if (d < -Math.PI) d += Math.PI * 2;
+  return Math.abs(d) > TUNING.combat.rearAngle;
 }

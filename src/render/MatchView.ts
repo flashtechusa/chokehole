@@ -101,11 +101,18 @@ export class MatchView {
           this.camera.setMode('PIN', { x: e.defender.x, y: e.defender.y + 0.2, z: e.defender.z });
           break;
         case 'pinEscape':
-          this.camera.setMode('PLAY');
-          this.camera.punch(e.nearFall ? 1.4 : 0.8);
           if (e.nearFall) {
-            const d = this.sim.p1;
-            this.fx.confetti(d.x, d.z, 26);
+            // The kickout at two is the biggest moment in the match: snap in
+            // tight on it, then hand the familiar angle straight back.
+            const d = this.sim.pinned ?? this.sim.p1;
+            this.camera.setMode('NEARFALL', { x: d.x, y: d.y, z: d.z });
+            this.cinematicUntil = performance.now() + 900;
+            this.camera.punch(1.5);
+            this.fx.confetti(d.x, d.z, 30);
+            this.warehouse.spotlight(C.bone, 900);
+          } else {
+            this.camera.setMode('PLAY');
+            this.camera.punch(0.8);
           }
           break;
 
@@ -115,6 +122,11 @@ export class MatchView {
           this.fx.confetti(winner.x, winner.z, 110);
           break;
         }
+
+        case 'spot':
+          this.warehouse.spotlight(e.who.cfg.accent, e.kind === 'finisher' ? 2400 : 1100);
+          this.camera.punch(e.kind === 'finisher' ? 1.6 : 0.9);
+          break;
 
         case 'fighter': this.onFighterEvent(e.who, e.event); break;
 
@@ -307,7 +319,8 @@ export class MatchView {
     // scheduled from event handlers.
     if (this.cinematicUntil > 0 && performance.now() > this.cinematicUntil) {
       this.cinematicUntil = 0;
-      if (this.camera.mode === 'SIGNATURE' || this.camera.mode === 'FINISHER') {
+      const m = this.camera.mode;
+      if (m === 'SIGNATURE' || m === 'FINISHER' || m === 'NEARFALL') {
         this.camera.setMode('PLAY');
       }
     }
@@ -375,6 +388,13 @@ export class MatchView {
   private chooseClip(side: Side): void {
     const f = side.fighter;
     const rig = side.rig;
+
+    // Being carried through someone else's throw overrides everything: the two
+    // halves of the choreography are scrubbed to the same playhead.
+    if (f.pairClip) {
+      rig.scrub(f.pairClip, f.pairProgress);
+      return;
+    }
 
     switch (f.state) {
       case FS.ENTRANCE: rig.play('entrance'); return;

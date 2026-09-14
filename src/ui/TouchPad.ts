@@ -98,6 +98,16 @@ export class TouchPad {
     toggle(this.contextHint, 'show', special && !!sub);
   }
 
+  /** Same for GRAB, whose meaning changes as much as ATTACK's. */
+  setGrabContext(label: string | null, sub: string | null): void {
+    const b = this.buttonEls.grab;
+    const lbl = b.querySelector('.lbl');
+    const s = b.querySelector('.sub');
+    if (lbl) lbl.textContent = label ?? 'GRAB';
+    if (s) s.textContent = sub ?? 'THROW / PIN';
+    toggle(b, 'ctx', label !== null);
+  }
+
   /** Shows what the IT button will actually do right now. */
   setSpecialState(state: 'taunt' | 'signature' | 'finisher'): void {
     const b = this.specialBtn;

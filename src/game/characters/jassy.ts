@@ -33,7 +33,7 @@ export const JASSY: WrestlerConfig = {
   accent: C.pink,
 
   stats: {
-    health: 800,
+    health: 900,
     speed: 2.02,
     power: 1.2,
     reversal: 1.08,
@@ -137,6 +137,30 @@ export const JASSY: WrestlerConfig = {
       shout: 'TIMBER',
     }),
 
+    /* ---- behind them: what turning unlocks ---- */
+    backAttack: mv({
+      id: 'jassy_back', name: 'BLINDSIDE APPRAISAL', kind: 'light', clip: 'backAttack', provenance: G,
+      startupMs: 120, activeMs: 95, recoveryMs: 190,
+      damage: 12, reach: 1.24, arc: 1.0, knockback: 4.4, hitstunMs: 420,
+      itGain: 7, heat: 9, lunge: 1.1, reversible: false,
+      cameraPunch: 0.6, shout: 'DID NOT SEE ME COMING',
+    }),
+    rearGrapple: mv({
+      id: 'jassy_reargrab', name: 'BACK TAXES', kind: 'grapple', clip: 'rearGrapple', provenance: G,
+      startupMs: 150, activeMs: 0, recoveryMs: 240,
+      damage: 0, reach: 1.32, arc: 1.3, knockback: 0, hitstunMs: 0,
+      itGain: 0, heat: 4, reversible: false,
+    }),
+    rearThrow: mv({
+      id: 'jassy_rearthrow', name: 'REVERSE MORTGAGE', kind: 'throw', clip: 'rearThrow', provenance: G,
+      startupMs: 300, activeMs: 150, recoveryMs: 380,
+      damage: 28, reach: 1.3, arc: 3.2, knockback: 5.0, hitstunMs: 760,
+      knockdown: true, launch: 5.6,
+      itGain: 14, heat: 18, reversible: false,
+      cameraPunch: 1.3, hitStopMs: 110, shout: 'SIGN HERE',
+      paired: { victimClip: 'takenBack', hold: [0.35, 0.34, 0], releaseAt: 0.7 },
+    }),
+
     /* ---- grappling: her department ---- */
     grapple: mv({
       id: 'jassy_grab', name: 'TENANCY REVIEW', kind: 'grapple', clip: 'grappleStart', provenance: G,
@@ -150,6 +174,7 @@ export const JASSY: WrestlerConfig = {
       damage: 16, reach: 1.3, arc: 3.2, knockback: 6.4, hitstunMs: 600,
       knockdown: true, launch: 4.0,
       itGain: 8, heat: 10, reversible: false, shout: 'THIRTY DAYS',
+      paired: { victimClip: 'takenFront', hold: [0.95, 0.15, 0], releaseAt: 0.62 },
     }),
     throwBack: mv({
       id: 'jassy_tb', name: 'ASSET STRIPPING', kind: 'throw', clip: 'throwBack', provenance: G,
@@ -157,6 +182,7 @@ export const JASSY: WrestlerConfig = {
       damage: 19, reach: 1.3, arc: 3.2, knockback: 5.2, hitstunMs: 650,
       knockdown: true, launch: 4.8,
       itGain: 9, heat: 12, reversible: false,
+      paired: { victimClip: 'takenBack', hold: [0.55, 0.3, 0], releaseAt: 0.66 },
     }),
     throwCorner: mv({
       id: 'jassy_tc', name: 'RELOCATION ORDER', kind: 'throw', clip: 'throwForward', provenance: G,
@@ -171,6 +197,7 @@ export const JASSY: WrestlerConfig = {
       knockdown: true, launch: 5.6,
       itGain: 16, heat: 22, reversible: false,
       cameraPunch: 1.5, shout: 'OFF MY PROPERTY',
+      paired: { victimClip: 'takenFront', hold: [1.05, 0.2, 0], releaseAt: 0.6 },
     }),
     irishWhip: mv({
       id: 'jassy_whip', name: 'MARKET FORCES', kind: 'throw', clip: 'throwForward', provenance: G,
@@ -201,6 +228,7 @@ export const JASSY: WrestlerConfig = {
       knockdown: true, launch: 4.4,
       itGain: 0, heat: 26, lunge: 2.0, cost: 50, reversible: true,
       cameraPunch: 1.6, hitStopMs: 150, shout: 'CONSIDER YOURSELF ACQUIRED',
+      paired: { victimClip: 'takenFront', hold: [0.9, 0.18, 0], releaseAt: 0.66 },
     }),
     finisher: mv({
       id: 'jassy_fin', name: 'HOSTILE TAKEOVER', kind: 'finisher', clip: 'finisher', provenance: G,
@@ -210,6 +238,7 @@ export const JASSY: WrestlerConfig = {
       itGain: 0, heat: 50, lunge: 2.4, cost: 100,
       cinematic: true, reversible: false, hitStopMs: 220,
       shout: 'THE PROPERTY HAS BEEN ACQUIRED',
+      paired: { victimClip: 'takenFront', hold: [0.85, 0.3, 0], releaseAt: 0.72 },
     }),
   },
 

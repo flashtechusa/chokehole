@@ -753,3 +753,82 @@ body.portrait #rotate { display: flex; }
   white-space: normal;
   margin-top: 2px;
 }
+
+.btn-grab.ctx {
+  background: rgba(141,255,42,0.5);
+  border-color: var(--squelsh);
+  color: #10200a;
+}
+
+/* ------------------------------------------------------------------ *
+ * signature and finisher spots — the production coming apart
+ * ------------------------------------------------------------------ */
+
+.spot {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 90ms linear;
+}
+.spot.on { opacity: 1; }
+
+.spot-burst {
+  position: absolute;
+  width: 150vmax; height: 150vmax;
+  background: conic-gradient(
+    from 0deg,
+    var(--spot-accent, var(--pink)) 0 6deg, transparent 6deg 12deg);
+  opacity: 0.30;
+  animation: spotSpin 2.4s linear infinite;
+}
+@keyframes spotSpin { to { transform: rotate(360deg); } }
+
+.spot-name {
+  position: relative;
+  font-family: var(--slab);
+  font-weight: 900;
+  font-size: clamp(34px, 8.5vw, 74px);
+  line-height: 0.95;
+  text-align: center;
+  color: var(--bone);
+  background: #120A1A;
+  padding: 8px 26px;
+  border-top: 7px solid var(--spot-accent, var(--pink));
+  border-bottom: 7px solid var(--spot-accent, var(--pink));
+  transform: rotate(-3deg) scaleX(0.95);
+  text-shadow: 5px 5px 0 rgba(0,0,0,0.6);
+  max-width: 94%;
+}
+.spot-shout {
+  position: relative;
+  margin-top: 10px;
+  font-family: var(--mono);
+  font-size: 17px;
+  color: var(--spot-accent, var(--pink));
+  background: rgba(14,8,24,0.92);
+  padding: 5px 14px;
+  text-align: center;
+  max-width: 88%;
+}
+.spot.finisher .spot-name { animation: spotSlam 320ms ease-out; }
+@keyframes spotSlam {
+  0% { transform: rotate(-3deg) scale(2.4); opacity: 0; }
+  60% { transform: rotate(-3deg) scale(0.92); opacity: 1; }
+  100% { transform: rotate(-3deg) scaleX(0.95); }
+}
+
+/* the arena blacks out around a finisher */
+.blackout {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms linear;
+}
+.blackout.on { opacity: 0.55; }

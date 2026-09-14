@@ -66,6 +66,11 @@ export type SimEvent =
   | { type: 'phase'; phase: MatchPhase }
   | { type: 'callout'; text: string; sub?: string; accent?: string }
   | { type: 'glitch'; strength: number }
+  /**
+   * A theatrical spot is starting. Everything above the simulation — camera,
+   * lighting, broadcast graphics, audio, time itself — is expected to react.
+   */
+  | { type: 'spot'; kind: 'signature' | 'finisher'; who: Fighter; name: string; shout?: string }
   | { type: 'finish'; result: MatchResult };
 
 /**
@@ -83,6 +88,13 @@ export class MatchSim {
   timeLeft = TUNING.match.durationMs;
   elapsed = 0;
   hitStop = 0;
+  /**
+   * Presentation time scale. A finisher drops the world into slow motion for a
+   * beat; the clock and the AI slow with it, so it reads as a moment rather
+   * than a stutter.
+   */
+  slowMo = 1;
+  private slowMoMs = 0;
 
   pin: PinState | null = null;
   pinner: Fighter | null = null;
@@ -102,6 +114,8 @@ export class MatchSim {
   private reversalCount = 0;
   private aerialCount = 0;
   private finisherLanded = false;
+  /** Reset on every cover: a signature only raises the stakes of the next one. */
+  private signatureSinceCover = false;
   private phaseTimer = 0;
 
   constructor(init: MatchInit) {
@@ -136,13 +150,19 @@ export class MatchSim {
     this.phaseTimer = TUNING.match.introMs;
   }
 
-  update(dt: number, playerIntent: Intent): void {
-    this.phaseTimer += dt;
+  update(dtRaw: number, playerIntent: Intent): void {
+    this.phaseTimer += dtRaw;
 
     if (this.hitStop > 0) {
-      this.hitStop -= dt;
+      this.hitStop -= dtRaw;
       if (this.hitStop > 0) return;
     }
+
+    if (this.slowMoMs > 0) {
+      this.slowMoMs -= dtRaw;
+      if (this.slowMoMs <= 0) this.slowMo = 1;
+    }
+    const dt = dtRaw * this.slowMo;
 
     switch (this.phase) {
       case 'ENTRANCE':
@@ -169,6 +189,13 @@ export class MatchSim {
     this.timeLeft -= dt;
     this.elapsed += dt;
     this.heat.update(dt);
+
+    // The arc: the same move matters more as the match goes on.
+    const progress = clamp(this.elapsed / TUNING.match.durationMs, 0, 1);
+    const scale = TUNING.match.damageEarly
+      + (TUNING.match.damageLate - TUNING.match.damageEarly) * progress;
+    this.p1.matchDamageScale = scale;
+    this.p2.matchDamageScale = scale;
 
     this.ai.setPickups(this.can, this.prop);
     const aiIntent = this.ai.update(dt, this.p2, this.p1);
@@ -279,7 +306,20 @@ export class MatchSim {
       ?? (r.move.kind === 'finisher' ? TUNING.fx.hitStopFinisher
         : r.move.kind === 'heavy' || r.move.kind === 'throw' ? TUNING.fx.hitStopHeavy
           : TUNING.fx.hitStopLight);
-    if (r.move.kind === 'finisher') this.finisherLanded = true;
+    if (r.move.kind === 'finisher') {
+      this.finisherLanded = true;
+      // The production comes apart: slow motion, then the broadcast layer.
+      this.slowMo = 0.35;
+      this.slowMoMs = 1500;
+    }
+    if (r.move.kind === 'signature') this.signatureSinceCover = true;
+    if (r.move.kind === 'signature' || r.move.kind === 'finisher') {
+      this.emit({
+        type: 'spot',
+        kind: r.move.kind === 'finisher' ? 'finisher' : 'signature',
+        who: r.attacker, name: r.move.name, shout: r.move.shout,
+      });
+    }
     if (r.move.kind === 'aerial' || r.move.kind === 'dive') {
       this.aerialCount += r.attacker === this.p1 ? 1 : 0;
       this.emit({ type: 'glitch', strength: 0.7 });
@@ -310,9 +350,11 @@ export class MatchSim {
 
   private updatePickups(): void {
     if (!this.can && this.elapsed >= this.nextCanAt) {
-      const a = this.rng.next() * Math.PI * 2;
-      const r = this.rng.range(0.8, RING.half - 0.9);
-      this.can = { x: Math.cos(a) * r, z: Math.sin(a) * r, alive: true };
+      this.can = {
+        x: this.rng.range(-(RING.half - 0.9), RING.half - 0.9),
+        z: this.rng.range(-(RING.halfZ - 0.7), RING.halfZ - 0.7),
+        alive: true,
+      };
       this.nextCanAt = this.elapsed + TUNING.squelsh.respawnMs;
       this.emit({ type: 'squelshSpawn', at: this.can });
       this.emit({ type: 'callout', text: 'SQUELSH DROP', sub: 'GRAB IT' });
@@ -371,7 +413,11 @@ export class MatchSim {
     if (!PinSystem.canPin(attacker, defender)) return;
     this.pinner = attacker;
     this.pinned = defender;
-    this.pin = PinSystem.begin(defender, this.finisherLanded);
+    this.pin = PinSystem.begin(defender, {
+      finisherLanded: this.finisherLanded,
+      signatureLanded: this.signatureSinceCover,
+      matchProgress: clamp(this.elapsed / TUNING.match.durationMs, 0, 1),
+    });
     attacker.setState(FS.PIN);
     defender.setState(FS.PINNED);
     attacker.x = defender.x - Math.cos(defender.facing) * 0.5;
@@ -391,7 +437,7 @@ export class MatchSim {
       ? playerIntent.attack
       : this.ai.pinEscapeTap(p);
 
-    const outcome = PinSystem.update(p, dt, defender, tapped, this.finisherLanded);
+    const outcome = PinSystem.update(p, dt, defender, tapped);
     if (p.count !== before) this.emit({ type: 'pinCount', count: p.count });
 
     if (outcome === 'escape') {
@@ -401,6 +447,7 @@ export class MatchSim {
       defender.setState(FS.GETUP);
       defender.invuln = TUNING.combat.getUpInvulnMs;
       this.pin = null; this.pinner = null; this.pinned = null;
+      this.signatureSinceCover = false;
 
       if (nearFall) {
         defender.nearFalls += 1;

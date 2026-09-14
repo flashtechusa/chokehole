@@ -20,6 +20,8 @@ export interface AIProfile {
   canChance: number;
   /** Probability of going for an oversized prop at ringside. */
   propChance: number;
+  /** Probability of circling behind for a rear grapple. */
+  flankChance: number;
   /**
    * How often the AI reaches for the theatrical option — ropes, turnbuckle,
    * dives — instead of the safe one. The opponent has to be entertaining too.
@@ -43,7 +45,7 @@ export const AI_PROFILES: Record<Difficulty, AIProfile> = {
     reversalChance: 0.10, reversalWindowScale: 0.7,
     grabChance: 0.20, aggression: 0.52, specialEagerness: 0.35,
     pinEagerness: 0.5, tauntChance: 0.20, canChance: 0.35,
-    propChance: 0.4, spectacle: 0.22,
+    propChance: 0.4, flankChance: 0.10, spectacle: 0.22,
     pinSkill: 0.3, mashRate: 0.3,
   },
   NORMAL: {
@@ -52,7 +54,7 @@ export const AI_PROFILES: Record<Difficulty, AIProfile> = {
     reversalChance: 0.24, reversalWindowScale: 1,
     grabChance: 0.34, aggression: 0.68, specialEagerness: 0.66,
     pinEagerness: 0.8, tauntChance: 0.12, canChance: 0.6,
-    propChance: 0.6, spectacle: 0.38,
+    propChance: 0.6, flankChance: 0.20, spectacle: 0.38,
     pinSkill: 0.58, mashRate: 0.55,
   },
   BRUTAL: {
@@ -61,7 +63,7 @@ export const AI_PROFILES: Record<Difficulty, AIProfile> = {
     reversalChance: 0.42, reversalWindowScale: 1.25,
     grabChance: 0.48, aggression: 0.82, specialEagerness: 0.92,
     pinEagerness: 0.95, tauntChance: 0.04, canChance: 0.85,
-    propChance: 0.85, spectacle: 0.52,
+    propChance: 0.85, flankChance: 0.34, spectacle: 0.52,
     pinSkill: 0.85, mashRate: 0.85,
   },
 };

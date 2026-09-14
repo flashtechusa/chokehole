@@ -8,8 +8,15 @@
  */
 export const TUNING = {
   ring: {
-    /** Mat half-extent. Fighters are clamped inside this minus their radius. */
-    half: 3.1,
+    /**
+     * The play space is 2.5D: wide across, shallow in depth. Free 3D navigation
+     * tested badly — the fight wandered, the camera had to pull back to follow
+     * it, and the wrestlers ended up tiny. A shallow depth band keeps both
+     * fighters large and the geometry readable while still being a real 3D
+     * space you can walk around in.
+     */
+    half: 3.2,
+    halfZ: 1.9,
     /** Mat surface height above the floor. */
     matY: 1.06,
     ropeHeights: [0.42, 0.72, 1.02],
@@ -28,8 +35,12 @@ export const TUNING = {
     gravity: 16,
     /** Bodies push apart below this centre distance. */
     pushForce: 9,
-    /** How fast a fighter turns to face the opponent, radians/sec. */
-    turnRate: 14,
+    /**
+     * Turn speed, radians/sec. Facing follows the STICK, not the opponent: the
+     * player must be able to turn their back, run past, and be grabbed from
+     * behind. Fast enough to feel responsive, slow enough to see the turn.
+     */
+    turnRate: 13,
   },
 
   combat: {
@@ -42,6 +53,22 @@ export const TUNING = {
     heavyOnStunned: true,
     /** A pressed button survives this long looking for an opening. */
     bufferMs: 190,
+    /** Grace after a rope bounce during which the stick cannot cancel the run. */
+    reboundGraceMs: 420,
+
+    /**
+     * Light target assistance, applied once when an attack starts and never
+     * per-frame. Only nudges toward a target already roughly in front and in
+     * range, so it forgives thumb aim without stealing the turn from the player.
+     */
+    assistCone: 0.75,
+    assistStrength: 0.75,
+    assistRangeMult: 1.9,
+    /**
+     * Angle behind an opponent, measured from their own facing, that counts as
+     * being behind them. Past this a GRAB becomes a rear grapple.
+     */
+    rearAngle: 2.0,
 
     grappleRange: 1.25,
     grappleHoldMs: 1500,
@@ -150,7 +177,16 @@ export const TUNING = {
      * attacks must never produce a routine twenty-second victory, so the clock
      * is four minutes and the pin is gated behind real damage.
      */
-    durationMs: 240000,
+    durationMs: 300000,
+    /**
+     * Damage multiplier across the match, from the opening bell to the time
+     * limit. This is the arc, and it is deliberately not "more HP": early
+     * exchanges are a feeling-out process that barely moves the bar, and the
+     * closing stretch is where a big move actually ends someone. It is also
+     * what stops two basic moves producing a three-count.
+     */
+    damageEarly: 0.5,
+    damageLate: 1.45,
     introMs: 3600,
     bellDelayMs: 700,
     /** Ten count for a fighter left at zero health. */
@@ -159,25 +195,30 @@ export const TUNING = {
 
   camera: {
     /**
-     * Three-quarter ringside, and close. The first pass sat back far enough to
-     * frame the whole building, which made two wrestlers about eighty pixels
-     * tall on a phone. The fight is the subject; the room is the backdrop.
+     * A FIXED three-quarter wrestling view. It pans, it shifts slightly with
+     * depth and it zooms a little — it never orbits. A camera that continuously
+     * rotated around the action was the main reason free-3D play was hard to
+     * read: the player's sense of left and right kept moving.
      */
-    baseYaw: -0.62,
-    basePitch: 0.30,
-    minDist: 5.2,
-    maxDist: 8.0,
-    /**
-     * Above the top rope and the posts (mat 1.06 + post 1.44 = 2.5). Sitting at
-     * rope height put a corner post directly through the middle of the shot.
-     */
-    height: 3.15,
-    /** Look at chest height, not at the mat, or the frame fills with canvas. */
-    lookHeight: 1.7,
-    /** The camera never comes closer to the ring centre than this. */
-    minRadius: 5.6,
-    follow: 3.2,
+    yaw: -0.40,
+    /** Lateral pan is damped and clamped, so the world does not slide around. */
+    panLimit: 1.15,
+    /** Depth contributes only a fraction of its value to the look point. */
+    depthShift: 0.35,
+    /** Tight zoom range: the wrestlers must stay large on a phone. */
+    minDist: 4.6,
+    maxDist: 6.2,
+    /** Widening per unit of lateral separation. */
+    spreadZoom: 0.42,
+    /** Above the top rope and the posts (mat 1.06 + post 1.44 = 2.5). */
+    /** Flat enough to look THROUGH the ring rather than down into the mat. */
+    height: 2.45,
+    /** Chest height of a standing wrestler, so the fighters centre in frame. */
+    lookHeight: 1.95,
+    follow: 3.4,
     punchDecay: 7.5,
+    /** Extra distance when a fighter is out on the floor. */
+    outsidePull: 1.5,
   },
 
   fx: {
