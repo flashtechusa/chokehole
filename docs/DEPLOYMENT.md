@@ -6,7 +6,17 @@
 npm run build     # typecheck + vite build into dist/
 npm run preview   # serve dist/ locally
 npm run smoke     # end-to-end test against the preview server
+npm run framing   # camera framing check, in screen pixels
+npm run pace      # headless match pacing harness
 ```
+
+`npm run framing` projects both wrestlers' bounding boxes to screen pixels and
+reports how much of the frame they fill, across the width of the ring, at
+several separations, with one fighter thrown to the floor, and in every camera
+mode. It exists because "it looks 2.5D" was once checked by eye and was wrong:
+every verification screenshot had been taken a second after the bell, inside the
+ENTRANCE camera's wide establishing shot — the one mode that is meant to be
+wide. Screenshots of gameplay must wait out the entrance.
 
 `dist/` is a static site: `index.html`, hashed assets, a PWA manifest and a
 service worker. It can be served from any static host.

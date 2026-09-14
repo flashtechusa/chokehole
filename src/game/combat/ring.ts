@@ -24,9 +24,16 @@ export const RING = {
   /** The apron is the walkable ledge between the ropes and the drop. */
   apronOuter: TUNING.ring.half + 0.62,
   apronOuterZ: TUNING.ring.halfZ + 0.62,
-  /** Ringside floor extent. Beyond this you are against the barricade. */
-  floorHalf: TUNING.ring.half + 2.6,
-  floorHalfZ: TUNING.ring.halfZ + 1.9,
+  /**
+   * Ringside floor extent. Beyond this you are against the barricade.
+   *
+   * Deliberately narrow: the crowd stands right up against the apron, its first
+   * row at half + 1.45. A wider floor let a thrown fighter land BEHIND the front
+   * row, where you could not see them, and dragged the camera back so far that
+   * the near crowd filled the foreground.
+   */
+  floorHalf: TUNING.ring.half + 1.15,
+  floorHalfZ: TUNING.ring.halfZ + 1.0,
 };
 
 export interface Corner { x: number; z: number }

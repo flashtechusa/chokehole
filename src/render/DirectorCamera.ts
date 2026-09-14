@@ -42,7 +42,7 @@ export class DirectorCamera {
     this.cam = new UniversalCamera('director', new Vector3(0, 3, -8), scene);
     this.cam.minZ = 0.1;
     this.cam.maxZ = 90;
-    this.cam.fov = 0.86;
+    this.cam.fov = TUNING.camera.fov;
     // No manual camera control anywhere in the game.
     this.cam.inputs.clear();
     scene.activeCamera = this.cam;
@@ -75,72 +75,87 @@ export class DirectorCamera {
     const midX = (a.x + b.x) * 0.5;
     const midZ = (a.z + b.z) * 0.5;
     const spreadX = Math.abs(a.x - b.x);
+    const meanY = (a.y + b.y) * 0.5;
+    const spreadY = Math.abs(a.y - b.y);
 
     // --- the stable gameplay framing ---
     let wantYaw = T.yaw;
     let wantDist = clamp(T.minDist + spreadX * T.spreadZoom, T.minDist, T.maxDist)
+      + spreadY * T.verticalZoom
       + (outside ? T.outsidePull : 0);
     let wantHeight = T.height;
-    let lookY = T.lookHeight;
-    let lookX = clamp(midX, -T.panLimit, T.panLimit);
+    /*
+     * The look point follows the pair's height, partially. Standing on the mat
+     * is the reference, so ordinary play is unaffected; a climb lifts it, and
+     * two bodies on the floor drop it. Someone out on the floor is a whole
+     * mat-height down, and gets an extra drop on top.
+     */
+    let lookY = T.lookHeight
+      + (meanY - TUNING.ring.matY) * T.verticalFollow
+      + spreadY * T.verticalLift;
+    // Full bias from mid-ring rightwards, tapering to nothing at the left rope.
+    const biasT = clamp((midX + T.panLimit) / T.panLimit, 0, 1);
+    let lookX = clamp(midX, -T.panLimit, T.panLimit) + T.lookBias * biasT;
     let lookZ = midZ * T.depthShift;
     let follow = T.follow;
 
     switch (this.mode) {
       case 'ENTRANCE':
-        wantDist = 6.4;
-        wantHeight = 3.0;
-        wantYaw = T.yaw - 0.3 + Math.sin(this.modeTimer / 1500) * 0.22;
+        // An establishing shot, not a diorama: wide enough to say "here is the
+        // room", close enough that the wrestlers still read as people.
+        wantDist = 6.2;
+        wantHeight = 2.9;
+        wantYaw = T.yaw - 0.22 + Math.sin(this.modeTimer / 1500) * 0.16;
         follow = 1.8;
         break;
 
       case 'SIGNATURE':
         // One decisive shift, not a spin: swing to the other shoulder and hold.
         wantYaw = T.yaw + 0.5;
-        wantDist = 4.4;
-        wantHeight = 2.3;
-        lookY = 1.5;
+        wantDist = 5.2;
+        wantHeight = 2.62;
+        lookY = 2.18;
         follow = 6.5;
-        if (this.focus) { lookX = this.focus.x; lookZ = this.focus.z * T.depthShift; }
+        if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; lookZ = this.focus.z * T.depthShift; }
         break;
 
       case 'FINISHER': {
         // The one place the camera is allowed to move for its own sake.
         this.orbit += dt / 1000;
         wantYaw = T.yaw + 0.7 + this.orbit * 0.5;
-        wantDist = clamp(4.1 + spreadX * 0.15, 3.7, 5.2);
-        wantHeight = lerp(3.2, 1.9, clamp(this.modeTimer / 1500, 0, 1));
-        lookY = 1.5;
+        wantDist = clamp(5.3 + spreadX * 0.15, 5.0, 6.5);
+        wantHeight = lerp(3.3, 2.5, clamp(this.modeTimer / 1500, 0, 1));
+        lookY = 2.12;
         follow = 4.2;
-        if (this.focus) { lookX = this.focus.x; lookZ = this.focus.z * T.depthShift; }
+        if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; lookZ = this.focus.z * T.depthShift; }
         break;
       }
 
       case 'NEARFALL':
         // Snap in tight on the kickout. Short and violent.
-        wantDist = 3.6;
-        wantHeight = 1.9;
-        lookY = 1.15;
+        wantDist = 4.6;
+        wantHeight = 2.15;
+        lookY = 1.72;
         follow = 9;
-        if (this.focus) { lookX = this.focus.x; lookZ = this.focus.z * T.depthShift; }
+        if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; lookZ = this.focus.z * T.depthShift; }
         break;
 
       case 'PIN':
-        wantDist = 4.2;
-        wantHeight = 2.5;
-        lookY = 1.2;
+        wantDist = 5.0;
+        wantHeight = 2.45;
+        lookY = 1.78;
         follow = 5.0;
-        if (this.focus) { lookX = this.focus.x; lookZ = this.focus.z * T.depthShift; }
+        if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; lookZ = this.focus.z * T.depthShift; }
         break;
 
       case 'VICTORY': {
         this.orbit += dt / 1000;
         const f = this.focus;
-        if (f) { lookX = f.x; lookZ = f.z * T.depthShift; }
+        if (f) { lookX = f.x + T.lookBias * biasT; lookZ = f.z * T.depthShift; }
         wantYaw = T.yaw + this.orbit * 0.3;
-        wantDist = 5.0;
-        wantHeight = 2.7;
-        lookY = 1.6;
+        wantDist = 5.9;
+        wantHeight = 2.95;
+        lookY = 2.28;
         follow = 2.6;
         break;
       }

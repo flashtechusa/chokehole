@@ -351,7 +351,14 @@ export class MatchView {
 
     const a = this.sim.p1;
     const b = this.sim.p2;
-    this.camera.update(dt, { x: a.x, y: a.y, z: a.z }, { x: b.x, y: b.y, z: b.z });
+    // `outside` was never passed, so the camera never widened for a fight that
+    // spilled onto the floor and the outside fighter's feet fell out of frame.
+    this.camera.update(
+      dt,
+      { x: a.x, y: a.y, z: a.z },
+      { x: b.x, y: b.y, z: b.z },
+      a.outside || b.outside,
+    );
   }
 
   private updateSide(side: Side, dt: number): void {

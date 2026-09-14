@@ -1,5 +1,65 @@
 # Changelog
 
+## v2.3 — it actually looks 2.5D now
+
+The 2.5D rework changed how the game *plays*. It did not change how it looks,
+and the first playable still framed like a diorama: a 23-degree three-quarter
+angle, a 49-degree wide lens and six units of distance, so you were looking down
+at a whole ring containing two small figures.
+
+### Framing
+- **A longer lens** — 0.72 rad instead of 0.86 — flattens the perspective so the
+  ring reads as a backdrop rather than a box you peer into.
+- **Yaw down from 23° to 11°**, near side-on. Enough that bodies read as solid
+  and two fighters at different depths separate on screen; not enough to turn
+  the ring into an object.
+- **Tilt down from 7° to 4°.** Every extra degree turned another band of empty
+  mat into foreground.
+- **Distance is now set from the vertical field of view**, which is what limits
+  how big a wrestler can be. A 2.16:1 phone is over seven units wide at these
+  distances — wider than the ring — so framing for the width was what kept
+  pushing the camera back.
+- **The rig sits above the fighters' centre of mass** so they land below the
+  middle of the frame, clear of a HUD that owns the top quarter of the screen.
+- **The look point is pushed left**, tapering to nothing at the left rope, so the
+  right-hand wrestler stops disappearing behind the three buttons.
+
+Measured across the full width of the ring and at every separation: a wrestler
+is 51–58% of the screen height (was ~35%) and the pair stays inside the 12–79%
+horizontal band. Every cinematic mode was measured the same way and retuned for
+the new lens.
+
+### Callouts
+Move callouts are now a broadcast lower-third anchored bottom-left. Centred,
+they sat directly over the two wrestlers and hid the fight they described.
+
+### Out of the ring
+- `outside` was never actually passed to the camera, so it had never widened for
+  a fight that spilled onto the floor.
+- The ringside floor stretched 2.6 units past the ropes, which is further out
+  than the front row of the crowd: a thrown fighter could land BEHIND the
+  audience, invisible, and drag the camera so far back that the near crowd
+  filled the foreground. It is now 1.15, inside the front row.
+- The camera frames from the pair's VERTICAL spread as well as their lateral
+  one, so one fighter on the top rope or on the floor pulls the shot back and
+  sits the taller arrangement lower in frame. Following the average height alone
+  could not do this — the average is the same whether they are together or a
+  mat-height apart.
+
+### `npm run framing`
+A new check that projects both wrestlers' bounding boxes to screen pixels and
+reports the numbers across the width of the ring, at several separations, with a
+fighter thrown to the floor, and in every camera mode. It fails on wrestlers
+that are too small, heads under the HUD, feet off the bottom, or a body behind
+the buttons.
+
+### A note on how this was missed
+The screenshots used to check the last build were taken a second after the match
+started, which is inside the ENTRANCE camera's wide establishing shot — so every
+verification screenshot was of the one camera mode that is *supposed* to be
+wide. The screenshot tooling now waits out the entrance, and framing is checked
+by projecting the wrestlers' bounding boxes to screen pixels rather than by eye.
+
 ## v2.2 — the ring pays
 
 Follow-up to the 2.5D rework, driven by probing the four mechanics the pacing
