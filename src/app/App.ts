@@ -411,7 +411,11 @@ export class App {
     const order: Quality[] = ['HIGH', 'MEDIUM', 'LOW'];
     const i = order.indexOf(this.stage.quality);
     if (i < order.length - 1) {
-      this.stage.setQuality(order[i + 1]!);
+      const next = order[i + 1]!;
+      this.stage.setQuality(next);
+      // The renderer owns lights and post-processing; the view owns the ink
+      // outlines, which are per-mesh and therefore its to switch.
+      this.view?.applyQuality(next);
       this.qualityCooldown = 6000;
       this.frameAvg = 16.7;
     }

@@ -1,5 +1,36 @@
 # Changelog
 
+## v3.5 — cel shading and ink outlines
+
+The genre reference is *drawn*, not rendered: flat colour steps with a black ink
+line around every silhouette. That treatment is worth far more on these models
+than any amount of extra polygon, and it is what lets modest geometry look
+deliberate instead of unfinished.
+
+- **Ink outlines** on every wrestler chunk and every piece of ring furniture.
+  A line around the silhouette makes flat colour read as drawn rather than as
+  untextured, and separates an arm from the torso behind it without either
+  needing more detail. Ropes are left bare — they are 8.5cm cylinders, and a
+  line that width turns three ropes into three black bars.
+- **Cel banding** via a material plugin that posterises the finished pixel into
+  four steps. It quantises LUMINANCE and rescales the colour, so hue is
+  preserved and only the shading steps; posterising channels independently
+  shifts a pink toward red at one light level and not the next. It rounds to
+  the nearest band rather than up — rounding up put a floor of one whole step
+  under every pixel and turned a near-black costume into washed lavender.
+  A plugin rather than a replacement material, so fog, vertex colours and the
+  emissive channel the hit-flash drives all keep working.
+- **Fatter ropes**, 5.5cm to 8.5cm. At the old width they were hairlines at
+  match distance; the reference runs them thick and bright.
+
+### The cost, measured
+Outlines roughly double draws and fill for the wrestlers and the ring. Under
+software rendering the frame rate went 28 fps → 15. A CPU rasteriser
+over-penalises fill and a GPU will charge far less, but it is not free, so they
+join the shadow map, the glow and the rim light in being MEDIUM-and-above only.
+LOW is now exactly as cheap as it was before any of this work.
+
+
 ## v3.4 — lighting, shadows and bloom
 
 First pass on how the wrestlers look. They are procedural rigs — primitives

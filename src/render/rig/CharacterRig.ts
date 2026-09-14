@@ -5,6 +5,8 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { buildSkeleton, type Bones, type RigSpec } from './Skeleton';
 import { buildBody } from './buildBody';
+import '@babylonjs/core/Rendering/outlineRenderer';
+import { applyCel } from './CelShading';
 import { buildClips, type Style } from './clips';
 import { applyPose, blendPose, clearPose, sampleClip, type Clip, type Pose } from './Pose';
 
@@ -24,6 +26,14 @@ export interface PlayOpts {
  * to run. Swapping in an approved GLB later means replacing this class's
  * geometry and clip source, not the game.
  */
+/**
+ * Ink line weight, in world units. A wrestler is two units tall, so this is
+ * about a centimetre of real line — heavy enough to survive a 468px render
+ * buffer on the lowest quality tier, fine enough not to eat a hand.
+ */
+const OUTLINE_WIDTH = 0.016;
+const OUTLINE_COLOR = new Color3(0.04, 0.02, 0.06);
+
 export class CharacterRig {
   /**
    * What the world moves. The skeleton's own `root` bone belongs to the pose
@@ -59,8 +69,23 @@ export class CharacterRig {
     this.root = new TransformNode(`${name}_holder`, scene);
     this.bones.root.parent = this.root;
     this.meshes = buildBody(scene, this.bones, spec, name);
+    /*
+     * Ink outlines. This is the single biggest thing separating a stylised
+     * wrestling game from a pile of primitives: a black line around the
+     * silhouette makes flat colour read as drawn rather than as untextured, and
+     * it separates an arm from the torso behind it without needing either to be
+     * more detailed. Babylon draws the mesh a second time, inflated along its
+     * normals, so it costs one extra draw call per merged chunk — about twenty
+     * per wrestler, which is affordable even on the lowest tier.
+     */
+    for (const m of this.meshes) {
+      m.renderOutline = true;
+      m.outlineWidth = OUTLINE_WIDTH;
+      m.outlineColor = OUTLINE_COLOR;
+    }
     this.material = this.meshes[0]!.material as StandardMaterial;
     this.material.unfreeze();
+    applyCel(this.material);
     this.baseEmissive = this.material.emissiveColor.clone();
     this.clips = buildClips(style);
     // The skeleton's neutral hunch is a bias so clips do not have to encode it.

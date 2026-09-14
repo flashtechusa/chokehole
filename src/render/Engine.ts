@@ -27,12 +27,22 @@ export interface QualityPreset {
   shadowMap: number;
   /** Bloom on the neon. 0 disables the layer entirely. */
   glow: number;
+  /** The back light. A whole extra light evaluated on every fragment. */
+  rim: boolean;
+  /**
+   * Ink outlines. Babylon draws each outlined mesh a SECOND time, inflated
+   * along its normals, so this roughly doubles both the draw calls and the
+   * fill for every wrestler and every piece of ring furniture. It is also the
+   * single biggest thing making the art read as drawn rather than as
+   * untextured primitives, so it survives as far down the tiers as it can.
+   */
+  outline: boolean;
 }
 
 export const PRESETS: Record<Quality, QualityPreset> = {
-  LOW: { scale: 1.8, fog: false, crowd: true, rigLights: 0, maxShards: 40, shadowMap: 0, glow: 0 },
-  MEDIUM: { scale: 1.3, fog: true, crowd: true, rigLights: 1, maxShards: 90, shadowMap: 512, glow: 0.22 },
-  HIGH: { scale: 1.0, fog: true, crowd: true, rigLights: 2, maxShards: 160, shadowMap: 1024, glow: 0.3 },
+  LOW: { scale: 1.8, fog: false, crowd: true, rigLights: 0, maxShards: 40, shadowMap: 0, glow: 0, rim: false, outline: false },
+  MEDIUM: { scale: 1.3, fog: true, crowd: true, rigLights: 1, maxShards: 90, shadowMap: 512, glow: 0.22, rim: true, outline: true },
+  HIGH: { scale: 1.0, fog: true, crowd: true, rigLights: 2, maxShards: 160, shadowMap: 1024, glow: 0.3, rim: true, outline: true },
 };
 
 /**
@@ -186,6 +196,9 @@ export function createStage(canvas: HTMLCanvasElement, arena: ArenaConfig): Stag
       scene.fogMode = Scene.FOGMODE_NONE;
     }
     rigLights.forEach((l, i) => l.setEnabled(i < p.rigLights));
+    // The rim is the nicest light in the scene and also a whole extra one to
+    // evaluate per fragment. The cheapest tier does without it.
+    rim.setEnabled(p.rim);
   };
   setQuality(detectQuality());
 

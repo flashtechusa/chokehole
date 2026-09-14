@@ -134,15 +134,52 @@ the work went.
   a visible wedge between two tube ends. A sphere the width of the tube fills it
   at any angle, and merges into the same draw call.
 
+### Cel shading and ink outlines
+
+The genre reference is drawn, not rendered: flat colour steps with a black ink
+line around every silhouette. That treatment is what lets modest geometry look
+deliberate, and it is worth far more on these models than any amount of extra
+polygon.
+
+**Outlines.** Every wrestler chunk and every piece of ring furniture is drawn a
+second time, inflated along its normals, in near-black. A line around the
+silhouette makes flat colour read as *drawn* rather than as untextured, and it
+separates an arm from the torso behind it without either needing more detail.
+Ropes are left bare — they are 8.5cm cylinders, and a line that width turns
+three ropes into three black bars.
+
+**Cel banding.** A `MaterialPluginBase` on the body material posterises the
+finished pixel into four steps. It quantises LUMINANCE and rescales the colour
+to match, so hue is preserved exactly and only the shading steps — posterising
+the channels independently shifts a pink toward red at one light level and not
+at the next. It rounds to the nearest band rather than up: rounding up puts a
+floor of one whole step under every pixel, which turned a near-black costume
+into washed lavender and cost the whole cast its value range.
+
+It is a plugin rather than a replacement material precisely so that fog, vertex
+colours, the emissive channel the hit-flash drives, and everything else that
+already worked keeps working.
+
+**The cost is real.** Outlines roughly double the draw calls and the fill for
+every wrestler and every post. Measured under software rendering they took the
+frame rate from 28 fps to 15 — a CPU rasteriser over-penalises fill and a GPU
+will not charge nearly that much, but it is not free. They are on at MEDIUM and
+HIGH and off at LOW, along with the rim light, the shadow map and the glow.
+
 ### Known limits of the character models
 
-At three times magnification the rigs are plainly primitives: tapered tubes for
-limbs, boxes for the torso and hips, a sphere for each hand, minimal faces. At
-match distance a wrestler is about a third of a 390px screen and almost none of
-that is visible — but it is the ceiling on how good they can look, and lighting
-cannot raise it further. Getting past it means either a serious pass on the
-procedural rig (proportions, hands, tapering, a neck, smoother joints) or
-authored GLB models, which `3D_ASSET_PIPELINE.md` already covers swapping in.
+The rigs are still primitives underneath: tapered tubes for limbs, boxes for
+torso and hips, a sphere per hand, minimal faces. Ink and cel bands hide a great
+deal of that — the silhouette is what reads now — but they do not change what is
+under the line. The remaining gains are:
+
+1. **A rig pass**: better proportions, real hands, tapering, a neck, a face.
+   Pure code, no assets, and survives being thrown away if models arrive later.
+2. **Skinning**: the rig is rigid, so limbs pivot rather than bend. This is the
+   biggest single "these are characters, not toys" change left, and it rewrites
+   the pose pipeline.
+3. **Authored GLB models**, which `3D_ASSET_PIPELINE.md` already covers swapping
+   in. Best result, needs assets this project cannot generate for itself.
 
 ### The ring is square again
 

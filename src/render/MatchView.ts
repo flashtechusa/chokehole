@@ -17,7 +17,7 @@ import { CharacterRig } from './rig/CharacterRig';
 import { STYLE_BRUTE, STYLE_POISED } from './rig/clips';
 import { buildRing, buildBlobShadow, type Ring } from './RingBuilder';
 import { buildWarehouse, type Warehouse } from './WarehouseBuilder';
-import type { Stage } from './Engine';
+import { PRESETS, type Quality, type Stage } from './Engine';
 import { DirectorCamera } from './DirectorCamera';
 import { FX3D } from './FX3D';
 import { flatMaterial } from './rig/Skeleton';
@@ -58,6 +58,7 @@ export class MatchView {
       this.makeSide(sim.p1, STYLE_POISED, 'p1'),
       this.makeSide(sim.p2, STYLE_BRUTE, 'p2'),
     ];
+    this.applyQuality(stage?.quality ?? 'HIGH');
     this.camera.setMode('ENTRANCE');
   }
 
@@ -70,6 +71,16 @@ export class MatchView {
     this.stage?.addShadowCasters(rig.meshes);
     rig.play('entrance');
     return { fighter, rig, shadow, heldProp: null };
+  }
+
+  /**
+   * Turns the ink outlines on or off for the current quality tier. Called on
+   * construction and again whenever the frame time forces a tier down.
+   */
+  applyQuality(q: Quality): void {
+    const on = PRESETS[q].outline;
+    for (const m of this.ring.inked) m.renderOutline = on;
+    for (const s of this.sides) for (const m of s.rig.meshes) m.renderOutline = on;
   }
 
   setReducedFx(reduceFlash: boolean, reduceShake: boolean): void {

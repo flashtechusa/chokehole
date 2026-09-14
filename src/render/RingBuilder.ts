@@ -4,6 +4,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Vector3, Vector4 } from '@babylonjs/core/Maths/math.vector';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
+import '@babylonjs/core/Rendering/outlineRenderer';
 import { CreateCylinder } from '@babylonjs/core/Meshes/Builders/cylinderBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { TUNING } from '@/game/config/tuning';
@@ -16,6 +17,8 @@ export interface Ring {
   /** Rope segments, so slams can make them shudder. */
   ropes: Mesh[];
   posts: Mesh[];
+  /** Everything carrying an ink outline, so the quality tier can drop it. */
+  inked: Mesh[];
 }
 
 /**
@@ -23,6 +26,13 @@ export interface Ring {
  * turnbuckle pads. Built to the dimensions the simulation actually uses, so what
  * the player sees is what the collision does.
  */
+/**
+ * Ink line on the ring's hard furniture, to match the wrestlers. Ropes are left
+ * bare: they are 6cm cylinders, and an outline that width doubles their
+ * apparent thickness and turns three ropes into three black bars.
+ */
+const RING_INK = new Color3(0.04, 0.02, 0.06);
+
 export function buildRing(scene: Scene): Ring {
   const root = new TransformNode('ring', scene);
   // Wide across, shallow in depth: the 2.5D play space, built to the exact
@@ -81,6 +91,13 @@ export function buildRing(scene: Scene): Ring {
 
   // --- posts ---
   const posts: Mesh[] = [];
+  const inked: Mesh[] = [];
+  const ink = (m: Mesh, width = 0.02): void => {
+    m.renderOutline = true;
+    m.outlineWidth = width;
+    m.outlineColor = RING_INK;
+    inked.push(m);
+  };
   const postMat = flatMaterial(scene, C.magenta, 0.35);
   const capMat = flatMaterial(scene, C.acid, 0.6);
   const corners: [number, number][] = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
@@ -92,6 +109,7 @@ export function buildRing(scene: Scene): Ring {
     p.parent = root;
     p.material = postMat;
     p.isPickable = false;
+    ink(p);
     posts.push(p);
 
     const cap = CreateBox('postCap', { width: 0.26, height: 0.2, depth: 0.26 }, scene);
@@ -99,6 +117,7 @@ export function buildRing(scene: Scene): Ring {
     cap.parent = root;
     cap.material = capMat;
     cap.isPickable = false;
+    ink(cap);
 
     // turnbuckle pads facing inward on both adjacent sides
     for (const axis of ['x', 'z'] as const) {
@@ -113,6 +132,7 @@ export function buildRing(scene: Scene): Ring {
       pad.parent = root;
       pad.material = flatMaterial(scene, axis === 'x' ? C.pink : C.squelsh, 0.4);
       pad.isPickable = false;
+      ink(pad);
     }
   }
 
@@ -139,8 +159,11 @@ export function buildRing(scene: Scene): Ring {
     for (const [axis, sign] of [['x', 1], ['x', -1], ['z', 1], ['z', -1]] as const) {
       // A rope spanning the X sides runs along Z, and vice versa.
       const span = axis === 'x' ? (HZ + 0.22) * 2 : (H + 0.22) * 2;
+      // Fat ropes. At 5.5cm they were hairlines at match distance; the
+      // reference art runs them thick and bright so they read as part of the
+      // drawing rather than as wireframe.
       const rope = CreateCylinder('rope', {
-        height: span, diameter: 0.055, tessellation: 6,
+        height: span, diameter: 0.085, tessellation: 7,
       }, scene);
       // -Z is the camera side.
       const near = axis === 'z' && sign === -1;
@@ -169,7 +192,7 @@ export function buildRing(scene: Scene): Ring {
     trim.isPickable = false;
   }
 
-  return { root, ropes, posts };
+  return { root, ropes, posts, inked };
 }
 
 /** Soft blob shadow under a fighter. Cheaper than a shadow map and reads better. */
