@@ -18,12 +18,16 @@ instances sharing five source meshes and five materials.
 | Item | Budget | Actual |
 | --- | --- | --- |
 | Wrestlers | 2 high-detail | 2, ~20 merged meshes each, 1 material each |
-| Crowd | instanced | ~180 instances, 5 sources |
-| Real-time shadows | 0 | 0 — blob shadows instead |
-| Lights | ≤ 4 | hemispheric + directional + up to 2 point |
-| Post-processing | none required | none |
+| Crowd | instanced | ~110 instances, 5 sources (camera side culled) |
+| Real-time shadows | ≤ 1 map | 1 blurred map on the key light, MEDIUM+ only |
+| Lights | ≤ 5 | hemispheric + key + rim + up to 2 point |
+| Post-processing | ≤ 1 pass | glow layer, MEDIUM+ only |
 | Particles | pooled | pooled boxes/planes, no particle system |
 | Textures | generated | canvas-drawn at runtime, no files |
+
+Shadows and glow are both off at LOW, so the cheapest tier is exactly what it
+was. Nothing on the camera side of the ring is drawn at all — crowd, roof beams
+and lighting cans — which paid for most of the new cost on its own.
 
 ## Quality tiers
 

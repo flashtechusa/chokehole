@@ -104,6 +104,46 @@ empty aisle for the same reason. Culling it roughly doubled the frame rate.
 
 `npm run framing` measures all of this in screen pixels rather than by eye.
 
+### Lighting and shading
+
+The wrestlers are procedural rigs: primitives merged per bone, baked vertex
+colours, one material each. At the distance the game actually plays at, what
+makes them read is light and silhouette, not polygon count — so that is where
+the work went.
+
+- **A cast shadow.** One blurred exponential map on the key light, at 512 on
+  MEDIUM and 1024 on HIGH, with the light's bounds pulled tight around the ring
+  so its texels land on the canvas instead of spreading over the warehouse. The
+  blob shadow stays underneath at every tier, because it is the only thing that
+  reads a wrestler's HEIGHT during a top-rope dive.
+- **Less self-light.** Bodies were 0.34 emissive — a third of every pixel was
+  flat unlit colour, so an arm and the torso behind it were the same brightness
+  and the figure read as a cut-out. Now 0.13, with a real specular highlight, so
+  the key and rim lights can shade a limb.
+- **A rim light.** Dim and cool, from behind and above, picking out the top and
+  back edge of a shoulder or thigh. Form needs somewhere to turn.
+- **Glow on the neon only.** A bloom pass finds the brightest emissive first, and
+  the canvas and apron are the biggest surfaces on screen — at 0.3 and 0.5 they
+  blew out white and left the neon nothing to be brighter than. They are down to
+  0.12 and 0.2; the ropes, posts and lamps keep theirs and get the bloom.
+- **Practicals that stay on the ring.** The coloured rig lights were intensity
+  ×12 over a 16-unit range, which reached the crowd and the walls — switching UP
+  a quality tier flooded the warehouse pink and made the picture worse than the
+  tier below it. Now ×5 over 8.5, hung lower and tighter.
+- **Joint balls.** The rig is rigid, not skinned, so a bent elbow or knee opened
+  a visible wedge between two tube ends. A sphere the width of the tube fills it
+  at any angle, and merges into the same draw call.
+
+### Known limits of the character models
+
+At three times magnification the rigs are plainly primitives: tapered tubes for
+limbs, boxes for the torso and hips, a sphere for each hand, minimal faces. At
+match distance a wrestler is about a third of a 390px screen and almost none of
+that is visible — but it is the ceiling on how good they can look, and lighting
+cannot raise it further. Getting past it means either a serious pass on the
+procedural rig (proportions, hands, tapering, a neck, smoother joints) or
+authored GLB models, which `3D_ASSET_PIPELINE.md` already covers swapping in.
+
 ### The ring is square again
 
 `ring.halfZ` is the ring's RENDERED depth and nothing else — no system reads it

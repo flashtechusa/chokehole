@@ -34,7 +34,7 @@ export function buildRing(scene: Scene): Ring {
   const outerZ = HZ + 0.55;
 
   // --- base / apron ---
-  const apronMat = emissiveMat(scene, 'apronMat', apronTexture(scene), 0.5);
+  const apronMat = emissiveMat(scene, 'apronMat', apronTexture(scene), 0.2);
   /*
    * A box maps its two Z faces as mirror images of each other, so the sponsor
    * text on the apron came out backwards on whichever side you were looking at.
@@ -53,6 +53,7 @@ export function buildRing(scene: Scene): Ring {
   base.position.y = matY / 2;
   base.parent = root;
   base.material = apronMat;
+  base.receiveShadows = true;
   base.isPickable = false;
 
 
@@ -67,8 +68,15 @@ export function buildRing(scene: Scene): Ring {
    * it. A quarter turn in UV space puts it the right way up for a hard camera.
    */
   canvas.wAng = -Math.PI / 2;
-  const matMat = emissiveMat(scene, 'matMat', canvas, 0.3);
+    /*
+   * The canvas and apron are the two biggest surfaces on screen, so their
+   * emissive is what a bloom pass picks up first. At 0.3 and 0.5 the whole ring
+   * blew out white and the neon had nothing left to be brighter than. Low here,
+   * bright on the ropes and posts: that is where the glow belongs.
+   */
+  const matMat = emissiveMat(scene, 'matMat', canvas, 0.12);
   mat.material = matMat;
+  mat.receiveShadows = true;
   mat.isPickable = false;
 
   // --- posts ---

@@ -1,5 +1,43 @@
 # Changelog
 
+## v3.4 — lighting, shadows and bloom
+
+First pass on how the wrestlers look. They are procedural rigs — primitives
+merged per bone, baked vertex colours, one material each — and at the distance
+the game plays at, what makes them read is light and silhouette rather than
+polygon count.
+
+- **A cast shadow**, at last: one blurred exponential map on the key light, 512
+  on MEDIUM and 1024 on HIGH, with the light's bounds pulled tight around the
+  ring so its texels land on the canvas rather than spreading over the
+  warehouse. The blob shadow stays underneath at every tier, because it is the
+  only thing that reads a wrestler's height during a top-rope dive.
+- **Bodies were a third self-lit.** At 0.34 emissive, an arm and the torso
+  behind it were the same brightness and the whole figure read as a cut-out.
+  Down to 0.13, with a real specular highlight.
+- **A rim light** from behind and above, so a shoulder or a thigh has an edge.
+- **Glow on the neon only.** A bloom pass finds the brightest emissive first,
+  and the canvas and apron are the biggest surfaces on screen — at 0.3 and 0.5
+  they blew out white. Down to 0.12 and 0.2; the ropes, posts and lamps keep
+  theirs and get the bloom.
+- **Practicals that stay on the ring.** The coloured rig lights were intensity
+  x12 over a 16-unit range, so they reached the crowd and the walls: switching
+  UP a quality tier flooded the warehouse pink and made the picture worse than
+  the tier below it. Now x5 over 8.5, hung lower and tighter.
+- **Joint balls.** The rig is rigid, not skinned, so a bent elbow or knee opened
+  a visible wedge between two tube ends. A sphere the width of the tube fills it
+  at any angle and merges into the same draw call.
+
+Shadows and glow are both off at LOW, so the cheapest tier costs exactly what it
+did before. Culling everything on the camera side of the ring — crowd, roof
+beams, lighting cans — had already paid for most of the new work.
+
+### Still the ceiling
+At magnification the rigs are plainly primitives: tapered tubes for limbs, boxes
+for torso and hips, a sphere per hand, minimal faces. Lighting cannot raise that
+further. See GAME_DESIGN.md, "Known limits of the character models".
+
+
 ## v3.3 — the broadcast hard camera, matched to the reference
 
 Working from Action Arcade Wrestling screenshots rather than from my own idea of

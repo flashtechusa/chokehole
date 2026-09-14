@@ -218,8 +218,19 @@ export class BodyBuilder {
     ), hex, o);
   }
 
-  /** Tapered limb segment running down -Y from the joint. */
+  /**
+   * Tapered limb segment running down -Y from the joint, with a ball at the
+   * joint itself.
+   *
+   * The rig is rigid, not skinned: each bone owns one merged chunk of geometry
+   * and pivots at a hard point. Without the ball, a bent elbow or knee opened a
+   * visible wedge of empty space between two tube ends, which is most of what
+   * made the wrestlers read as loose action figures. A sphere the width of the
+   * tube fills that wedge at every angle, for one extra primitive that merges
+   * into the same draw call.
+   */
   limb(bone: TransformNode, hex: string, len: number, top: number, bottom: number): void {
+    this.sphere(bone, hex, top * 1.02, undefined, 8);
     this.cyl(bone, hex, len, top, bottom, { pos: [0, -len / 2, 0] });
   }
 
@@ -228,9 +239,19 @@ export class BodyBuilder {
     const out: Mesh[] = [];
     const mat = new StandardMaterial(`${this.name}_mat`, this.scene);
     mat.diffuseColor = new Color3(1, 1, 1);
-    mat.specularColor = new Color3(0.1, 0.1, 0.12);
-    // Bodies carry their own light so a dark costume still reads on a dim stage.
-    mat.emissiveColor = new Color3(0.34, 0.34, 0.36);
+    /*
+     * A real highlight, and much less self-light.
+     *
+     * At 0.34 emissive, a third of every pixel on a body was flat unlit colour,
+     * so an arm and the torso behind it were the same brightness and the whole
+     * figure read as a paper cut-out. Dropping it to 0.13 lets the key and rim
+     * lights actually shade a limb; the specular gives the highlight that tells
+     * you a shoulder is round. The floor is still high enough that a near-black
+     * costume does not disappear on a dim stage.
+     */
+    mat.specularColor = new Color3(0.30, 0.30, 0.34);
+    mat.specularPower = 26;
+    mat.emissiveColor = new Color3(0.13, 0.13, 0.15);
     for (const [bone, list] of this.buckets) {
       const merged = list.length === 1
         ? list[0]!

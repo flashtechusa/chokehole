@@ -158,7 +158,7 @@ export class App {
     const arena = getArena(ARENA_ID);
 
     this.sim = new MatchSim({ player, opponent, arena, difficulty: this.difficulty });
-    this.view = new MatchView(this.stage.scene, this.sim);
+    this.view = new MatchView(this.stage.scene, this.sim, this.stage);
     this.view.setReducedFx(Save.settings.reduceFlash, Save.settings.reduceShake);
     this.broadcast.setReduceFlash(Save.settings.reduceFlash);
     this.broadcast.clear();

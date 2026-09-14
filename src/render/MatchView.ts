@@ -17,6 +17,7 @@ import { CharacterRig } from './rig/CharacterRig';
 import { STYLE_BRUTE, STYLE_POISED } from './rig/clips';
 import { buildRing, buildBlobShadow, type Ring } from './RingBuilder';
 import { buildWarehouse, type Warehouse } from './WarehouseBuilder';
+import type { Stage } from './Engine';
 import { DirectorCamera } from './DirectorCamera';
 import { FX3D } from './FX3D';
 import { flatMaterial } from './rig/Skeleton';
@@ -47,7 +48,7 @@ export class MatchView {
   private ropeShake = 0;
   private cinematicUntil = 0;
 
-  constructor(private scene: Scene, private sim: MatchSim) {
+  constructor(private scene: Scene, private sim: MatchSim, private stage?: Stage) {
     this.ring = buildRing(scene);
     this.warehouse = buildWarehouse(scene, sim.arena);
     this.camera = new DirectorCamera(scene);
@@ -63,6 +64,10 @@ export class MatchView {
   private makeSide(fighter: Fighter, style: typeof STYLE_POISED, name: string): Side {
     const rig = new CharacterRig(this.scene, fighter.cfg.rig, style, name);
     const shadow = buildBlobShadow(this.scene, `${name}_shadow`);
+    // A real cast shadow where the device can afford one; the blob underneath
+    // stays either way, because it is the only thing that reads a wrestler's
+    // HEIGHT during a top-rope dive.
+    this.stage?.addShadowCasters(rig.meshes);
     rig.play('entrance');
     return { fighter, rig, shadow, heldProp: null };
   }
@@ -473,7 +478,12 @@ export class MatchView {
   }
 
   dispose(): void {
-    for (const s of this.sides) { s.rig.dispose(); s.shadow.dispose(); this.detachProp(s); }
+    for (const s of this.sides) {
+      this.stage?.removeShadowCasters(s.rig.meshes);
+      s.rig.dispose();
+      s.shadow.dispose();
+      this.detachProp(s);
+    }
     this.despawnCan();
     this.groundProp?.dispose(false, true);
     this.ring.root.dispose(false, true);
