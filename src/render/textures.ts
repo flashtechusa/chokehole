@@ -152,6 +152,9 @@ export function apronTexture(scene: Scene): DynamicTexture {
 /** A painted warehouse banner behind the crowd. */
 export function bannerTexture(scene: Scene): DynamicTexture {
   return makeTexture(scene, 'banner', 1024, (g, s) => {
+    // See signTexture: invertY = false, so a plane shows this upside down.
+    g.translate(0, s);
+    g.scale(1, -1);
     g.fillStyle = '#1B0F24';
     g.fillRect(0, 0, s, s);
     halftone(g, 0, 0, s, s, '#2E1B3C', 14, 3, 0.9);
@@ -183,10 +186,53 @@ export function flyerTexture(scene: Scene, idx: number): DynamicTexture {
   ];
   const k = sets[idx % sets.length]!;
   return makeTexture(scene, `flyer${idx}`, 256, (g, s) => {
+    // See signTexture: invertY = false, so a plane shows this upside down.
+    // These have been inverted on the warehouse walls since they were added.
+    g.translate(0, s);
+    g.scale(1, -1);
     g.fillStyle = k.bg;
     g.fillRect(0, 0, s, s);
     halftone(g, 0, 0, s, s, k.fg, 10, 2, 0.18);
     fitText(g, k.a, s / 2, s * 0.38, s * 0.86, '900', SLAB, k.fg, 76);
     fitText(g, k.b, s / 2, s * 0.62, s * 0.86, '700', MONO, k.fg, 26);
+  });
+}
+
+/**
+ * A hand-lettered crowd sign.
+ *
+ * These are the audience's own voice, so they are scrappy: marker on card, a
+ * bit crooked, a bit too much text for the board. Nothing here names a real
+ * person or a real promotion (Bible s18.1).
+ */
+export function signTexture(scene: Scene, idx: number): DynamicTexture {
+  const sets = [
+    { bg: '#E8DCC6', fg: C.ink, a: 'CHOKE', b: 'HER' },
+    { bg: '#F2E7B0', fg: C.blood, a: 'RAID', b: 'PAY RENT' },
+    { bg: '#DCE8F0', fg: C.ink, a: 'I PAID', b: 'FOR THIS' },
+    { bg: '#E8DCC6', fg: C.magenta, a: 'JASSY', b: 'IS MY MUM' },
+    { bg: '#F0E0E8', fg: C.ink, a: 'SQUELSH', b: 'ME' },
+    { bg: '#E4EED0', fg: C.blood, a: 'NO HOLES', b: 'BARRED' },
+  ];
+  const k = sets[idx % sets.length]!;
+  return makeTexture(scene, `sign${idx}`, 256, (g, s) => {
+    // makeTexture uploads with invertY = false, so anything drawn on a plane
+    // arrives upside down -- which at sign size reads as mirrored rather than
+    // inverted, and cost a round of chasing the wrong axis. Draw it flipped in
+    // Y to cancel.
+    g.translate(0, s);
+    g.scale(1, -1);
+    g.fillStyle = k.bg;
+    g.fillRect(0, 0, s, s);
+    // torn card edge
+    g.fillStyle = 'rgba(0,0,0,0.12)';
+    g.fillRect(0, 0, s, 6);
+    g.fillRect(0, s - 6, s, 6);
+    g.save();
+    g.translate(s / 2, s / 2);
+    g.rotate(-0.05 + (idx % 3) * 0.04);
+    fitText(g, k.a, 0, -s * 0.16, s * 0.86, '900', SLAB, k.fg, 96);
+    fitText(g, k.b, 0, s * 0.16, s * 0.86, '900', SLAB, k.fg, 96);
+    g.restore();
   });
 }

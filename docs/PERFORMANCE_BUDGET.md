@@ -19,6 +19,8 @@ instances sharing five source meshes and five materials.
 | --- | --- | --- |
 | Wrestlers | 2 high-detail | 2, **1 skinned mesh each** (26 bones, 9,334 verts), 1 material each |
 | Crowd | instanced | ~110 instances, 5 sources (camera side culled) |
+| Barricade | instanced | 20 panels from 1 source + a lit rail cap per segment |
+| Crowd signs | 11 planes | canvas-drawn, swayed on the update tick |
 | Real-time shadows | ≤ 1 map | 1 blurred map on the key light, MEDIUM+ only |
 | Lights | ≤ 5 | hemispheric + key + rim + up to 2 point |
 | Post-processing | ≤ 1 pass | glow layer, MEDIUM+ only |

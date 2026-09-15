@@ -206,6 +206,38 @@ four-keyframe card spent three of them fading out and read as a flicker —
 measured at opacity 0.398 two hundred milliseconds into a 740ms card. The effect
 timing is linear; the punch is per keyframe.
 
+### The room
+
+The arena is built for one camera. It is a fixed broadcast hard camera outside
+the ring looking down across the mat, so the building divides cleanly into what
+that lens sees and what it does not, and everything is placed by that rule.
+
+- **Nothing between the lens and the ropes.** The crowd, the barricade and the
+  roof beams all skip the camera side. Real hard cameras look over an empty
+  aisle for exactly this reason.
+- **The far side is the picture.** The band above the far ropes is the only part
+  of the background that reads at all, so that is where the crowd signs and the
+  hung banner go.
+- **Anything low on the far side is behind the ring.** The mat sits at y = 1.13
+  and the camera is above it, so the far run of the barricade is occluded — true
+  of a real hard camera too. It reads down the short sides and whenever the
+  camera drops to the floor, which is when it matters, because that is when
+  somebody has been thrown into it.
+- **The far wall is on the horizon.** It is fifteen units out, and at this
+  camera's tilt its mid-height projects behind the HUD. The banner is hung on a
+  scaffold at z = 10 instead of painted on the wall.
+
+Two long-standing bugs came out of writing that down. The banner hung at
+z = -14.6 — behind the lens — so the biggest painted surface in the building had
+never been on screen. And `makeTexture` uploads with `invertY = false`, so every
+canvas drawn for a PLANE arrived upside down: the wall flyers had been inverted
+since they were added, invisibly, because the play camera never sees that far
+out to the sides.
+
+The entrance ramp is deliberately not built. It goes on the far side, where the
+ring occludes nearly all of it, and carving the crowd aisle it needs would empty
+the one part of the background that currently reads.
+
 ### Animation timing
 
 Keyframes carry their own easing — `smooth`, `in`, `snap`, `out`, `linear`,

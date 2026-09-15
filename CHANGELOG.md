@@ -1,5 +1,61 @@
 # Changelog
 
+## v4.1 — the arena
+
+The room got the things a wrestling arena has and this one did not, and two
+bugs turned up in the process that had been hiding in plain sight for the whole
+build.
+
+### The banner had never once been on screen
+It hung at z = -14.6 with a comment calling that the far wall behind the crowd.
+The camera sits at NEGATIVE z — `pos.z = look.z - cos(yaw) * dist` in
+`DirectorCamera` — so -14.6 is the wall *behind the lens*, and the biggest
+painted surface in the building had been rendering into the back of the camera
+since it was added.
+
+Moving it to the far wall was not enough either: the wall is fifteen units out,
+and at this camera's downward tilt that puts its mid-height essentially on the
+horizon, where anything readable lands behind the HUD. It is a hung scaffold
+banner at z = 10 now, in the band between the health bars and the back row.
+
+### Every plane texture in the building was upside down
+`makeTexture` uploads with `invertY = false`, so a canvas drawn for a plane
+arrives inverted. On a sign at match distance an upside-down word reads as a
+MIRRORED word, which cost a full round of flipping the wrong axis before a
+9× crop showed it was rotated 180°, not reflected. The signs, the banner and
+the wall flyers all draw flipped in Y now. The flyers had been inverted on the
+warehouse walls since they were added; nobody could tell, because they sit at
+x = ±14.55 and the play camera never sees them.
+
+### Barricade
+A guardrail between the ringside floor and the front row, with a lit top rail —
+the cheapest thing that says "arena" rather than "ring in a room". It sits just
+outside `RING.floorHalf`, which is as far out as a wrestler thrown over the top
+rope can get, so being flung into the barricade puts them against it rather than
+through it. The crowd moved back behind it, and still presses up against it as
+the room heats up. Ringside is the darkest part of the building, so the rail
+carries its own value or it is a black shape in front of black shapes.
+
+The far run of it is mostly hidden behind the raised ring, which is true of a
+real hard camera too; it reads down the short sides and whenever the camera
+drops to the floor.
+
+### Crowd signs
+Eleven hand-lettered boards held up over the front rows — the one band of the
+far side that is not already crowd silhouette or rope. They sway, harder as the
+heat rises, because a sign nobody is holding is a sign nailed to the air.
+
+### Not done: the entrance ramp
+It was on the list and it was measured out rather than built. A ramp goes on the
+far side, where the ring itself occludes almost all of it at this camera, and
+carving the crowd aisle it needs would empty the one part of the background that
+currently reads. The effort went into the band the camera actually looks at.
+
+### Cost
+131 meshes to 198, 35,516 vertices to 38,263. The barricade is instanced from
+one source; the signs are eleven small planes. Software-rendered frame rate
+22-24 fps, within the noise of where it was.
+
 ## v4.0 — animation polish
 
 Two things carried over from the comic layer's easing bug, and they turn out to
