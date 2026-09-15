@@ -206,6 +206,35 @@ four-keyframe card spent three of them fading out and read as a flicker —
 measured at opacity 0.398 two hundred milliseconds into a 740ms card. The effect
 timing is linear; the punch is per keyframe.
 
+### Animation timing
+
+Keyframes carry their own easing — `smooth`, `in`, `snap`, `out`, `linear`,
+`hold` — describing how each one travels to the next, rather than one curve
+applied to every span in every clip. That uniform smoothstep is why the punches
+read as polite: a windup and a contact had identical acceleration, so the fist
+arrived at the same speed it left. Movement is asymmetric. A strike drifts back
+into its windup decelerating and snaps out of it; a struck body recoils
+instantly and recovers slowly; a falling body accelerates and then stops.
+
+Everything with weight behind it also gets a **settle**: a rock past neutral the
+other way before the stance comes back, because the weight a punch throws
+forward has to go somewhere. Strikes end exactly on the stance pose so the hand
+back to idle does not pop.
+
+The **ankles** are posed now. The foot is the only bone whose geometry runs +X
+from its joint instead of hanging down -Y, and nothing had ever rotated it — so
+the whole boot was carried round by the leg at a fixed angle, which on a
+platform boot left the sole about seven degrees off the mat even standing still.
+It counters the rest of the leg: flat when planted, toe dropping as it lifts.
+
+**Idle is a weight shift**, not a bob. The lean is what carries it; depth
+movement in a game watched from the ropes is movement the camera cannot see.
+
+Hips leading shoulders is the obvious next item and is deliberately not done.
+It means sampling each clip a second time at an offset and taking the upper body
+from that — a real per-frame cost for a lag of about one frame at the rate the
+low tier actually runs, on figures fifty pixels tall.
+
 ### Known limits of the character models
 
 The rigs are primitives underneath and always will be until models arrive. What

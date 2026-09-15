@@ -1,5 +1,56 @@
 # Changelog
 
+## v4.0 — animation polish
+
+Two things carried over from the comic layer's easing bug, and they turn out to
+be the same lesson twice.
+
+### The curve belongs to the keyframe, not the clip
+`sampleClip` applied the same smoothstep to every span in every clip. That is
+why the punches read as polite: a windup and a contact had identical
+acceleration, so the fist arrived at the same speed it left. Real movement is
+asymmetric — you drift into a windup and explode out of it, you land hard and
+settle soft, and a falling body accelerates.
+
+Keyframes now carry an `ease` describing how they travel to the next one:
+`smooth` (the old default, still right for locomotion), `in`, `snap`, `out`,
+`linear` and `hold`. Applied where it changes the read:
+
+- **Strikes** drift back into the windup decelerating, then `snap` into contact.
+  One curve, and most of the difference between a punch and a gesture.
+- **Hit reactions** recoil instantly and recover slowly, never the reverse.
+- **Knockdowns** accelerate into the mat and stop there.
+- **Getting up** is slow off the mat and quick once the legs are under you.
+- **Dives** accelerate off the leap.
+
+### Settle frames
+A body that stops dead where the punch left it is made of wood: the weight it
+threw forward has to come back. Strikes, hit reactions, reversals and get-ups
+now rock a little PAST neutral the other way before finding the stance. Strikes
+also end exactly on the stance rather than on an offset recovery pose, so
+handing back to idle no longer pops.
+
+### Ankles
+Nothing had ever posed the feet. They are the only bone whose geometry runs +X
+from the joint rather than hanging down -Y, and with no rotation of their own
+the whole boot was carried round by the leg at a fixed angle — so on a platform
+boot the sole sat about seven degrees off the mat in the neutral stance, and a
+leg swinging through a stride never put it flat. The foot counters the rest of
+the leg now: flat when planted, toe dropping as it lifts.
+
+### Idle is a weight shift
+It was a bob: the body moved three centimetres up and down and nothing else. A
+fighter standing still still moves — the weight goes from one foot to the other
+and the hands drift with it. The lean is what carries it, because depth movement
+in a game watched from the ropes is movement the camera cannot see.
+
+### Not done: hips leading shoulders
+The obvious next item, and it was measured out rather than built. Doing it
+properly means sampling the clip a second time at an offset and taking the upper
+body from that — a real per-frame cost for a lag of about one frame at the frame
+rate the low tier actually runs at, on figures fifty pixels tall. It is written
+down here so the reason survives, not the omission.
+
 ## v3.9 — the anatomy pass
 
 Skinning made the limbs bend; they were still tubes. This is the geometry that

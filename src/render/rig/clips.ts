@@ -29,6 +29,14 @@ export interface Style {
 export const STYLE_POISED: Style = { amp: 1, lean: 0.05, stance: 1, bounce: 1, elbow: 0, sway: 1.35 };
 export const STYLE_BRUTE: Style = { amp: 1.25, lean: 0.2, stance: 1.5, bounce: 0.85, elbow: 0.4, sway: 0.5 };
 
+/**
+ * Which way a +Z rotation swings a foot. The foot bone's geometry runs +X from
+ * the ankle rather than -Y like every other limb, so its sign is not the one
+ * the axis note above gives for arms and legs; this is the single place that
+ * knows it.
+ */
+const ANKLE = 1;
+
 type V = readonly [number, number, number];
 const v = (x: number, y: number, z: number): V => [x, y, z];
 
@@ -48,8 +56,10 @@ export function buildClips(s: Style): Record<string, Clip> {
     forearmR: v(0, 0, (0.62 + E) * A),
     thighL: v(-0.09 * s.stance, 0, 0.10),
     shinL: v(0, 0, -0.22),
+    footL: v(0, 0, ANKLE * 0.12),
     thighR: v(0.09 * s.stance, 0, 0.10),
     shinR: v(0, 0, -0.22),
+    footR: v(0, 0, ANKLE * 0.12),
     midArmL: v(-0.5, 0, 0.5), midArmR: v(0.5, 0, 0.5),
     lowArmL: v(-0.4, 0, 0.3), lowArmR: v(0.4, 0, 0.3),
     antennaL: v(-0.3, 0, -0.4), antennaR: v(0.3, 0, -0.4),
@@ -59,23 +69,52 @@ export function buildClips(s: Style): Record<string, Clip> {
 
   /* ---------------- locomotion ---------------- */
 
+  /*
+   * Idle is a weight shift, not just a bob. A fighter standing still still
+   * moves: the weight goes from one foot to the other and the hands drift with
+   * it. The lean is what reads from the side — depth movement in a 2.5D game
+   * seen from the ropes is movement the camera cannot see.
+   */
+  const idleA: Pose = mix(stance(), {
+    rootY: -0.03, rootRz: -0.022, chest: v(0, 0, -0.03),
+    hips: v(0, -0.05 * s.sway, 0),
+    upperArmL: v(-0.26 * A, 0, 0.26 * A),
+    upperArmR: v(0.26 * A, 0, 0.34 * A),
+  });
+  const idleB: Pose = mix(stance(), {
+    rootY: 0.008, rootRz: 0.022, chest: v(0, 0.05, 0.01), head: v(0, 0.06, -0.04),
+    hips: v(0, 0.05 * s.sway, 0),
+    upperArmL: v(-0.26 * A, 0, 0.34 * A),
+    upperArmR: v(0.26 * A, 0, 0.26 * A),
+  });
   const idle = makeClip('idle', 1500 / s.bounce, true, [
-    { t: 0, pose: mix(stance(), { rootY: -0.03, chest: v(0, 0, -0.03) }) },
-    { t: 0.5, pose: mix(stance(), { rootY: 0.008, chest: v(0, 0.05, 0.01), head: v(0, 0.06, -0.04) }) },
-    { t: 1, pose: mix(stance(), { rootY: -0.03, chest: v(0, 0, -0.03) }) },
+    { t: 0, pose: idleA },
+    { t: 0.5, pose: idleB },
+    { t: 1, pose: idleA },
   ]);
 
   const stepPose = (phase: 1 | -1, lift: number, swing: number): Pose => {
     const f = phase;
+    const thL = 0.10 + swing * f;
+    const shL = -0.22 - Math.max(0, -swing * f) * 1.1;
+    const thR = 0.10 - swing * f;
+    const shR = -0.22 - Math.max(0, swing * f) * 1.1;
     return mix(stance(), {
       rootY: -0.03 - lift * 0.35,
       rootZ: s.sway * 0.035 * f,
       hips: v(0, 0.06 * f * s.sway, 0),
       spine: v(0, -0.05 * f, s.lean),
-      thighL: v(-0.09 * s.stance, 0, 0.10 + swing * f),
-      shinL: v(0, 0, -0.22 - Math.max(0, -swing * f) * 1.1),
-      thighR: v(0.09 * s.stance, 0, 0.10 - swing * f),
-      shinR: v(0, 0, -0.22 - Math.max(0, swing * f) * 1.1),
+      thighL: v(-0.09 * s.stance, 0, thL),
+      shinL: v(0, 0, shL),
+      // Ankles. Nothing ever posed the feet, so a leg swinging through a stride
+      // carried the whole boot round with it at a fixed angle and the sole
+      // never met the mat. The foot counters the rest of the leg, so it stays
+      // flat when it is planted, and gives up some of that as it lifts and the
+      // toe drops behind.
+      footL: v(0, 0, ANKLE * (-(thL + shL) * 0.85 - lift * 1.1)),
+      thighR: v(0.09 * s.stance, 0, thR),
+      shinR: v(0, 0, shR),
+      footR: v(0, 0, ANKLE * (-(thR + shR) * 0.85 - lift * 1.1)),
       upperArmL: v(-0.26 * A, 0, 0.30 * A - swing * f * 0.75),
       upperArmR: v(0.26 * A, 0, 0.30 * A + swing * f * 0.75),
       forearmL: v(0, 0, (0.62 + E) * A),
@@ -124,13 +163,27 @@ export function buildClips(s: Style): Record<string, Clip> {
       thighL: v(-0.09 * s.stance, 0, 0.22),
       thighR: v(0.09 * s.stance, 0, 0.0),
     } as Pose);
-    const recover: Pose = mix(stance(), { rootRz: 0.04, chest: v(0, 0.16 * sgn, 0.04) });
+    /*
+     * The settle. A body that stops dead where the punch left it is a body made
+     * of wood: the weight it threw forward has to come back, so it rocks a
+     * little PAST neutral the other way before it finds the stance again.
+     */
+    const settle: Pose = mix(stance(), {
+      rootRz: -0.06,
+      chest: v(0, -0.14 * sgn, -0.04),
+      [ua]: v(0.08 * sgn, 0, 0.14 * A),
+    } as Pose);
     return makeClip(name, dur, false, [
-      { t: 0, pose: stance() },
-      { t: big ? 0.34 : 0.3, pose: wind },
-      { t: big ? 0.52 : 0.46, pose: hit },
-      { t: 0.72, pose: hit },
-      { t: 1, pose: recover },
+      // Drift back into the windup, slowing as it loads...
+      { t: 0, pose: stance(), ease: 'out' },
+      // ...then explode out of it. This one curve is most of the difference
+      // between a punch and a polite gesture.
+      { t: big ? 0.34 : 0.3, pose: wind, ease: 'snap' },
+      { t: big ? 0.52 : 0.46, pose: hit, ease: 'linear' },
+      { t: 0.72, pose: hit, ease: 'out' },
+      { t: 0.88, pose: settle },
+      // Ends exactly on the stance, so handing back to idle does not pop.
+      { t: 1, pose: stance() },
     ]);
   };
 
@@ -140,30 +193,32 @@ export function buildClips(s: Style): Record<string, Clip> {
   const heavyAttack = strike('heavyAttack', 700, 'R', true);
 
   const groundStrike = makeClip('groundStrike', 620, false, [
-    { t: 0, pose: stance() },
+    { t: 0, pose: stance(), ease: 'out' },
     { t: 0.32, pose: mix(stance(), {
       rootY: -0.06, spine: v(0, 0, s.lean + 0.3),
       upperArmR: v(0.2, 0, -0.8), forearmR: v(0, 0, 1.7),
       thighL: v(-0.1, 0, 0.5), shinL: v(0, 0, -0.9),
-    }) },
+    }), ease: 'snap' },
     { t: 0.52, pose: mix(stance(), {
       rootY: -0.3, rootX: 0.16, spine: v(0, 0, s.lean + 0.85),
       upperArmR: v(0.05, 0, 1.9), forearmR: v(0, 0, 0.15),
       thighL: v(-0.1, 0, 1.1), shinL: v(0, 0, -1.5),
       thighR: v(0.1, 0, -0.3),
-    }) },
+    }), ease: 'out' },
     { t: 1, pose: stance() },
   ]);
 
   /* ---------------- reactions ---------------- */
 
+  // A struck body recoils instantly and recovers slowly, never the reverse.
   const hitFront = makeClip('hitFront', 320, false, [
     { t: 0, pose: mix(stance(), {
       rootX: -0.08, rootRz: -0.3,
       spine: v(0, 0, s.lean - 0.34), head: v(0, 0, -0.5),
       upperArmL: v(-0.6, 0, -0.3), upperArmR: v(0.6, 0, -0.3),
-    }) },
-    { t: 0.45, pose: mix(stance(), { rootX: -0.04, rootRz: -0.14, spine: v(0, 0, s.lean - 0.15), head: v(0, 0, -0.25) }) },
+    }), ease: 'out' },
+    { t: 0.45, pose: mix(stance(), { rootX: -0.04, rootRz: -0.14, spine: v(0, 0, s.lean - 0.15), head: v(0, 0, -0.25) }), ease: 'out' },
+    { t: 0.78, pose: mix(stance(), { rootRz: 0.07, head: v(0, 0, 0.1) }) },
     { t: 1, pose: stance() },
   ]);
 
@@ -171,7 +226,8 @@ export function buildClips(s: Style): Record<string, Clip> {
     { t: 0, pose: mix(stance(), {
       rootX: 0.06, rootRz: 0.34, spine: v(0, 0, s.lean + 0.4), head: v(0, 0, 0.35),
       upperArmL: v(-0.3, 0, 0.9), upperArmR: v(0.3, 0, 0.9),
-    }) },
+    }), ease: 'out' },
+    { t: 0.76, pose: mix(stance(), { rootRz: -0.08, spine: v(0, 0, s.lean - 0.08) }) },
     { t: 1, pose: stance() },
   ]);
 
@@ -180,12 +236,13 @@ export function buildClips(s: Style): Record<string, Clip> {
       rootRz: -0.22, chest: v(0, -0.7, -0.1),
       upperArmL: v(-0.9, 0, 0.9), forearmL: v(0, 0, 1.5),
       upperArmR: v(0.9, 0, 0.5), forearmR: v(0, 0, 1.3),
-    }) },
+    }), ease: 'snap' },
     { t: 0.35, pose: mix(stance(), {
       rootRz: 0.2, rootX: 0.06, chest: v(0, 0.8, 0.1),
       upperArmL: v(-0.3, 0, 1.6), forearmL: v(0, 0, 0.2),
       upperArmR: v(0.3, 0, 1.4), forearmR: v(0, 0, 0.2),
-    }) },
+    }), ease: 'out' },
+    { t: 0.82, pose: mix(stance(), { rootRz: -0.07, chest: v(0, -0.16, 0) }) },
     { t: 1, pose: stance() },
   ]);
 
@@ -264,9 +321,12 @@ export function buildClips(s: Style): Record<string, Clip> {
     lowArmL: v(-1.0, 0, 0.2), lowArmR: v(1.0, 0, 0.2),
   });
 
+  // Falling accelerates -- that is the one piece of animation timing every
+  // viewer already knows by heart -- and a body that hits the mat stops there.
   const knockdown = makeClip('knockdown', 620, false, [
-    { t: 0, pose: mix(stance(), { rootRz: -0.5, rootY: 0.06, head: v(0, 0, -0.6) }) },
-    { t: 0.45, pose: mix(flatPose(), { rootRz: -1.1, rootY: -0.3 }) },
+    { t: 0, pose: mix(stance(), { rootRz: -0.5, rootY: 0.06, head: v(0, 0, -0.6) }), ease: 'snap' },
+    { t: 0.45, pose: mix(flatPose(), { rootRz: -1.1, rootY: -0.3 }), ease: 'out' },
+    { t: 0.62, pose: mix(flatPose(), { rootRz: -0.06, chest: v(0, 0, 0.1) }) },
     { t: 1, pose: flatPose() },
   ]);
 
@@ -276,13 +336,15 @@ export function buildClips(s: Style): Record<string, Clip> {
     { t: 1, pose: flatPose() },
   ]);
 
+  // Getting up is work: slow out of the mat, quick once the legs are under you.
   const getUp = makeClip('getUp', 420, false, [
-    { t: 0, pose: flatPose() },
+    { t: 0, pose: flatPose(), ease: 'in' },
     { t: 0.5, pose: mix(stance(), {
       rootY: -0.34, rootRz: -0.5,
       spine: v(0, 0, s.lean + 0.7), thighL: v(-0.2, 0, 1.1), shinL: v(0, 0, -1.5),
       upperArmL: v(-0.7, 0, 1.2), upperArmR: v(0.7, 0, 0.4),
-    }) },
+    }), ease: 'out' },
+    { t: 0.84, pose: mix(stance(), { rootY: 0.03, spine: v(0, 0, s.lean - 0.08) }) },
     { t: 1, pose: stance() },
   ]);
 
@@ -471,13 +533,13 @@ export function buildClips(s: Style): Record<string, Clip> {
 
   /** Head-first through the ropes. Nobody looks graceful doing this. */
   const suicideDive = makeClip('suicideDive', 900, false, [
-    { t: 0, pose: mix(stance(), { spine: v(0, 0, s.lean + 0.3) }) },
+    { t: 0, pose: mix(stance(), { spine: v(0, 0, s.lean + 0.3) }), ease: 'out' },
     { t: 0.2, pose: mix(stance(), {
       rootY: -0.18, spine: v(0, 0, s.lean + 0.7),
       thighL: v(-0.12, 0, 1.0), shinL: v(0, 0, -1.5),
       thighR: v(0.12, 0, 0.9), shinR: v(0, 0, -1.4),
       upperArmL: v(-0.8, 0, -0.8), upperArmR: v(0.8, 0, -0.8),
-    }) },
+    }), ease: 'snap' },
     { t: 0.42, pose: {
       rootY: 0.1, rootRz: 1.25, rootX: 0.2,
       spine: v(0, 0, 0.1), chest: v(0, 0, 0.05), head: v(0, 0, -0.55),
@@ -555,7 +617,7 @@ export function buildClips(s: Style): Record<string, Clip> {
       forearmL: v(0, 0, 0.1), forearmR: v(0, 0, 0.1),
       thighL: v(-0.2, 0, -0.5), thighR: v(0.2, 0, -0.5),
       head: v(0, 0, -0.4),
-    }) },
+    }), ease: 'in' },
     { t: 0.55, pose: {
       rootRz: 0.9, rootY: 0.04,
       spine: v(0, 0, 0.1), head: v(0, 0, -0.35),

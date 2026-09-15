@@ -14,7 +14,35 @@ export type Pose = Partial<Record<BoneName, readonly [number, number, number]>> 
   rootRx?: number;
 };
 
-export interface Keyframe { t: number; pose: Pose }
+/**
+ * How a keyframe travels to the NEXT one.
+ *
+ * Every span used to get the same smoothstep, which is why a punch read as
+ * polite: the windup and the contact had identical acceleration, so the fist
+ * arrived at the same speed it left. Real movement is asymmetric — you drift
+ * into a windup and explode out of it, and you land hard and settle soft.
+ *
+ *   smooth  ease in and out, the old default; good for locomotion
+ *   in      accelerate; slow out of this key, fast into the next
+ *   snap    accelerate hard; the windup-to-contact curve
+ *   out     decelerate; lands and settles, the recovery curve
+ *   linear  constant; for a dwell between two identical poses
+ *   hold    stay put, then cut; for a frame that must not smear
+ */
+export type Ease = 'smooth' | 'in' | 'snap' | 'out' | 'linear' | 'hold';
+
+export interface Keyframe { t: number; pose: Pose; ease?: Ease }
+
+function applyEase(f: number, e: Ease | undefined): number {
+  switch (e) {
+    case 'in': return f * f;
+    case 'snap': return f * f * f;
+    case 'out': return 1 - (1 - f) * (1 - f);
+    case 'linear': return f;
+    case 'hold': return f >= 1 ? 1 : 0;
+    default: return f * f * (3 - 2 * f);
+  }
+}
 
 export interface Clip {
   name: string;
@@ -46,9 +74,8 @@ export function sampleClip(clip: Clip, ms: number, out: Pose): Pose {
   const b = keys[Math.min(i + 1, keys.length - 1)]!;
   const span = b.t - a.t;
   const f = span > 1e-6 ? (t - a.t) / span : 0;
-  // ease so keyframed poses do not read as linear robot motion
-  const e = f * f * (3 - 2 * f);
-  return blendPose(a.pose, b.pose, e, out);
+  // The curve belongs to the key it leaves, not to the clip.
+  return blendPose(a.pose, b.pose, applyEase(f, a.ease), out);
 }
 
 export function blendPose(a: Pose, b: Pose, t: number, out: Pose): Pose {
