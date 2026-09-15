@@ -127,7 +127,9 @@ export class Arena2D {
      * torso; on a big pop they rise overhead. This reads as people rather than
      * bollards while remaining one flat batched draw pass.
      */
-    const response = Math.max(heat01 * 0.48, this.reactionPower);
+    const dramaticBias = this.reaction === 'nearFall' ? 0.05
+      : this.reaction === 'finisher' || this.reaction === 'victory' ? 0.09 : 0;
+    const response = Math.min(1, Math.max(heat01 * 0.48, this.reactionPower) + dramaticBias);
     const bob = 0.018 + heat01 * 0.055 + response * 0.095;
     const crowd = new Layer(C.inkDeep, ink * 0.5);
     let idx = 0;
