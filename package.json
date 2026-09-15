@@ -3,7 +3,7 @@
   "private": true,
   "version": "2.0.0",
   "type": "module",
-  "description": "CHOKE HOLE: NO HOLES BARRED \u2014 Extreme Drag Wrestling. Stylised 3D mobile arcade wrestling PWA.",
+  "description": "CHOKE HOLE: NO HOLES BARRED — Extreme Drag Wrestling. Stylised 3D mobile arcade wrestling PWA.",
   "scripts": {
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
@@ -14,9 +14,6 @@
     "framing": "node scripts/framing.mjs",
     "check-deploy": "node scripts/check-deploy.mjs",
     "agency": "node scripts/agency.mjs"
-  },
-  "dependencies": {
-    "@babylonjs/core": "^8.56.2"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

@@ -294,44 +294,4 @@ export const JASSY: WrestlerConfig = {
     taunt: ['YOUR LEASE IS UP', 'I HAVE COMPS', 'THIS IS A TEARDOWN'],
   },
 
-  rig: {
-    proportions: {
-      height: 1.95, shoulderW: 0.44, hipW: 0.42,
-      torsoLen: 0.60, legLen: 0.90, armLen: 0.66,
-      headR: 0.135, neckLen: 0.10, heel: 0.16, hunch: 0.03, bulk: 1.0,
-    },
-    palette: {
-      skin: '#F3DCC8',
-      skinShade: '#E0C2AC',
-      /*
-       * A blonde bouffant over a dark under-layer, per the reference shots.
-       * This was near-black for most of development off a misread of the
-       * photographs: the hair is a two-tone wig, yellow on top and dark
-       * underneath and through the fringe, and the yellow is most of what makes
-       * her recognisable at a glance.
-       */
-      hair: '#F2C33C',
-      hairLo: '#3A2418',
-      /*
-       * Black patent. It was lifted to a dark purple because a black costume
-       * vanished against a dim stage — but that was before the ink outline and
-       * the rim light, and the line is what separates her from the background
-       * now. The reference is black latex and it can be black latex.
-       */
-      main: '#17101E',
-      alt: '#332438',
-      accent: C.pink,
-      trim: '#F261A9',
-      boot: '#1A1220',
-      eye: '#120A14',
-    },
-    head: { kind: 'glam', wig: 'bouffant', lashes: true, lips: true },
-    costume: {
-      top: 'leotard', puffSleeves: true, gloves: true, beltBuckle: true,
-      // The pink jacket runs to the wrist, and there is a black tie over a
-      // pink collar down the front of the bodysuit.
-      longSleeves: true, tie: true,
-    },
-    extras: { hipProp: 'brickphone', shoulderPads: false },
-  },
 };

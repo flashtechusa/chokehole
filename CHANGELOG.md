@@ -1,5 +1,70 @@
 # Changelog
 
+## v5.0 — the renderer was the problem
+
+Told to abandon the direction. That was the right call and this is what it
+meant: the game stays, the renderer goes.
+
+The deck is photographic camp collage — flat cut-out figures, halftone,
+screaming type, acid colour. The build was wrestlers made of boxes and spheres
+in a 3D engine, rescued by degrees with cel shading, ink outlines, skinning and
+an anatomy pass. Each pass produced slightly better boxes. Action Arcade
+Wrestling works because it has AUTHORED 3D character models, which
+`GAME_DESIGN.md` has said all along is the one thing this project cannot
+produce for itself. The medium was wrong, and no amount of work inside it was
+going to fix that.
+
+### What was kept
+Everything that is the game. The simulation never knew a renderer existed:
+combat, the AI, moves, the ring, pins, heat, the whole 4,991-line `src/game`
+tree is untouched. So is the HUD, the broadcast layer and the comic panel
+layer, which were already DOM.
+
+The **animation library came with it**. Every clip in it rotates about one axis,
+because the fight has been on a line since the 2.5D rework — so a 2D skeleton
+solves the same poses. `clips.ts` and `Pose.ts` moved out of the dead renderer
+into `src/anim/` unchanged, and the twenty-case state-to-clip mapping was ported
+verbatim, because that is game knowledge and rewriting it would have been the
+easiest place in the whole rework to plant a bug.
+
+### What replaced it
+`src/render2d`: a canvas, a 2D skeleton solver, and a screen-printed drawing
+layer. Flat saturated fills, a heavy ink line round everything, halftone where a
+surface needs a value. No lights, no shadow map, no glow pass, no material
+plugin.
+
+The one trick worth knowing is the outline. Shapes are collected into a LAYER;
+flushing strokes every shape with a fat pen and then fills them all on top, so
+overlapping shapes in one layer merge into a single silhouette while a later
+layer keeps its own line over what came before. That is what separates a near
+arm from the chest behind it.
+
+### The characters, off the deck
+- **Jassy has a dark chin-length bob**, not the blonde bouffant an earlier pass
+  built off a misread of the loose reference photos — and which covered her face
+  besides. Hot pink puff-sleeve jacket over black patent, an orange scarf at the
+  throat, an orange waistband, gold studs, fishnets, platform boots.
+- **RAID's lightning bolt is on the FRONT.** It was on his back for the entire
+  build. Magenta maw ringed with teeth, orange spikes fanning off the back of
+  the skull.
+
+Drawing in profile is most of why this works: a face seen from the side gets a
+nose, a jaw and a lip, and those read at fifty pixels where a modelled head
+never did.
+
+### Numbers
+    frame rate    19-24 fps  ->  60 fps      (same machine, software rendering)
+    bundle        1,784 KiB  ->  171 KiB     (Babylon.js removed entirely)
+    renderer      4,238 lines -> 1,180 lines
+
+Smoke clean at 60 fps throughout. Agency: the opponent holds the player 21% of
+the match, median window of freedom 2.4 seconds. Framing clean.
+
+### Two harnesses had to change with it
+`framing.mjs` projected Babylon bounding boxes. There is no bounding box now, so
+it asks the view to project the four corners of the column a wrestler actually
+occupies — the same projection the comic layer aims with, and simpler for it.
+
 ## v4.2 — the game was unplayable, and every harness said it was fine
 
 Reported as unplayable. It was, and none of the existing checks could see it,

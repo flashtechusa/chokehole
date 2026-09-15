@@ -5,12 +5,13 @@ Every number below was set against the headless pacing harness
 fixed 16.67 ms with a scripted player. Nothing here is a guess about feel that
 was never measured.
 
-## The shape of the game: 3D rendered, 2.5D played
+## The shape of the game: drawn flat, played on a line
 
-Everything is Babylon.js 3D — real geometry, real lighting, procedural rigs, a
-3D arena. **The combat logic runs on a 2D plane.** That is what 2.5D means, and
-it is the model the genre's reference point, Action Arcade Wrestling, uses:
-3D models and a 3D building, a fight restricted to one plane.
+Everything is drawn flat, on a 2D canvas, in the pitch deck's own language.
+**The combat logic runs on a line.** The two facts are related: the fight was
+put on one axis first, and once it was there the third dimension was paying rent
+it could not afford. See *How it is drawn* below for why the 3D renderer was
+deleted.
 
 ### The ring is a line
 
@@ -57,260 +58,71 @@ into a rope is now simply what happens when you hold a direction. Getting behind
 someone is exact rather than a cone test. A throw has five destinations and the
 player can tell them apart.
 
-### The camera is a broadcast hard camera
+### How it is drawn: flat
 
-Matched to the genre reference, Action Arcade Wrestling: **outside the ring, up
-at about twenty degrees, looking down across the mat.** The near ropes cross the
-fighters at the ankle and frame the bottom of the picture; the far ropes and the
-crowd sit behind their shoulders.
+The game is drawn in 2D, on a canvas, in the pitch deck's own language: flat
+saturated colour, a heavy ink line round everything, halftone where a surface
+needs a value, and type that shouts.
 
-It took four attempts to get here, and the wrong turns are worth recording:
+It was 3D for most of its life, and that was the wrong call. The deck is
+photographic camp collage; the build was wrestlers assembled from boxes and
+spheres, rescued by degrees with cel shading, ink outlines, skinning and an
+anatomy pass. Every pass produced slightly better boxes. The genre reference,
+Action Arcade Wrestling, works because it has AUTHORED character models — the
+one thing this project cannot produce for itself, which this document has said
+from the beginning. Flat drawing is not a downgrade from that; it is the medium
+the source material was always in.
 
-- **Side-on at rope height** put both sets of ropes across the fighters' chests.
-  A wrestling camera is *above* the ring, which is the only way the near ropes
-  end up below the action.
-- **Orthographic** flattened the ring into a diagram — parallel ropes, near and
-  far posts the same size, no sense of a box to fight inside. It is a real
-  technique, but it is not what this genre looks like. **What makes this game
-  2.5D is that the SIMULATION runs on a line, not that the projection is flat.**
-  A perspective lens with converging ropes and a foreshortened mat is correct.
-- **Framing on the two bodies** rather than on the ring. This is a hard camera,
-  not a fighting-game camera: a wrestler is about a third of the screen and the
-  ring is the picture. Every pass that pushed a wrestler to 60% of the frame lost
-  the ring around them.
+**The camera is two numbers.** Where to centre, and how far out, both damped.
+It barely pans: the frame shows about eleven world units and the ring is six and
+a half wide, so the whole ring fits and following the midpoint only slid it off
+to one side. A wrestler comes out about a third of the screen high, which puts
+their head clear of the HUD's top quarter. `npm run framing` measures that.
 
-The numbers:
+**The ink line is made by layering, not by stroking each shape.** Shapes go into
+a layer; flushing a layer strokes every shape in it with a fat pen and then
+fills them all on top. Overlapping shapes in the same layer merge into one
+silhouette — an arm and a torso read as a single cut-out — while a shape in a
+LATER layer keeps its own line over what came before. That is the whole
+mechanism by which a near arm separates from the chest behind it.
 
-| | |
-| --- | --- |
-| Projection | Perspective, 0.75 rad vertical |
-| Elevation | 0.35 rad (~20°), stored as an ANGLE |
-| Swing off dead-on | 0.15 rad — enough to see a corner post |
-| Distance | 5.2–6.9, wrestler 42% → 33% of screen height |
+**Drawing in profile is most of the reason this works.** The fight is on a line
+and the camera looks along it, so a head is always seen from the side, where it
+can have a nose, a jaw and a lip. Those three marks read at fifty pixels. A
+modelled head at that size never did.
 
-The elevation is an angle rather than a height so that raising the look point
-for a turnbuckle, or dropping it for a body on the floor, tilts the shot with
-the action instead of flattening it.
+**Depth is three cheats.** The far three ropes sit behind the wrestlers and the
+bottom near rope crosses in front of their shins — drawing all three near ropes
+in front is what a side view literally sees, and it put a rope across both
+faces. The crowd's back rows are drawn higher and smaller rather than further
+away. And near limbs are nudged forward and down, far limbs back and up, so a
+pure side view does not bury one arm inside the chest.
 
-The look point is pushed left, tapering to nothing at the left rope, so the
-right-hand wrestler never disappears behind the three buttons. Cinematic modes
-push in and step round; they never spin, because the player would have to
-relearn left and right.
+### The animation library outlived the renderer
 
-**Nothing is on the camera side** — no crowd, no roof beams, no lighting cans.
-Near-side scenery sits directly in front of the match, and at this angle a roof
-beam hangs straight across the ring. Real broadcast hard cameras look over an
-empty aisle for the same reason. Culling it roughly doubled the frame rate.
+Every clip rotates about one axis, because the fight has been on a line since
+the 2.5D rework. So the same clips solve on a 2D skeleton, and `clips.ts` and
+`Pose.ts` moved out of the deleted renderer into `src/anim/` unchanged. The
+state-to-clip mapping — twenty-odd cases of "which animation is this fighter
+in" — was ported verbatim for the same reason: it is game knowledge, not
+rendering, and rewriting it would have been the easiest place in the whole
+rework to plant a bug nobody would notice for weeks.
 
-`npm run framing` measures all of this in screen pixels rather than by eye.
+The timing rules from that work all still apply. Keyframes carry their own
+easing (`smooth`, `in`, `snap`, `out`, `linear`, `hold`) describing how each one
+travels to the next, rather than one curve over every span: a strike drifts back
+into its windup decelerating and snaps out of it, a struck body recoils
+instantly and recovers slowly, a falling body accelerates and then stops.
+Everything with weight behind it settles past neutral before finding the stance.
 
-### Lighting and shading
+### Known limits
 
-The wrestlers are procedural rigs: primitives authored per bone, merged into
-**one skinned mesh** each, baked vertex colours, one material each. At the
-distance the game actually plays at, what makes them read is light and
-silhouette, not polygon count — so that is where the work went.
+The figures are drawn from primitives — capsules, slabs, polygons — assembled
+per bone. What changed is that flat primitives with an ink line around them are
+a legitimate finished look, which lit 3D primitives were not. The remaining gain
+is authored frame art or richer per-pose drawing, neither of which the
+simulation cares about.
 
-- **A cast shadow.** One blurred exponential map on the key light, at 512 on
-  MEDIUM and 1024 on HIGH, with the light's bounds pulled tight around the ring
-  so its texels land on the canvas instead of spreading over the warehouse. The
-  blob shadow stays underneath at every tier, because it is the only thing that
-  reads a wrestler's HEIGHT during a top-rope dive.
-- **Less self-light.** Bodies were 0.34 emissive — a third of every pixel was
-  flat unlit colour, so an arm and the torso behind it were the same brightness
-  and the figure read as a cut-out. Now 0.13, with a real specular highlight, so
-  the key and rim lights can shade a limb.
-- **A rim light.** Dim and cool, from behind and above, picking out the top and
-  back edge of a shoulder or thigh. Form needs somewhere to turn.
-- **Glow on the neon only.** A bloom pass finds the brightest emissive first, and
-  the canvas and apron are the biggest surfaces on screen — at 0.3 and 0.5 they
-  blew out white and left the neon nothing to be brighter than. They are down to
-  0.12 and 0.2; the ropes, posts and lamps keep theirs and get the bloom.
-- **Practicals that stay on the ring.** The coloured rig lights were intensity
-  ×12 over a 16-unit range, which reached the crowd and the walls — switching UP
-  a quality tier flooded the warehouse pink and made the picture worse than the
-  tier below it. Now ×5 over 8.5, hung lower and tighter.
-- **Joint balls.** Held over from when the rig was rigid, where a bent elbow or
-  knee opened a visible wedge between two tube ends. Skinning closes that wedge
-  now, but the ball still rounds the joint's silhouette, and it costs nothing:
-  it merges into the same mesh.
-
-### Cel shading and ink outlines
-
-The genre reference is drawn, not rendered: flat colour steps with a black ink
-line around every silhouette. That treatment is what lets modest geometry look
-deliberate, and it is worth far more on these models than any amount of extra
-polygon.
-
-**Outlines.** Every wrestler chunk and every piece of ring furniture is drawn a
-second time, inflated along its normals, in near-black. A line around the
-silhouette makes flat colour read as *drawn* rather than as untextured, and it
-separates an arm from the torso behind it without either needing more detail.
-Ropes are left bare — they are 8.5cm cylinders, and a line that width turns
-three ropes into three black bars.
-
-**Cel banding.** A `MaterialPluginBase` on the body material posterises the
-finished pixel into four steps. It quantises LUMINANCE and rescales the colour
-to match, so hue is preserved exactly and only the shading steps — posterising
-the channels independently shifts a pink toward red at one light level and not
-at the next. It rounds to the nearest band rather than up: rounding up puts a
-floor of one whole step under every pixel, which turned a near-black costume
-into washed lavender and cost the whole cast its value range.
-
-It is a plugin rather than a replacement material precisely so that fog, vertex
-colours, the emissive channel the hit-flash drives, and everything else that
-already worked keeps working.
-
-**The cost is real.** Outlines roughly double the draw calls and the fill for
-every wrestler and every post. Measured under software rendering they took the
-frame rate from 28 fps to 15 — a CPU rasteriser over-penalises fill and a GPU
-will not charge nearly that much, but it is not free. They are on at MEDIUM and
-HIGH and off at LOW, along with the rim light, the shadow map and the glow.
-
-### The comic panel layer
-
-Half of the genre happens in the world and half of it happens to the page. The
-world half was already there — a starburst billboard at the contact, shards, a
-mat shockwave. The page half is `ComicFx`, and it is DOM rather than geometry
-because it is flat, screen-space and has to stay legible at phone size.
-
-- **Focus lines.** A repeating conic gradient on an element larger than the
-  viewport, translated so its centre lands on the hit and masked clear in the
-  middle so a wrestler is never underneath it. The focus is clamped away from
-  the screen edges: lines converging on the rim of the frame point at nothing.
-- **A colour wash.** The panel takes the attacker's colour for a beat. On a
-  phone the 3D burst is a few hundred pixels across and the eye may not be on
-  it; the wash is what says a heavy one landed.
-- **The impact card.** Screen-space display type on a clip-path starburst,
-  lifted off the contact point so it sits over the shoulder rather than hiding
-  the body being hit, and sized off its own character count against a hard 24px
-  floor. It used to be baked into the billboard texture in the world, where a
-  wrestler could stand in front of the callout and the word was about thirty
-  pixels tall.
-- **A dot screen** over the frame for the length of a cinematic spot.
-
-Only transform and opacity animate, so each effect is rasterised once and
-composited from there — and deliberately without `will-change`, which would hold
-those layers in GPU memory for the whole match instead of for the fraction of a
-second they are on screen.
-
-Two rules keep it from becoming noise. Hits below a solid connect get shards and
-nothing else, because the filler between the hits that matter has to look like
-filler. And signatures and finishers get lines and wash but no noise card, since
-the spot card already names those moves in full.
-
-**Easing goes on the keyframes, not on the effect.** All three animations were
-first written with a `cubic-bezier(0.16, 1, 0.3, 1)` ease-out across the whole
-duration. That curve reaches 85% progress in the first quarter of the time, so a
-four-keyframe card spent three of them fading out and read as a flicker —
-measured at opacity 0.398 two hundred milliseconds into a 740ms card. The effect
-timing is linear; the punch is per keyframe.
-
-### The room
-
-The arena is built for one camera. It is a fixed broadcast hard camera outside
-the ring looking down across the mat, so the building divides cleanly into what
-that lens sees and what it does not, and everything is placed by that rule.
-
-- **Nothing between the lens and the ropes.** The crowd, the barricade and the
-  roof beams all skip the camera side. Real hard cameras look over an empty
-  aisle for exactly this reason.
-- **The far side is the picture.** The band above the far ropes is the only part
-  of the background that reads at all, so that is where the crowd signs and the
-  hung banner go.
-- **Anything low on the far side is behind the ring.** The mat sits at y = 1.13
-  and the camera is above it, so the far run of the barricade is occluded — true
-  of a real hard camera too. It reads down the short sides and whenever the
-  camera drops to the floor, which is when it matters, because that is when
-  somebody has been thrown into it.
-- **The far wall is on the horizon.** It is fifteen units out, and at this
-  camera's tilt its mid-height projects behind the HUD. The banner is hung on a
-  scaffold at z = 10 instead of painted on the wall.
-
-Two long-standing bugs came out of writing that down. The banner hung at
-z = -14.6 — behind the lens — so the biggest painted surface in the building had
-never been on screen. And `makeTexture` uploads with `invertY = false`, so every
-canvas drawn for a PLANE arrived upside down: the wall flyers had been inverted
-since they were added, invisibly, because the play camera never sees that far
-out to the sides.
-
-The entrance ramp is deliberately not built. It goes on the far side, where the
-ring occludes nearly all of it, and carving the crowd aisle it needs would empty
-the one part of the background that currently reads.
-
-### Animation timing
-
-Keyframes carry their own easing — `smooth`, `in`, `snap`, `out`, `linear`,
-`hold` — describing how each one travels to the next, rather than one curve
-applied to every span in every clip. That uniform smoothstep is why the punches
-read as polite: a windup and a contact had identical acceleration, so the fist
-arrived at the same speed it left. Movement is asymmetric. A strike drifts back
-into its windup decelerating and snaps out of it; a struck body recoils
-instantly and recovers slowly; a falling body accelerates and then stops.
-
-Everything with weight behind it also gets a **settle**: a rock past neutral the
-other way before the stance comes back, because the weight a punch throws
-forward has to go somewhere. Strikes end exactly on the stance pose so the hand
-back to idle does not pop.
-
-The **ankles** are posed now. The foot is the only bone whose geometry runs +X
-from its joint instead of hanging down -Y, and nothing had ever rotated it — so
-the whole boot was carried round by the leg at a fixed angle, which on a
-platform boot left the sole about seven degrees off the mat even standing still.
-It counters the rest of the leg: flat when planted, toe dropping as it lifts.
-
-**Idle is a weight shift**, not a bob. The lean is what carries it; depth
-movement in a game watched from the ropes is movement the camera cannot see.
-
-Hips leading shoulders is the obvious next item and is deliberately not done.
-It means sampling each clip a second time at an offset and taking the upper body
-from that — a real per-frame cost for a lag of about one frame at the rate the
-low tier actually runs, on figures fifty pixels tall.
-
-### Known limits of the character models
-
-The rigs are primitives underneath and always will be until models arrive. What
-changed is that they are now primitives arranged like anatomy: muscle bellies
-part-way down each limb, deltoid caps on the shoulders, a trapezius yoke running
-the neck into the shoulders, hands with a wrist and knuckles and a thumb, a nose
-and ears.
-
-All of it is chosen for what survives to twenty or sixty pixels under a cel band
-and an ink line, which means silhouette and nothing else. The governing fact is
-that the camera looks along Z at wrestlers who face X, so what it sees of a limb
-is the FRONT-TO-BACK profile — a bicep has to bulge forward and a calf backward
-to exist at all, and a head is mostly seen in profile, where a nose is the whole
-difference between a face and an egg.
-
-The remaining gain is **authored GLB models**, which `3D_ASSET_PIPELINE.md`
-already covers swapping in. Best result, needs assets this project cannot
-generate for itself.
-
-Two wrestlers are two thirds of the scene's vertex budget, so this is not free:
-the pass took each from 9,334 to 13,210 vertices, and dropping the default
-sphere and cylinder tessellation from ten segments to eight brought that back to
-10,944 with no visible difference at any distance the game is played at.
-
-Skinning used to head that list. It is done: each wrestler is a single mesh
-bound to a 26-bone skeleton, and limbs bend instead of hinging. See
-`Skeleton.ts` for the two things that are easy to get wrong — a bone's rest
-matrix must be **local**, not world, and `Bone.linkTransformNode` does not
-actually propagate, so `CharacterRig.syncBones()` copies node to bone by hand
-every frame.
-
-### The ring is square again
-
-`ring.halfZ` is the ring's RENDERED depth and nothing else — no system reads it
-for gameplay. It was 1.9 against a width of 3.2 back when the fight could move
-in depth and the band had to stay shallow to stop the camera chasing it. With
-the simulation on a line that reason is gone, and a shallow ring seen from an
-elevated hard camera reads as a squashed box rather than a wrestling ring. A
-ring is square, so it is square, and the fight runs along the middle of it.
-
-Two texture bugs only became visible once the camera settled: the apron's
-sponsor text was printed backwards (a box maps its two Z faces as mirror images)
-and the canvas logo ran away from the camera instead of across it (a box maps
-its top face with U across X and V along Z).
 
 ## Controls: the stick is left, right, and two modifiers
 

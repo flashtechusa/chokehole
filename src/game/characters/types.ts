@@ -1,5 +1,4 @@
 import type { FighterStats, MoveSet, PropDef, SquelshEffect, TauntDef } from '@/game/combat/types';
-import type { RigSpec } from '@/render/rig/Skeleton';
 
 export type Alignment = 'HEEL' | 'FACE' | 'CHAOS';
 
@@ -31,5 +30,4 @@ export interface WrestlerConfig {
   prop: PropDef;
   squelsh: SquelshEffect;
   quotes: { entrance: string; win: string; taunt: string[] };
-  rig: RigSpec;
 }

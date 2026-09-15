@@ -5,71 +5,31 @@ stay correct when quality drops.
 
 ## Measured
 
-**Not yet measured on real hardware.** Everything below is from headless
-software rendering (SwiftShader), which reports 25–30 fps and says nothing about
-a phone GPU. Treat the frame numbers as unverified until the game is opened on
-a device.
+    frame rate     60 fps          headless, every stage of `npm run smoke`
+    bundle         171 KiB         precached, the whole game
+    draw calls     n/a             it is a 2D canvas
 
-Scene composition at match start: ~220 meshes, of which ~180 are crowd
-instances sharing five source meshes and five materials.
+Still **not measured on real hardware**, and that has not changed. But the floor
+moved a long way: the same headless harness that reported 19–24 fps on the 3D
+build reports a flat 60 on this one, and the shipped bundle went from 1,784 KiB
+to 171 after Babylon.js was removed. On a phone, a tenth of the download and a
+canvas instead of a WebGL scene graph is the difference between "might hold 30"
+and "should not be the bottleneck".
 
 ## Budget
 
 | Item | Budget | Actual |
 | --- | --- | --- |
-| Wrestlers | 2 high-detail | 2, **1 skinned mesh each** (26 bones, 9,334 verts), 1 material each |
-| Crowd | instanced | ~110 instances, 5 sources (camera side culled) |
-| Barricade | instanced | 20 panels from 1 source + a lit rail cap per segment |
-| Crowd signs | 11 planes | canvas-drawn, swayed on the update tick |
-| Real-time shadows | ≤ 1 map | 1 blurred map on the key light, MEDIUM+ only |
-| Lights | ≤ 5 | hemispheric + key + rim + up to 2 point |
-| Post-processing | ≤ 1 pass | glow layer, MEDIUM+ only |
-| Ink outlines | MEDIUM+ | 1 extra draw per inked mesh: 2 wrestlers + ring furniture, MEDIUM+ only |
-| Particles | pooled | pooled boxes/planes, no particle system |
-| Textures | generated | canvas-drawn at runtime, no files |
+| Wrestlers | 2 | ~40 filled paths each, 6 ink layers |
+| Crowd | flat | ~120 slabs and ellipses, no ink line |
+| Ring | flat | apron, mat, 4 posts, 6 ropes |
+| Crowd signs | 9 | slabs, swayed on the update tick |
+| Lights | none | flat colour; the ink line does the separating |
+| Post-processing | none | — |
+| Particles | pooled | capped by quality tier (40 / 90 / 150) |
+| Textures | none | nothing is sampled; one halftone pattern tile |
 | Comic layer | DOM, no draws | 5 elements, transform/opacity only, no `will-change` |
 
-Shadows, glow, the rim light and the ink outlines are all off at LOW, so the
-cheapest tier is exactly what it was.
-
-The comic layer costs the renderer nothing — it is DOM over the canvas, not
-geometry in the scene. Its one real cost is that the focus-line gradient is
-repainted when a burst starts, which lands inside the hit stop the impact
-already triggers. It is skipped entirely under Reduce Flash.
-
-**Outlines are the expensive one.** Babylon draws each outlined mesh a second
-time, inflated along its normals, so they roughly double draws and fill for the
-wrestlers and the ring furniture. Measured under software rendering: 28 fps
-without, 15 fps with. A CPU rasteriser over-penalises fill and a real GPU will
-charge far less, but that gap is why they are tier-gated rather than always on. Nothing on the camera side of the ring is drawn at all — crowd, roof beams
-and lighting cans — which paid for most of the new cost on its own.
-
-## Quality tiers
-
-`render/Engine.ts` picks a starting tier from cores, memory and pixel count, and
-`App.autoQuality` drops a tier if the rolling frame time stays above 26 ms. It
-only ever drops: hunting up and down mid-match is more distracting than a lower
-resolution.
-
-| Tier | Render scale | Fog | Coloured rig lights |
-| --- | --- | --- | --- |
-| LOW | 0.55× | off | 0 |
-| MEDIUM | 0.77× | on | 1 |
-| HIGH | 1.0× (device ratio capped at 2) | on | 2 |
-
-Device pixel ratio is capped at 2 — a 3× phone gains nothing visible for more
-than double the fragments.
-
-## Cheap wins already taken
-
-- Blob shadows instead of shadow maps.
-- Per-bone mesh merging with baked vertex colours.
-- `freezeWorldMatrix()` on static architecture.
-- Frozen materials for repeated flat colours.
-- Pooled FX geometry with no allocation per hit.
-
-## If a phone struggles
-
-In order: drop to LOW, then reduce `crowd.rows`/`density` in the arena config,
-then drop the lamp cones. Do not touch the simulation — it is frame-rate
-independent and the same code the harness measures.
+Quality tiers set device pixel ratio (1 / 1.5 / 2), whether halftone is drawn,
+crowd rows, ink weight and the debris cap. The lowest tier is a plain flat
+render at DPR 1, which is still the same game.

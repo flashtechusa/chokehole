@@ -1,4 +1,4 @@
-import type { BoneName, Bones } from './Skeleton';
+import type { BoneName } from '@/anim/bones';
 
 /** Euler XYZ in radians per bone, plus whole-body offsets. */
 export type Pose = Partial<Record<BoneName, readonly [number, number, number]>> & {
@@ -99,24 +99,6 @@ export function blendPose(a: Pose, b: Pose, t: number, out: Pose): Pose {
   return out;
 }
 
-/** Writes a pose onto the skeleton, adding a per-character bias. */
-export function applyPose(bones: Bones, pose: Pose, bias: Pose, root: { y: number }): void {
-  const names = new Set<string>([...Object.keys(pose), ...Object.keys(bias)]);
-  for (const key of names) {
-    if (key.startsWith('root')) continue;
-    const name = key as BoneName;
-    const p = (pose[name] as readonly [number, number, number] | undefined) ?? ZERO;
-    const q = (bias[name] as readonly [number, number, number] | undefined) ?? ZERO;
-    const bone = bones[name];
-    if (!bone) continue;
-    bone.rotation.set(p[0] + q[0], p[1] + q[1], p[2] + q[2]);
-  }
-  const r = bones.root;
-  r.position.set(pose.rootX ?? 0, root.y + (pose.rootY ?? 0), pose.rootZ ?? 0);
-  r.rotation.set(pose.rootRx ?? 0, 0, pose.rootRz ?? 0);
-}
-
-/** Resets every bone this pose touches, so a stale clip cannot leak through. */
 export function clearPose(out: Pose): Pose {
   for (const k of Object.keys(out) as (keyof Pose)[]) delete out[k];
   return out;

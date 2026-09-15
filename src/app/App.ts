@@ -6,8 +6,8 @@ import { getWrestler } from '@/game/characters';
 import { getArena } from '@/game/arenas';
 import { Save } from '@/game/save/SaveManager';
 import { AudioManager } from '@/game/audio/AudioManager';
-import { createStage, PRESETS, type Quality, type Stage } from '@/render/Engine';
-import { MatchView } from '@/render/MatchView';
+import { createStage2D, PRESETS, type Quality, type Stage2D } from '@/render2d/Engine2D';
+import { MatchView2D } from '@/render2d/MatchView2D';
 import { Hud } from '@/ui/Hud';
 import { TouchPad } from '@/ui/TouchPad';
 import {
@@ -34,12 +34,12 @@ const ARENA_ID = 'nola-warehouse-2018';
  * stage is built once and reused, so REMATCH never reloads the page.
  */
 export class App {
-  private stage: Stage;
+  private stage: Stage2D;
   private ui: HTMLElement;
   private audio = AudioManager.instance;
 
   private sim: MatchSim | null = null;
-  private view: MatchView | null = null;
+  private view: MatchView2D | null = null;
   private hud: Hud | null = null;
   private pad = new TouchPad();
   private broadcast = new Broadcast();
@@ -57,7 +57,7 @@ export class App {
 
   constructor(canvas: HTMLCanvasElement, ui: HTMLElement) {
     this.ui = ui;
-    this.stage = createStage(canvas, getArena(ARENA_ID));
+    this.stage = createStage2D(canvas);
     this.difficulty = Save.settings.difficulty;
     this.audio.applySettings(Save.settings);
 
@@ -80,7 +80,7 @@ export class App {
     this.bindLifecycle();
     this.showTitle();
 
-    this.stage.engine.runRenderLoop(() => this.frame());
+    this.stage.runRenderLoop(() => this.frame());
   }
 
   /* ------------------------------------------------------------------ *
@@ -163,7 +163,7 @@ export class App {
     const arena = getArena(ARENA_ID);
 
     this.sim = new MatchSim({ player, opponent, arena, difficulty: this.difficulty });
-    this.view = new MatchView(this.stage.scene, this.sim, this.stage);
+    this.view = new MatchView2D(this.stage, this.sim);
     this.view.setReducedFx(Save.settings.reduceFlash, Save.settings.reduceShake);
     this.broadcast.setReduceFlash(Save.settings.reduceFlash);
     this.broadcast.clear();
@@ -238,7 +238,7 @@ export class App {
    * ------------------------------------------------------------------ */
 
   private frame(): void {
-    const raw = this.stage.engine.getDeltaTime();
+    const raw = this.stage.getDeltaTime();
     const dt = Math.min(Math.max(raw, 1), 42);
     this.frameAvg += (raw - this.frameAvg) * 0.05;
     this.autoQuality(dt);
@@ -261,17 +261,17 @@ export class App {
           }
           if (e.type === 'hit') this.comicHit(e.report);
           if (e.type === 'reversal') {
-            const [rx, ry] = this.aim(e.by.x, e.by.y + 0.3, e.by.z);
+            const [rx, ry] = this.aim(e.by.x, e.by.y + 0.3);
             this.comic.speedLines(1, rx, ry);
             this.comic.impact(e.by.cfg.accent, 0.9);
             this.comic.card('REVERSAL!', e.by.cfg.accent, rx, ry, 1);
           }
           if (e.type === 'fighter' && e.event.type === 'propBroke') {
-            const [bx, by] = this.aim(e.who.x, e.who.y + 0.9, e.who.z);
+            const [bx, by] = this.aim(e.who.x, e.who.y + 0.9);
             this.comic.card('SNAP!', C.acid, bx, by, 1);
           }
           if (e.type === 'squelshTaken') {
-            const [sx, sy] = this.aim(e.who.x, e.who.y + 0.5, e.who.z);
+            const [sx, sy] = this.aim(e.who.x, e.who.y + 0.5);
             this.comic.card('SQUELSH!', e.who.cfg.squelsh.tint, sx, sy, 0.8);
           }
           if (e.type === 'hit' && e.report.move.kind === 'finisher') {
@@ -301,7 +301,6 @@ export class App {
       this.comic.update(dt);
     }
 
-    this.stage.scene.render();
   }
 
   /**
@@ -440,7 +439,7 @@ export class App {
       this.stage.setQuality(next);
       // The renderer owns lights and post-processing; the view owns the ink
       // outlines, which are per-mesh and therefore its to switch.
-      this.view?.applyQuality(next);
+      this.view?.applyQuality();
       this.qualityCooldown = 6000;
       this.frameAvg = 16.7;
     }
@@ -460,7 +459,7 @@ export class App {
     // the hits that matter and have to look like filler. And a chip-damage
     // grapple is not a moment either, whatever it is filed under.
     if (r.move.kind === 'light' || power < 0.45) return;
-    const [nx, ny] = this.aim(r.x, r.y, r.z);
+    const [nx, ny] = this.aim(r.x, r.y);
     this.comic.speedLines(power * 0.78, nx, ny);
     this.comic.impact(r.attacker.cfg.accent, power * 0.7);
     // Signatures and finishers already have a title card with the move's name
@@ -473,8 +472,8 @@ export class App {
   }
 
   /** A world point as screen fractions, falling back to the optical centre. */
-  private aim(x: number, y: number, z: number): [number, number] {
-    const p = this.view?.project(x, y, z);
+  private aim(x: number, y: number): [number, number] {
+    const p = this.view?.project(x, y);
     return p ? [p.x, p.y] : [0.5, 0.45];
   }
 
@@ -502,7 +501,7 @@ export class App {
        */
       setQuality: (q: Quality) => {
         this.stage.setQuality(q);
-        this.view?.applyQuality(q);
+        this.view?.applyQuality();
       },
       canon: CANON,
       tuning: TUNING,

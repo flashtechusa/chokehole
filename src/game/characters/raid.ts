@@ -292,34 +292,4 @@ export const RAID: WrestlerConfig = {
     taunt: ['SIX LEGS, ONE UNION', 'I LIVE IN THE WALLS', 'YOU CANNOT EVICT ME'],
   },
 
-  rig: {
-    proportions: {
-      height: 1.88, shoulderW: 0.56, hipW: 0.46,
-      torsoLen: 0.64, legLen: 0.80, armLen: 0.72,
-      headR: 0.155, neckLen: 0.07, heel: 0.06, hunch: 0.16, bulk: 1.28,
-    },
-    palette: {
-      // A saturated lime bodysuit, not a pale yellow-green: the reference is
-      // vivid enough to be the brightest thing in the building.
-      skin: '#7BE01F',
-      skinShade: '#4E9612',
-      hair: '#5A7A1E',
-      hairLo: '#3C5411',
-      main: C.squelsh,
-      alt: '#5FB81C',
-      accent: '#F5D021',
-      trim: '#9AA0A8',
-      boot: '#C8F03A',
-      eye: '#D8203A',
-    },
-    head: { kind: 'insect', mandibles: true, antennae: true, compoundEyes: true },
-    costume: {
-      top: 'harness', trunks: true, scalePanels: true, collar: true,
-      // The yellow lightning bolt across the back is the single clearest
-      // identifier in every photograph of this costume.
-      backEmblem: 'bolt',
-    },
-    // Six limbs total: the standard pair plus two more (deck page 11).
-    extras: { extraArmPairs: 2, hipProp: 'canister', shoulderPads: true },
-  },
 };

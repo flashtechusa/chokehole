@@ -1,4 +1,4 @@
-import { makeClip, type Clip, type Pose } from './Pose';
+import { makeClip, type Clip, type Pose } from '@/anim/Pose';
 
 /**
  * The shared animation library (Bible s23 minimum set).
