@@ -2,6 +2,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { CreateCylinder } from '@babylonjs/core/Meshes/Builders/cylinderBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
@@ -22,6 +23,7 @@ import { DirectorCamera } from './DirectorCamera';
 import { FX3D } from './FX3D';
 import { flatMaterial } from './rig/Skeleton';
 import { clamp } from '@/game/util/math';
+import { hitPower } from '@/game/config/impacts';
 
 interface Side {
   fighter: Fighter;
@@ -83,6 +85,29 @@ export class MatchView {
     for (const s of this.sides) for (const m of s.rig.meshes) m.renderOutline = on;
   }
 
+  /**
+   * A world point as a fraction of the canvas, for the effects that live in the
+   * DOM rather than in the scene. Null when the point is behind the camera.
+   *
+   * Focus lines that always converge on the middle of the screen are focus
+   * lines pointing at nothing; they have to find the hit.
+   */
+  project(x: number, y: number, z: number): { x: number; y: number } | null {
+    const cam = this.scene.activeCamera;
+    if (!cam) return null;
+    const engine = this.scene.getEngine();
+    const w = engine.getRenderWidth();
+    const hgt = engine.getRenderHeight();
+    const p = Vector3.Project(
+      new Vector3(x, y, z),
+      Matrix.IdentityReadOnly,
+      this.scene.getTransformMatrix(),
+      cam.viewport.toGlobal(w, hgt),
+    );
+    if (p.z < 0 || p.z > 1) return null;
+    return { x: p.x / w, y: p.y / hgt };
+  }
+
   setReducedFx(reduceFlash: boolean, reduceShake: boolean): void {
     this.fx.setReduceFlash(reduceFlash);
     this.camera.setReduceShake(reduceShake);
@@ -97,7 +122,7 @@ export class MatchView {
 
         case 'reversal':
           this.camera.punch(0.95);
-          this.fx.hit(e.by.x, e.by.y + 0.3, e.by.z, 0.9, e.by.cfg.accent, 'REVERSAL');
+          this.fx.hit(e.by.x, e.by.y + 0.3, e.by.z, 0.9, e.by.cfg.accent);
           break;
 
         case 'squelshSpawn': this.spawnCan(e.at.x, e.at.z); break;
@@ -105,7 +130,7 @@ export class MatchView {
           this.despawnCan();
           const side = this.sideOf(e.who);
           side.rig.setTint(e.who.cfg.squelsh.tint);
-          this.fx.hit(e.who.x, e.who.y + 0.5, e.who.z, 0.8, e.who.cfg.squelsh.tint, 'SQUELSH');
+          this.fx.hit(e.who.x, e.who.y + 0.5, e.who.z, 0.8, e.who.cfg.squelsh.tint);
           break;
         }
 
@@ -154,9 +179,11 @@ export class MatchView {
   }
 
   private onHit(r: HitReport): void {
-    const power = clamp(r.move.damage / 38, 0.2, 1.6);
-    const word = r.move.kind === 'light' ? '' : (r.move.name.split(' ')[0] ?? '');
-    this.fx.hit(r.x, r.y, r.z, power, r.attacker.cfg.accent, word);
+    const power = hitPower(r.move);
+    // The starburst stays in the world; the word that goes with it is screen
+    // space now (see ComicFx.card), because a wrestler standing in front of a
+    // billboard is a wrestler standing in front of the callout.
+    this.fx.hit(r.x, r.y, r.z, power, r.attacker.cfg.accent);
     this.camera.punch((r.move.cameraPunch ?? 0.3) + power * 0.6);
     this.ropeShake = Math.max(this.ropeShake, power);
     this.sideOf(r.defender).rig.setFlash(1);
@@ -197,7 +224,7 @@ export class MatchView {
       case 'propDropped':
       case 'propBroke':
         this.detachProp(this.sideOf(who));
-        if (ev.type === 'propBroke') this.fx.hit(who.x, who.y + 0.9, who.z, 1.1, C.acid, 'SNAP');
+        if (ev.type === 'propBroke') this.fx.hit(who.x, who.y + 0.9, who.z, 1.1, C.acid);
         break;
       case 'leftRing':
         this.camera.punch(0.7);

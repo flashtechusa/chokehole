@@ -1,5 +1,55 @@
 # Changelog
 
+## v3.8 — the comic panel layer
+
+The game already had comic effects in the WORLD: a starburst billboard at the
+contact, shards, a mat shockwave. What it did not have is the half of the genre
+that happens to the PAGE — focus lines converging on a hit, the panel flooding
+with the attacker's colour, a printed dot screen over a big spot. Those are
+flat and screen-space, so they are DOM, not geometry.
+
+### Focus lines
+A repeating conic gradient on an element larger than the viewport, translated so
+its centre lands on the hit and masked clear in the middle so the wrestlers are
+never underneath it. Only transform and opacity animate, so the gradient is
+rasterised once per burst and composited from there, and it is deliberately not
+`will-change`: that would hold a layer that size in GPU memory for the whole
+match rather than for the 400ms it is on screen. The focus is clamped away from
+the screen edges — lines converging on the rim point at nothing.
+
+### The impact card moved out of the world
+The shouted noise used to be baked into the billboard texture at the contact
+point, which meant a wrestler could stand in front of the callout, and on a
+phone the word was about thirty pixels tall. It is screen-space type now:
+italic 900-weight bone with an ink stroke and a hard drop shadow, on a
+clip-path starburst in the attacker's colour, lifted off the contact point so it
+sits over the shoulder instead of hiding the body being hit. It is sized off its
+own character count so KRAKATHOOM and POW both fill the star, with a hard 24px
+floor. The 3D burst keeps the starburst and loses the text, which also drops it
+from one cached material per word to one per fighter.
+
+### The words themselves
+The card used to print the first word of the move's name — "Running" for a
+Running Lariat, "Spinning" for a Spinning Heel Kick: the adjective, never the
+hit. `impacts.ts` now holds invented comic noises keyed by move kind, graded by
+power. Signatures and finishers sit the noise card out, because the spot card
+already names those moves and two pieces of display type on a 390px-tall phone
+is neither of them read.
+
+### What gets the treatment
+Two gates. Light work — jabs, stiff-arms — never gets it, because the filler
+between the hits that matter has to look like filler. And nothing under a solid
+connect gets it either, whatever it is filed under, so a chip-damage grapple
+does not flash the screen.
+
+### And an easing bug worth remembering
+All three animations were written with the punch on the EFFECT — a
+`cubic-bezier(0.16, 1, 0.3, 1)` ease-out across the whole duration. That easing
+reaches 85% progress in the first quarter of the time, so a four-keyframe card
+spent three of them on its own fade-out and read as a flicker. Measured: at
+200ms of a 740ms card, opacity was 0.398 where it should have been 1. The
+easing belongs on the keyframes; the effect runs linear.
+
 ## v3.7 — skinned wrestlers
 
 Until now each wrestler was about twenty rigid chunks, one per bone, merged and

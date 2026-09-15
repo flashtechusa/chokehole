@@ -167,6 +167,45 @@ frame rate from 28 fps to 15 — a CPU rasteriser over-penalises fill and a GPU
 will not charge nearly that much, but it is not free. They are on at MEDIUM and
 HIGH and off at LOW, along with the rim light, the shadow map and the glow.
 
+### The comic panel layer
+
+Half of the genre happens in the world and half of it happens to the page. The
+world half was already there — a starburst billboard at the contact, shards, a
+mat shockwave. The page half is `ComicFx`, and it is DOM rather than geometry
+because it is flat, screen-space and has to stay legible at phone size.
+
+- **Focus lines.** A repeating conic gradient on an element larger than the
+  viewport, translated so its centre lands on the hit and masked clear in the
+  middle so a wrestler is never underneath it. The focus is clamped away from
+  the screen edges: lines converging on the rim of the frame point at nothing.
+- **A colour wash.** The panel takes the attacker's colour for a beat. On a
+  phone the 3D burst is a few hundred pixels across and the eye may not be on
+  it; the wash is what says a heavy one landed.
+- **The impact card.** Screen-space display type on a clip-path starburst,
+  lifted off the contact point so it sits over the shoulder rather than hiding
+  the body being hit, and sized off its own character count against a hard 24px
+  floor. It used to be baked into the billboard texture in the world, where a
+  wrestler could stand in front of the callout and the word was about thirty
+  pixels tall.
+- **A dot screen** over the frame for the length of a cinematic spot.
+
+Only transform and opacity animate, so each effect is rasterised once and
+composited from there — and deliberately without `will-change`, which would hold
+those layers in GPU memory for the whole match instead of for the fraction of a
+second they are on screen.
+
+Two rules keep it from becoming noise. Hits below a solid connect get shards and
+nothing else, because the filler between the hits that matter has to look like
+filler. And signatures and finishers get lines and wash but no noise card, since
+the spot card already names those moves in full.
+
+**Easing goes on the keyframes, not on the effect.** All three animations were
+first written with a `cubic-bezier(0.16, 1, 0.3, 1)` ease-out across the whole
+duration. That curve reaches 85% progress in the first quarter of the time, so a
+four-keyframe card spent three of them fading out and read as a flicker —
+measured at opacity 0.398 two hundred milliseconds into a 740ms card. The effect
+timing is linear; the punch is per keyframe.
+
 ### Known limits of the character models
 
 The rigs are still primitives underneath: tapered tubes for limbs, boxes for

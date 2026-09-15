@@ -25,9 +25,15 @@ instances sharing five source meshes and five materials.
 | Ink outlines | MEDIUM+ | 1 extra draw per inked mesh: 2 wrestlers + ring furniture, MEDIUM+ only |
 | Particles | pooled | pooled boxes/planes, no particle system |
 | Textures | generated | canvas-drawn at runtime, no files |
+| Comic layer | DOM, no draws | 5 elements, transform/opacity only, no `will-change` |
 
 Shadows, glow, the rim light and the ink outlines are all off at LOW, so the
 cheapest tier is exactly what it was.
+
+The comic layer costs the renderer nothing — it is DOM over the canvas, not
+geometry in the scene. Its one real cost is that the focus-line gradient is
+repainted when a burst starts, which lands inside the hit stop the impact
+already triggers. It is skipped entirely under Reduce Flash.
 
 **Outlines are the expensive one.** Babylon draws each outlined mesh a second
 time, inflated along its normals, so they roughly double draws and fill for the

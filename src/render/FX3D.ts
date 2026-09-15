@@ -8,7 +8,7 @@ import { CreateCylinder } from '@babylonjs/core/Meshes/Builders/cylinderBuilder'
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { C } from '@/game/config/canon';
 import { Rng } from '@/game/util/rng';
-import { makeTexture, starburst, halftone, fitText, SLAB } from './textures';
+import { makeTexture, starburst, halftone } from './textures';
 
 interface Shard {
   mesh: Mesh;
@@ -90,9 +90,13 @@ export class FX3D {
     return r;
   }
 
-  /** One starburst card per word, cached: the deck's comic-panel language. */
-  private burstMaterial(word: string, color: string): StandardMaterial {
-    const key = `${word}|${color}`;
+  /**
+   * One starburst per colour, cached. It used to carry the callout text as
+   * well; the text is screen space now, so this is the contact flash only and
+   * there is one material per fighter instead of one per word.
+   */
+  private burstMaterial(color: string): StandardMaterial {
+    const key = color;
     const hit = this.burstMats.get(key);
     if (hit) return hit;
     const tex = makeTexture(this.scene, `burst_${key}`, 256, (g, s) => {
@@ -100,13 +104,6 @@ export class FX3D {
       starburst(g, s / 2, s / 2, s * 0.48, s * 0.3, 12, color, this.rng.next() * 2);
       starburst(g, s / 2, s / 2, s * 0.38, s * 0.24, 12, C.bone, this.rng.next() * 2);
       halftone(g, 0, 0, s, s, color, 9, 2, 0.25);
-      if (word) {
-        g.save();
-        g.translate(s / 2, s / 2);
-        g.rotate(-0.1);
-        fitText(g, word, 0, 0, s * 0.66, '900', SLAB, C.ink, 90);
-        g.restore();
-      }
     });
     tex.hasAlpha = true;
     const mat = new StandardMaterial(`burstMat_${key}`, this.scene);
@@ -124,7 +121,7 @@ export class FX3D {
 
   /** A struck body: shards, a comic card and (for heavies) a mat shockwave. */
   hit(
-    x: number, y: number, z: number, power: number, color: string, word = '',
+    x: number, y: number, z: number, power: number, color: string,
   ): void {
     const n = Math.round(5 + power * 9);
     for (let i = 0; i < n; i++) {
@@ -149,7 +146,7 @@ export class FX3D {
     if (!this.reduceFlash) {
       const b = this.takeBurst();
       b.position.set(x, y + 0.18, z);
-      b.material = this.burstMaterial(word, color);
+      b.material = this.burstMaterial(color);
       const size = 0.9 + power * 1.5;
       b.scaling.setAll(size * 0.4);
       this.bursts.push({ mesh: b, life: 0, maxLife: 320 + power * 220, scale: size });
@@ -171,7 +168,7 @@ export class FX3D {
     r.scaling.setAll(0.5);
     (r.material as StandardMaterial).emissiveColor = Color3.FromHexString('#E8DCC6');
     this.rings.push({ mesh: r, life: 0, maxLife: 500, scale: 3 + power * 3 });
-    this.hit(x, 1.2, z, power * 0.7, '#E8DCC6', '');
+    this.hit(x, 1.2, z, power * 0.7, '#E8DCC6');
   }
 
   /** Confetti for a victory or a finisher. */

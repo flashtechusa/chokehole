@@ -1,5 +1,7 @@
 import type { Difficulty } from '@/game/ai/profiles';
 import { MatchSim, type MatchResult, type SimEvent } from '@/game/combat/MatchSim';
+import type { HitReport } from '@/game/combat/CombatResolver';
+import { hitPower, impactWord } from '@/game/config/impacts';
 import { getWrestler } from '@/game/characters';
 import { getArena } from '@/game/arenas';
 import { Save } from '@/game/save/SaveManager';
@@ -13,9 +15,10 @@ import {
 } from '@/ui/Screens';
 import { h } from '@/ui/dom';
 import { Broadcast, bumperCard } from '@/ui/Broadcast';
+import { ComicFx } from '@/ui/ComicFx';
 import { FS } from '@/game/combat/states';
 import { atRopes, inCorner } from '@/game/combat/ring';
-import { CANON } from '@/game/config/canon';
+import { C, CANON } from '@/game/config/canon';
 import { TUNING } from '@/game/config/tuning';
 import { neutralIntent, type Intent } from '@/game/input/Intent';
 
@@ -40,6 +43,7 @@ export class App {
   private hud: Hud | null = null;
   private pad = new TouchPad();
   private broadcast = new Broadcast();
+  private comic = new ComicFx();
   private pauseBtn: HTMLButtonElement;
 
   private screen: Screen = 'TITLE';
@@ -67,6 +71,7 @@ export class App {
       this.togglePause();
     });
 
+    this.ui.appendChild(this.comic.root);
     this.ui.appendChild(this.broadcast.root);
     this.ui.appendChild(this.pad.root);
     this.ui.appendChild(this.pauseBtn);
@@ -162,6 +167,8 @@ export class App {
     this.view.setReducedFx(Save.settings.reduceFlash, Save.settings.reduceShake);
     this.broadcast.setReduceFlash(Save.settings.reduceFlash);
     this.broadcast.clear();
+    this.comic.setReduceFlash(Save.settings.reduceFlash);
+    this.comic.clear();
 
     this.hud = new Hud(this.sim.p1, this.sim.p2);
     this.ui.insertBefore(this.hud.root, this.pad.root);
@@ -250,6 +257,22 @@ export class App {
           if (e.type === 'glitch') this.broadcast.tear(e.strength);
           if (e.type === 'spot') {
             this.broadcast.showSpot(e.kind, e.name, e.who.cfg.accent, e.shout);
+            this.comic.halftone(e.kind === 'finisher' ? 2300 : 1100);
+          }
+          if (e.type === 'hit') this.comicHit(e.report);
+          if (e.type === 'reversal') {
+            const [rx, ry] = this.aim(e.by.x, e.by.y + 0.3, e.by.z);
+            this.comic.speedLines(1, rx, ry);
+            this.comic.impact(e.by.cfg.accent, 0.9);
+            this.comic.card('REVERSAL!', e.by.cfg.accent, rx, ry, 1);
+          }
+          if (e.type === 'fighter' && e.event.type === 'propBroke') {
+            const [bx, by] = this.aim(e.who.x, e.who.y + 0.9, e.who.z);
+            this.comic.card('SNAP!', C.acid, bx, by, 1);
+          }
+          if (e.type === 'squelshTaken') {
+            const [sx, sy] = this.aim(e.who.x, e.who.y + 0.5, e.who.z);
+            this.comic.card('SQUELSH!', e.who.cfg.squelsh.tint, sx, sy, 0.8);
           }
           if (e.type === 'hit' && e.report.move.kind === 'finisher') {
             this.broadcast.censorBar(1900);
@@ -262,6 +285,7 @@ export class App {
       this.view.update(dt);
       this.hud.update(dt, this.sim);
       this.broadcast.update(dt);
+      this.comic.update(dt);
       this.pad.setSpecialState(
         this.sim.p1.canFinish ? 'finisher' : this.sim.p1.canSignature ? 'signature' : 'taunt',
       );
@@ -274,6 +298,7 @@ export class App {
       // Keep the room alive behind menus and the pause panel.
       this.view.update(Math.min(dt, 33));
       this.broadcast.update(dt);
+      this.comic.update(dt);
     }
 
     this.stage.scene.render();
@@ -419,6 +444,38 @@ export class App {
       this.qualityCooldown = 6000;
       this.frameAvg = 16.7;
     }
+  }
+
+  /**
+   * The comic panel's response to a hit: focus lines converging on the contact
+   * point and the attacker's colour flooding the frame.
+   *
+   * Only for hits that are meant to be felt. Jabs and stiff-arms are the filler
+   * between the hits that matter, and a page treatment on every one of them
+   * would make none of them read.
+   */
+  private comicHit(r: HitReport): void {
+    const power = hitPower(r.move);
+    // Two gates, for two reasons. Jabs and stiff-arms are the filler between
+    // the hits that matter and have to look like filler. And a chip-damage
+    // grapple is not a moment either, whatever it is filed under.
+    if (r.move.kind === 'light' || power < 0.45) return;
+    const [nx, ny] = this.aim(r.x, r.y, r.z);
+    this.comic.speedLines(power * 0.78, nx, ny);
+    this.comic.impact(r.attacker.cfg.accent, power * 0.7);
+    // Signatures and finishers already have a title card with the move's name
+    // on it, from the spot event. Two pieces of display type over a 390px-tall
+    // phone is neither of them read, so the noise card sits those out.
+    const titled = r.move.kind === 'signature' || r.move.kind === 'finisher';
+    if (!titled) {
+      this.comic.card(impactWord(r.move.kind, power), r.attacker.cfg.accent, nx, ny, power);
+    }
+  }
+
+  /** A world point as screen fractions, falling back to the optical centre. */
+  private aim(x: number, y: number, z: number): [number, number] {
+    const p = this.view?.project(x, y, z);
+    return p ? [p.x, p.y] : [0.5, 0.45];
   }
 
   /* ------------------------------------------------------------------ *
