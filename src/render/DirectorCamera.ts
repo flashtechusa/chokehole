@@ -147,17 +147,18 @@ export class DirectorCamera {
 
       case 'NEARFALL':
         // Snap in tight on the kickout. Short and violent.
-        wantDist = 5.9;
+        //
+        wantDist = 5.1;
         wantPitch = 0.30;
-        lookY = 1.74;
+        lookY = 1.22;
         follow = 9;
         if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; }
         break;
 
       case 'PIN':
-        wantDist = 6.3;
+        wantDist = 5.5;
         wantPitch = 0.38;
-        lookY = 1.78;
+        lookY = 1.24;
         follow = 5.0;
         if (this.focus) { lookX = this.focus.x + T.lookBias * biasT; }
         break;

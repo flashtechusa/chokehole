@@ -270,33 +270,53 @@ export class BodyBuilder {
     this.push(bone, CreateBox(`${this.name}_b`, { width: w, height: h, depth: d }, this.scene), hex, o);
   }
 
-  sphere(bone: TransformNode, hex: string, d: number, o?: PartOpts, seg = 10): void {
+  /*
+   * Eight segments, not ten. Two wrestlers are two thirds of the scene's whole
+   * vertex budget, and at match distance a body part is twenty to sixty pixels
+   * across with a cel band and an ink line over it — there is no angle at which
+   * the extra ring of a ten-segment sphere is visible, and the anatomy pass
+   * added enough of them for it to matter.
+   */
+  sphere(bone: TransformNode, hex: string, d: number, o?: PartOpts, seg = 8): void {
     this.push(bone, CreateSphere(`${this.name}_s`, { diameter: d, segments: seg }, this.scene), hex, o);
   }
 
   cyl(
     bone: TransformNode, hex: string, h: number, dTop: number, dBottom: number, o?: PartOpts,
+    tess = 8,
   ): void {
     this.push(bone, CreateCylinder(
-      `${this.name}_c`, { height: h, diameterTop: dTop, diameterBottom: dBottom, tessellation: 10 },
+      `${this.name}_c`, { height: h, diameterTop: dTop, diameterBottom: dBottom, tessellation: tess },
       this.scene,
     ), hex, o);
   }
 
   /**
    * Tapered limb segment running down -Y from the joint, with a ball at the
-   * joint itself.
+   * joint itself and an optional muscle belly along it.
    *
-   * The rig is rigid, not skinned: each bone owns one merged chunk of geometry
-   * and pivots at a hard point. Without the ball, a bent elbow or knee opened a
-   * visible wedge of empty space between two tube ends, which is most of what
-   * made the wrestlers read as loose action figures. A sphere the width of the
-   * tube fills that wedge at every angle, for one extra primitive that merges
-   * into the same draw call.
+   * The joint ball predates skinning, where a bent elbow opened a visible wedge
+   * between two tube ends. Skinning closes that wedge, but the ball still
+   * rounds the joint's silhouette and costs nothing, so it stays.
+   *
+   * `belly` is what stops a limb reading as a pipe. The camera looks along Z at
+   * a wrestler who faces X, so the visible outline of an arm is its
+   * FRONT-TO-BACK profile — which means a bicep has to bulge forward and a calf
+   * backward to be seen at all. `belly.push` is that offset, signed along X;
+   * `belly.at` is how far down the segment it sits, 0 at the joint.
    */
-  limb(bone: TransformNode, hex: string, len: number, top: number, bottom: number): void {
+  limb(
+    bone: TransformNode, hex: string, len: number, top: number, bottom: number,
+    belly?: { at: number; size: number; push: number },
+  ): void {
     this.sphere(bone, hex, top * 1.02, undefined, 8);
     this.cyl(bone, hex, len, top, bottom, { pos: [0, -len / 2, 0] });
+    if (belly) {
+      this.sphere(bone, hex, top * belly.size, {
+        pos: [belly.push * top, -len * belly.at, 0],
+        scale: [1.0, 1.35, 0.86],
+      }, 8);
+    }
   }
 
   /**

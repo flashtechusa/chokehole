@@ -208,15 +208,27 @@ timing is linear; the punch is per keyframe.
 
 ### Known limits of the character models
 
-The rigs are still primitives underneath: tapered tubes for limbs, boxes for
-torso and hips, a sphere per hand, minimal faces. Ink and cel bands hide a great
-deal of that — the silhouette is what reads now — but they do not change what is
-under the line. The remaining gains are:
+The rigs are primitives underneath and always will be until models arrive. What
+changed is that they are now primitives arranged like anatomy: muscle bellies
+part-way down each limb, deltoid caps on the shoulders, a trapezius yoke running
+the neck into the shoulders, hands with a wrist and knuckles and a thumb, a nose
+and ears.
 
-1. **A rig pass**: better proportions, real hands, tapering, a neck, a face.
-   Pure code, no assets, and survives being thrown away if models arrive later.
-2. **Authored GLB models**, which `3D_ASSET_PIPELINE.md` already covers swapping
-   in. Best result, needs assets this project cannot generate for itself.
+All of it is chosen for what survives to twenty or sixty pixels under a cel band
+and an ink line, which means silhouette and nothing else. The governing fact is
+that the camera looks along Z at wrestlers who face X, so what it sees of a limb
+is the FRONT-TO-BACK profile — a bicep has to bulge forward and a calf backward
+to exist at all, and a head is mostly seen in profile, where a nose is the whole
+difference between a face and an egg.
+
+The remaining gain is **authored GLB models**, which `3D_ASSET_PIPELINE.md`
+already covers swapping in. Best result, needs assets this project cannot
+generate for itself.
+
+Two wrestlers are two thirds of the scene's vertex budget, so this is not free:
+the pass took each from 9,334 to 13,210 vertices, and dropping the default
+sphere and cylinder tessellation from ten segments to eight brought that back to
+10,944 with no visible difference at any distance the game is played at.
 
 Skinning used to head that list. It is done: each wrestler is a single mesh
 bound to a 26-bone skeleton, and limbs bend instead of hinging. See

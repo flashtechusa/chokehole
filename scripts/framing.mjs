@@ -56,6 +56,17 @@ const out = await page.evaluate(async () => {
     for (const m of scene.meshes) {
       if (!m.name.startsWith('p1_') && !m.name.startsWith('p2_')) continue;
       if (!m.isEnabled() || !m.isVisible) continue;
+      /*
+       * A wrestler is ONE skinned mesh now, and a skinned mesh's bounding box
+       * is its REST pose unless you ask for the skeleton to be applied. Without
+       * this the pin rows measured two standing bodies in a pin camera, read
+       * 55% tall with their heads in the HUD band, and reported a framing
+       * problem that did not exist — a problem this tool exists to stop.
+       */
+      if (m.skeleton) {
+        m.skeleton.prepare();
+        m.refreshBoundingInfo({ applySkeleton: true, applyMorph: false });
+      }
       for (const v of m.getBoundingInfo().boundingBox.vectorsWorld) {
         const pr = V3.Project(v, MAT.Identity(), scene.getTransformMatrix(),
           cam.viewport.toGlobal(w, h));
@@ -99,8 +110,11 @@ const out = await page.evaluate(async () => {
   }
   place = { mid: 0, sep: 1.5, pin: false };
   for (const mode of ['PLAY', 'SIGNATURE', 'FINISHER', 'NEARFALL', 'PIN', 'VICTORY', 'ENTRANCE']) {
-    // Pin cameras frame bodies that are ON the mat, so measure them that way.
-    place = { mid: 0, sep: 1.5, pin: mode === 'PIN' || mode === 'NEARFALL' };
+    // Pin cameras frame bodies that are ON the mat and ON TOP of each other, so
+    // measure them that way: prone, and half a metre apart rather than the
+    // metre and a half two standing wrestlers keep between them.
+    const pinning = mode === 'PIN' || mode === 'NEARFALL';
+    place = { mid: 0, sep: pinning ? 0.5 : 1.5, pin: pinning };
     view.camera.setMode(mode, { x: p.x, y: 1.6, z: p.z });
     await new Promise((r) => setTimeout(r, 2200));
     modes[mode] = measure();

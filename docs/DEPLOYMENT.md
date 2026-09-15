@@ -18,6 +18,14 @@ every verification screenshot had been taken a second after the bell, inside the
 ENTRANCE camera's wide establishing shot — the one mode that is meant to be
 wide. Screenshots of gameplay must wait out the entrance.
 
+It has since needed the same lesson applied to itself. A wrestler is one skinned
+mesh now, and a skinned mesh's bounding box is its REST pose unless the skeleton
+is applied — so for several passes the pin and near-fall rows were measuring two
+STANDING bodies in a camera framed on a pin, and reporting a problem that did
+not exist. It refreshes bounds with `applySkeleton` and places the pair
+overlapping for those rows. **When this tool disagrees with a screenshot, take
+the screenshot's side until you know why.**
+
 `dist/` is a static site: `index.html`, hashed assets, a PWA manifest and a
 service worker. It can be served from any static host.
 

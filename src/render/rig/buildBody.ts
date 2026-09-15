@@ -46,8 +46,12 @@ function buildLegs(b: BodyBuilder, n: Bones, s: RigSpec, K: number): void {
     const th = n[`thigh${side}` as const];
     const sh = n[`shin${side}` as const];
     const ft = n[`foot${side}` as const];
-    b.limb(th, legSkin, thighLen, 0.17 * K, 0.13 * K);
-    b.limb(sh, legSkin, shinLen, 0.12 * K, 0.10 * K);
+    // Quad forward, calf back: the two bulges that turn a pair of tubes into
+    // a pair of legs when you are looking at them side-on.
+    b.limb(th, legSkin, thighLen, 0.17 * K, 0.13 * K, { at: 0.34, size: 1.12, push: 0.22 });
+    b.limb(sh, legSkin, shinLen, 0.12 * K, 0.10 * K, { at: 0.3, size: 1.18, push: -0.34 });
+    // Ankle: a narrow collar so the shin does not run straight into the boot.
+    b.cyl(ft, legSkin, 0.07, 0.085 * K, 0.075 * K, { pos: [0, 0.03, 0] });
 
     if (p.heel > 0.09) {
       // Platform: a solid block under the foot reads instantly at match camera.
@@ -135,8 +139,58 @@ function buildTorso(b: BodyBuilder, n: Bones, s: RigSpec, K: number): void {
     }
   }
 
-  // neck
-  b.cyl(n.neck, c.skinShade, p.neckLen + 0.04, 0.09 * K, 0.11 * K, { pos: [0, p.neckLen * 0.4, 0] });
+  /*
+   * Neck and trapezius.
+   *
+   * A bare cylinder from chest to skull is what made the heads look stuck on:
+   * a real neck does not meet the shoulders at a right angle, it runs into
+   * them down a slope. The yoke is one flattened ellipsoid spanning shoulder
+   * to shoulder at the base of the neck, plus a slope either side, and it is
+   * the single biggest "this is a body" cue on the whole rig for three
+   * primitives.
+   */
+  b.cyl(n.neck, c.skinShade, p.neckLen + 0.06, 0.088 * K, 0.115 * K, { pos: [0, p.neckLen * 0.36, 0] });
+  const yoke = hourglass ? 0.72 : 0.86;
+  b.sphere(n.chest, c.main, shW * yoke, {
+    pos: [-0.01 * K, p.torsoLen * 0.2, 0],
+    scale: [0.42, 0.24, 1.0],
+  });
+  for (const side of [1, -1]) {
+    b.sphere(n.chest, c.main, shW * 0.34, {
+      pos: [-0.01 * K, p.torsoLen * 0.185, side * shW * 0.3],
+      scale: [0.58, 0.42, 0.9],
+    });
+  }
+}
+
+/**
+ * A hand, rather than the ball on a stick this used to be.
+ *
+ * At match distance a hand is a handful of pixels, so none of this is detail
+ * for its own sake — it is silhouette. A flattened fist reads as a fist when it
+ * swings; a sphere reads as a bead. The thumb ridge is what tells you which way
+ * the hand is facing during a grapple.
+ */
+function buildHand(b: BodyBuilder, hd: Bones['handL'], s: RigSpec, K: number, sgn: number): void {
+  const c = s.palette;
+  const gloved = s.costume.gloves && !s.costume.longSleeves;
+  const skin = gloved ? c.alt : c.skinShade;
+  const lit = gloved ? c.alt : c.skin;
+  const w = 0.086 * K;
+  // wrist
+  b.cyl(hd, skin, 0.045, w * 0.74, w * 0.84, { pos: [0, 0.012, 0] }, 8);
+  /*
+   * The fist is deeper front-to-back than it is wide, because that is the
+   * profile the camera sees. Two tones: the mass in the shaded skin and only
+   * the knuckles in the lit one. A hand painted in one flat bright colour at
+   * the end of a dark sleeve reads as a mitten, which is exactly what the
+   * first version of this looked like.
+   */
+  b.box(hd, skin, w * 1.15, w * 1.05, w * 0.88, { pos: [0.006, -w * 0.6, 0] });
+  b.sphere(hd, lit, w * 0.8, { pos: [w * 0.36, -w * 0.72, 0], scale: [0.68, 0.6, 0.98] }, 6);
+  // thumb, laid along the front of the fist
+  b.box(hd, lit, w * 0.36, w * 0.54, w * 0.3,
+    { pos: [w * 0.48, -w * 0.36, sgn * w * 0.32], rot: [0, 0, 0.35] });
 }
 
 function buildArms(b: BodyBuilder, n: Bones, s: RigSpec, K: number): void {
@@ -161,12 +215,13 @@ function buildArms(b: BodyBuilder, n: Bones, s: RigSpec, K: number): void {
      * the reference has pink from shoulder to wrist with a bare hand.
      */
     const sleeve = s.costume.longSleeves ? c.accent : c.skin;
-    b.limb(ua, sleeve, upper, 0.125 * K, 0.10 * K);
+    // Deltoid cap. The shoulder is the top of the silhouette and a bare tube
+    // end there gives the arm a cut-off, mannequin look from any angle.
+    b.sphere(ua, sleeve, 0.17 * K, { pos: [0, 0.01, 0], scale: [0.92, 0.85, 1.0] });
+    b.limb(ua, sleeve, upper, 0.125 * K, 0.10 * K, { at: 0.36, size: 1.16, push: 0.26 });
     b.limb(fa, s.costume.longSleeves ? c.accent : (s.costume.gloves ? c.alt : c.skin),
-      fore, 0.10 * K, 0.085 * K);
-    b.sphere(hd, s.costume.longSleeves ? c.skin : (s.costume.gloves ? c.alt : c.skin),
-      0.115 * K, { pos: [0, -0.02, 0] });
-    void sgn;
+      fore, 0.10 * K, 0.085 * K, { at: 0.28, size: 1.1, push: 0.18 });
+    buildHand(b, hd, s, K, sgn);
   }
 }
 
@@ -186,15 +241,22 @@ function buildGlamHead(b: BodyBuilder, n: Bones, s: RigSpec): void {
      * sweeps. This is the silhouette that identifies her from across the room,
      * and a bob was never it.
      */
-    b.sphere(n.head, c.hair, r * 3.1, { pos: [-r * 0.2, r * 1.5, 0], scale: [0.92, 0.82, 1.08] });
-    b.sphere(n.head, c.hair, r * 2.3, { pos: [r * 0.35, r * 1.8, 0], scale: [0.9, 0.8, 1.0] });
+    /*
+     * Set back off the face. The first version of this was centred barely
+     * behind the skull and crowned FORWARD of it, and the arithmetic says what
+     * the screenshot said: at eye height the mass reached x = 1.11r with the
+     * eyes at 0.76r, so the hair covered the whole face and she read as a gold
+     * helmet. The masses now clear the eye line and meet the brow as a fringe.
+     */
+    b.sphere(n.head, c.hair, r * 2.8, { pos: [-r * 0.5, r * 1.55, 0], scale: [0.95, 0.85, 1.08] });
+    b.sphere(n.head, c.hair, r * 2.1, { pos: [-r * 0.1, r * 2.0, 0], scale: [0.92, 0.82, 1.0] });
     // volume flaring out over each ear
     for (const side of [1, -1]) {
       b.sphere(n.head, c.hair, r * 1.7,
-        { pos: [-r * 0.1, r * 1.1, side * r * 1.35], scale: [1.0, 0.95, 0.85] });
+        { pos: [-r * 0.25, r * 1.1, side * r * 1.35], scale: [1.0, 0.95, 0.85] });
     }
     // the dark under-layer, showing at the fringe and below the flare
-    b.box(n.head, c.hairLo, r * 0.55, r * 0.5, r * 1.9, { pos: [r * 0.78, r * 1.18, 0] });
+    b.box(n.head, c.hairLo, r * 0.5, r * 0.34, r * 1.85, { pos: [r * 0.72, r * 1.42, 0] });
     for (const side of [1, -1]) {
       b.box(n.head, c.hairLo, r * 1.0, r * 1.1, r * 0.5,
         { pos: [r * 0.05, r * 0.32, side * r * 1.0] });
@@ -222,6 +284,22 @@ function buildGlamHead(b: BodyBuilder, n: Bones, s: RigSpec): void {
   }
   if (s.head.lips) {
     b.sphere(n.head, c.trim, r * 0.42, { pos: [r * 0.82, r * 0.44, 0], scale: [0.5, 0.55, 1.15] });
+  }
+
+  /*
+   * A nose and ears.
+   *
+   * The camera sits off to one side of the play line and the wrestlers face
+   * along it, so what it mostly sees of a head is its PROFILE — and in profile
+   * a nose is the whole difference between a face and an egg. Both are a few
+   * pixels at match distance and both are worth it, because the silhouette is
+   * the only part of a head that survives to that size.
+   */
+  b.box(n.head, c.skinShade, r * 0.44, r * 0.3, r * 0.26, { pos: [r * 0.86, r * 0.78, 0], rot: [0, 0, 0.5] });
+  b.sphere(n.head, c.skin, r * 0.26, { pos: [r * 0.98, r * 0.66, 0] }, 6);
+  for (const side of [1, -1]) {
+    b.sphere(n.head, c.skin, r * 0.48,
+      { pos: [-r * 0.02, r * 0.84, side * r * 0.86], scale: [0.62, 1.1, 0.5] }, 6);
   }
 }
 

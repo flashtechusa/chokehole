@@ -1,5 +1,71 @@
 # Changelog
 
+## v3.9 — the anatomy pass
+
+Skinning made the limbs bend; they were still tubes. This is the geometry that
+turns them into bodies, all of it chosen for what survives to twenty or sixty
+pixels with a cel band and an ink line over it — silhouette, not detail.
+
+- **Muscle bellies.** `limb()` takes an optional belly: a swelling part-way
+  down the segment, offset along X. X matters because the camera looks along Z
+  at a wrestler who faces X, so the visible outline of an arm is its
+  front-to-back profile — a bicep has to bulge forward and a calf backward to be
+  seen at all. Quad, calf, bicep and forearm all have one now.
+- **Deltoid caps.** The shoulder is the top of the silhouette, and a bare tube
+  end there gave every arm a cut-off, mannequin look.
+- **A trapezius yoke.** A bare cylinder from chest to skull is what made the
+  heads look stuck on: a real neck runs into the shoulders down a slope, it does
+  not meet them at a right angle. Three primitives, and the single biggest
+  "this is a body" cue on the rig.
+- **Hands, instead of a ball on a stick.** A wrist, a fist deeper front-to-back
+  than it is wide, a knuckle row and a thumb. The first version came out in one
+  flat bright colour at the end of a dark sleeve and read as a mitten; the mass
+  is in the shaded skin tone now and only the knuckles and thumb are in the lit
+  one.
+- **A nose and ears**, because the camera sits off to one side of the play line
+  and mostly sees heads in profile, where a nose is the whole difference between
+  a face and an egg.
+- **An ankle collar**, so the shin does not run straight into the boot.
+
+### The bouffant was eating the face
+The hair was centred barely behind the skull and crowned FORWARD of it. The
+arithmetic agrees with the screenshot: at eye height the mass reached x = 1.11r
+with the eyes at 0.76r, so it covered the entire face and Jassy read as a gold
+helmet. Both masses are set back and raised, and the dark under-layer meets the
+brow as a fringe instead of painting across the eyes.
+
+### Vertex budget
+Two wrestlers are two thirds of the scene's vertices, so the anatomy is not
+free: 9,334 to 13,210 each. Dropping the default sphere and cylinder
+tessellation from ten segments to eight took that to 10,944 with no visible
+difference at any distance the game is played at — 35,516 verts in the scene
+against 39,838. Software-rendered frame rate 19-20 fps, against 20-21 before
+the pass. That is SwiftShader, which charges CPU rates for vertex work; a real
+GPU will not.
+
+## v3.8.1 — the framing check was measuring the wrong thing
+
+`npm run framing` had been reporting the same two problems for several passes:
+the pin and near-fall cameras putting wrestlers' heads under the HUD. Acting on
+it made the pin camera much worse — a wide shot of an empty ring with the
+wrestlers a hundred pixels tall in the middle of it.
+
+The tool was wrong. A wrestler is one skinned mesh now, and **a skinned mesh's
+bounding box is its rest pose** unless you ask for the skeleton to be applied,
+so the pin rows were measuring two STANDING bodies in a pin camera. It refreshes
+bounds with `applySkeleton` now, and places the pair half a metre apart rather
+than the metre and a half two standing wrestlers keep between them.
+
+With true numbers the pin camera had the opposite problem: the pair sat at 96%
+of the frame height, jammed against the bottom edge and under the pin
+minigame's own UI, which is exactly what the screenshots had been showing all
+along. The look point dropped from 1.78 to 1.24 — near mat level, which is where
+a pin happens — and both cameras came in closer. The pin is centred now.
+
+This is the second time in this project a verification tool has confidently
+measured something other than the thing being checked, and the first time was
+the reason `framing.mjs` exists at all.
+
 ## v3.8 — the comic panel layer
 
 The game already had comic effects in the WORLD: a starburst billboard at the
