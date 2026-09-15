@@ -1,9 +1,11 @@
 import type { MatchSim } from '@/game/combat/MatchSim';
 import { FS } from '@/game/combat/states';
+import type { FX2D } from '@/render2d/FX2D';
 
 interface AppRuntime {
   sim: MatchSim | null;
   screen: string;
+  view: { fx: FX2D } | null;
 }
 
 interface Challenge {
@@ -23,6 +25,10 @@ interface Challenge {
  * This is deliberately presentation-side. The wrestling simulation remains
  * renderer-independent; the director watches public fighter state and rewards
  * the player when the room asks for a spot and they deliver it.
+ *
+ * It also adds verified performer prop LANGUAGE at signature time. The exact
+ * choreography is a game adaptation; the source props/spots are documented in
+ * MOVE_RESEARCH_JASSY.md and MOVE_RESEARCH_RAID.md.
  */
 export function installShowDirector(app: unknown): void {
   const runtime = app as AppRuntime;
@@ -109,6 +115,8 @@ export function installShowDirector(app: unknown): void {
   let expireAt = 0;
   let resultUntil = 0;
   let cursor = 0;
+  let p1Action: object | null = null;
+  let p2Action: object | null = null;
 
   const hide = (): void => {
     root.classList.remove('show', 'success', 'missed');
@@ -154,6 +162,37 @@ export function installShowDirector(app: unknown): void {
     nextAt = sim.elapsed + 9000;
   };
 
+  const performerSpotFx = (sim: MatchSim): void => {
+    const fx = runtime.view?.fx;
+    if (!fx) return;
+
+    const a1 = sim.p1.action;
+    if (a1 && a1 !== p1Action) {
+      p1Action = a1;
+      if (a1.move.kind === 'signature' && sim.p1.cfg.id === 'jassy') {
+        fx.evictionNotice(sim.p2.x, sim.p2.groundY, sim.p1.dir);
+      }
+      if (a1.move.kind === 'signature' && sim.p1.cfg.id === 'raid') {
+        fx.insecticideBottle(sim.p2.x, sim.p2.groundY, sim.p1.dir);
+      }
+    } else if (!a1) {
+      p1Action = null;
+    }
+
+    const a2 = sim.p2.action;
+    if (a2 && a2 !== p2Action) {
+      p2Action = a2;
+      if (a2.move.kind === 'signature' && sim.p2.cfg.id === 'jassy') {
+        fx.evictionNotice(sim.p1.x, sim.p1.groundY, sim.p2.dir);
+      }
+      if (a2.move.kind === 'signature' && sim.p2.cfg.id === 'raid') {
+        fx.insecticideBottle(sim.p1.x, sim.p1.groundY, sim.p2.dir);
+      }
+    } else if (!a2) {
+      p2Action = null;
+    }
+  };
+
   const frame = (): void => {
     const sim = runtime.sim;
 
@@ -163,6 +202,8 @@ export function installShowDirector(app: unknown): void {
       nextAt = sim ? sim.elapsed + 12000 : 0;
       expireAt = 0;
       resultUntil = 0;
+      p1Action = null;
+      p2Action = null;
       hide();
     }
 
@@ -171,6 +212,8 @@ export function installShowDirector(app: unknown): void {
       requestAnimationFrame(frame);
       return;
     }
+
+    performerSpotFx(sim);
 
     if (resultUntil > 0) {
       if (performance.now() >= resultUntil) {
