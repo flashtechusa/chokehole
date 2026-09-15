@@ -299,19 +299,26 @@ export const RAID: WrestlerConfig = {
       headR: 0.155, neckLen: 0.07, heel: 0.06, hunch: 0.16, bulk: 1.28,
     },
     palette: {
-      skin: '#E9F5C6',
-      skinShade: '#9BB05E',
+      // A saturated lime bodysuit, not a pale yellow-green: the reference is
+      // vivid enough to be the brightest thing in the building.
+      skin: '#7BE01F',
+      skinShade: '#4E9612',
       hair: '#5A7A1E',
       hairLo: '#3C5411',
       main: C.squelsh,
       alt: '#5FB81C',
-      accent: '#E89A2B',
+      accent: '#F5D021',
       trim: '#9AA0A8',
       boot: '#C8F03A',
       eye: '#D8203A',
     },
     head: { kind: 'insect', mandibles: true, antennae: true, compoundEyes: true },
-    costume: { top: 'harness', trunks: true, scalePanels: true, collar: true },
+    costume: {
+      top: 'harness', trunks: true, scalePanels: true, collar: true,
+      // The yellow lightning bolt across the back is the single clearest
+      // identifier in every photograph of this costume.
+      backEmblem: 'bolt',
+    },
     // Six limbs total: the standard pair plus two more (deck page 11).
     extras: { extraArmPairs: 2, hipProp: 'canister', shoulderPads: true },
   },

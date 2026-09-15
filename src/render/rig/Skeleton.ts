@@ -65,8 +65,8 @@ export interface RigSpec {
   palette: RigPalette;
   head: {
     kind: 'glam' | 'insect';
-    /** Bob, or none. */
-    wig?: 'bob' | 'none';
+    /** Hair shape. A bouffant is wider and taller than the skull. */
+    wig?: 'bob' | 'bouffant' | 'none';
     /** Insect head extras. */
     mandibles?: boolean;
     antennae?: boolean;
@@ -83,6 +83,12 @@ export interface RigSpec {
     trunks?: boolean;
     scalePanels?: boolean;
     beltBuckle?: boolean;
+    /** A shirt collar with a tie hanging down the chest. */
+    tie?: boolean;
+    /** Full-length sleeves in the accent colour, not just a shoulder puff. */
+    longSleeves?: boolean;
+    /** A device painted across the back. RAID's lightning bolt. */
+    backEmblem?: 'bolt' | 'none';
   };
   extras: {
     /** Pairs of additional arms, hung off the chest. RAID uses 2. */

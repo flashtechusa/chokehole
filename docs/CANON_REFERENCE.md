@@ -64,3 +64,36 @@ Development continues with placeholders while these are gathered.
 - Whether real venue names may ship commercially
 - Whether Qashir should be playable after the boss is beaten
 - Whether Mommy + Baby is one duo character, two fighters, or story NPCs
+
+## Costume reference, from the supplied photographs
+
+Five images were supplied: two studio shots of Jassy, a CHOKE HOLE event poster
+billing her as a performer, and two ring shots of RAID. Everything below is read
+off those photographs. No photograph is used as a texture — the models are
+procedural, and these are a description of what to build, not an asset.
+
+### JASSY
+| | |
+| --- | --- |
+| Hair | A large **blonde/yellow bouffant**, wider and taller than the skull, with a dark brown under-layer showing at the fringe and beneath the flare |
+| Face | Heavy pink eyeshadow winging up past the brow, pale base, mauve lips |
+| Body | **Black patent latex**, plunging to the waist |
+| Over it | A cropped **pink** jacket with huge puff sleeves, running full length to the wrist |
+| Neck | Pink collar with a **black tie** hanging down the plunge |
+| Legs | Bare, with black patent knee boots |
+| Prop | A chunky **gold brick phone** |
+
+The model carried a dark bob and a purple bodysuit for most of development, off
+a misread of the same photographs. The hair is the thing that identifies her at
+a glance and it was the thing that was wrong.
+
+### RAID
+| | |
+| --- | --- |
+| Body | Saturated **lime green**, full cover |
+| Panel | Grey/silver **snakeskin** down one side of the torso and hip |
+| Back | A **yellow lightning bolt** across the shoulder blades |
+| Limbs | Four extra insect arms, green and segmented, ending in **yellow claws** |
+| Hands | Yellow claw gloves |
+| Head | A mask with a wide **toothy grin and pink lips**, and a spiky crest |
+| Feet | Neon yellow-green trainers, grey knee pads |

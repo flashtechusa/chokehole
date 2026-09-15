@@ -1,5 +1,44 @@
 # Changelog
 
+## v3.6 — the wrestlers, corrected against the reference photographs
+
+Re-read the five supplied photographs — two studio shots of Jassy, the event
+poster, two ring shots of RAID — and found that several things baked into the
+models were simply wrong.
+
+### Jassy
+- **Her hair was wrong, and it is the thing that identifies her.** The model
+  carried a near-black bob, with a code comment claiming that was "per the
+  supplied reference photographs". It is a large **blonde bouffant with a dark
+  under-layer**, wider and taller than the skull. Now built as one.
+- **The costume is black patent**, not the dark purple it had been lifted to.
+  That lift was a real fix at the time — a black costume vanished against a dim
+  stage — but that was before the ink outline and the rim light, and the line is
+  what separates her from the background now.
+- **The pink jacket runs to the wrist.** Only the shoulder puff was coloured, so
+  the arms were bare and the jacket did not exist below the shoulder.
+- **A black tie over a pink collar**, which is what breaks up an otherwise solid
+  black front in every photograph.
+
+### RAID
+- Lime green properly **saturated**, not a pale yellow-green.
+- A **yellow lightning bolt across the back** — the clearest single identifier
+  on the costume, and it was missing.
+- Claws and trim moved from amber to the reference's harder yellow.
+
+### And a cel-shading bug the dark costume exposed
+Banding quantised luminance linearly, so the lowest non-zero step sat at a
+quarter brightness and every dark value between an eighth and three-eighths
+snapped up to it — which is why black latex rendered as lavender. It now bands
+the square root and squares back, giving fine steps in the shadows and coarse
+ones in the highlights. That is both how eyes work and how the reference art is
+painted.
+
+Costume details are recorded in `CANON_REFERENCE.md`. No photograph is used as a
+texture: the models stay procedural and the reference is a description of what
+to build.
+
+
 ## v3.5 — cel shading and ink outlines
 
 The genre reference is *drawn*, not rendered: flat colour steps with a black ink

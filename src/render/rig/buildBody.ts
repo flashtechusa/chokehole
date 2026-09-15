@@ -104,6 +104,27 @@ function buildTorso(b: BodyBuilder, n: Bones, s: RigSpec, K: number): void {
   if (s.costume.collar) {
     b.cyl(n.neck, c.accent, 0.07, 0.2 * K, 0.26 * K, { pos: [0, -0.02, 0] });
   }
+  if (s.costume.tie) {
+    // Pink collar points either side of the throat, and a black tie hanging
+    // down the plunge. In every reference shot this is what breaks up an
+    // otherwise solid black front, so it is worth the three primitives.
+    for (const side of [1, -1]) {
+      b.box(n.chest, c.accent, 0.06, 0.13, 0.09 * K,
+        { pos: [0.12 * K, p.torsoLen * 0.3, side * 0.07 * K], rot: [side * 0.3, 0, 0.25] });
+    }
+    b.box(n.chest, c.boot, 0.05, 0.26, 0.07 * K,
+      { pos: [0.135 * K, p.torsoLen * 0.08, 0] });
+    b.box(n.chest, c.boot, 0.05, 0.08, 0.055 * K,
+      { pos: [0.14 * K, p.torsoLen * 0.26, 0] });
+  }
+  if (s.costume.backEmblem === 'bolt') {
+    // A lightning bolt across the shoulder blades: two offset bars, which is
+    // all a bolt needs to be at this size.
+    b.box(n.chest, c.accent, 0.05, 0.19, 0.07 * K,
+      { pos: [-0.135 * K, p.torsoLen * 0.2, 0.05 * K], rot: [0, 0, 0.5] });
+    b.box(n.chest, c.accent, 0.05, 0.19, 0.07 * K,
+      { pos: [-0.135 * K, p.torsoLen * 0.02, -0.03 * K], rot: [0, 0, 0.5] });
+  }
   if (s.extras.shoulderPads) {
     for (const side of [1, -1]) {
       b.sphere(n.chest, c.trim, 0.24 * K,
@@ -131,9 +152,17 @@ function buildArms(b: BodyBuilder, n: Bones, s: RigSpec, K: number): void {
       // The sleeves sit on each shoulder, never merged into one blob on the chest.
       b.sphere(ua, c.accent, 0.28 * K, { pos: [0, -0.03, 0], scale: [1, 0.92, 1.05] });
     }
-    b.limb(ua, s.costume.gloves ? c.skin : c.skin, upper, 0.125 * K, 0.10 * K);
-    b.limb(fa, s.costume.gloves ? c.alt : c.skin, fore, 0.10 * K, 0.085 * K);
-    b.sphere(hd, s.costume.gloves ? c.alt : c.skin, 0.115 * K, { pos: [0, -0.02, 0] });
+    /*
+     * A jacket sleeve runs the whole arm. Only the shoulder was coloured
+     * before, which left bare arms under a puff and lost the jacket entirely —
+     * the reference has pink from shoulder to wrist with a bare hand.
+     */
+    const sleeve = s.costume.longSleeves ? c.accent : c.skin;
+    b.limb(ua, sleeve, upper, 0.125 * K, 0.10 * K);
+    b.limb(fa, s.costume.longSleeves ? c.accent : (s.costume.gloves ? c.alt : c.skin),
+      fore, 0.10 * K, 0.085 * K);
+    b.sphere(hd, s.costume.longSleeves ? c.skin : (s.costume.gloves ? c.alt : c.skin),
+      0.115 * K, { pos: [0, -0.02, 0] });
     void sgn;
   }
 }
@@ -147,7 +176,27 @@ function buildGlamHead(b: BodyBuilder, n: Bones, s: RigSpec): void {
   // jaw
   b.box(n.head, c.skin, r * 1.2, r * 0.5, r * 1.25, { pos: [r * 0.16, r * 0.34, 0] });
 
-  if (s.head.wig === 'bob') {
+  if (s.head.wig === 'bouffant') {
+    /*
+     * A two-tone bouffant: a big blonde mass sitting wider and taller than the
+     * skull, with the dark under-layer showing at the fringe and under the
+     * sweeps. This is the silhouette that identifies her from across the room,
+     * and a bob was never it.
+     */
+    b.sphere(n.head, c.hair, r * 3.1, { pos: [-r * 0.2, r * 1.5, 0], scale: [0.92, 0.82, 1.08] });
+    b.sphere(n.head, c.hair, r * 2.3, { pos: [r * 0.35, r * 1.8, 0], scale: [0.9, 0.8, 1.0] });
+    // volume flaring out over each ear
+    for (const side of [1, -1]) {
+      b.sphere(n.head, c.hair, r * 1.7,
+        { pos: [-r * 0.1, r * 1.1, side * r * 1.35], scale: [1.0, 0.95, 0.85] });
+    }
+    // the dark under-layer, showing at the fringe and below the flare
+    b.box(n.head, c.hairLo, r * 0.55, r * 0.5, r * 1.9, { pos: [r * 0.78, r * 1.18, 0] });
+    for (const side of [1, -1]) {
+      b.box(n.head, c.hairLo, r * 1.0, r * 1.1, r * 0.5,
+        { pos: [r * 0.05, r * 0.32, side * r * 1.0] });
+    }
+  } else if (s.head.wig === 'bob') {
     // Bob: a shell behind and around the face, never painted over it.
     b.sphere(n.head, c.hair, r * 2.2, { pos: [-r * 0.16, r * 0.95, 0], scale: [0.98, 1.0, 1.02] });
     b.box(n.head, c.hair, r * 1.5, r * 1.5, r * 2.3, { pos: [-r * 0.5, r * 0.35, 0] });

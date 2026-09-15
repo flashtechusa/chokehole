@@ -303,20 +303,35 @@ export const JASSY: WrestlerConfig = {
     palette: {
       skin: '#F3DCC8',
       skinShade: '#E0C2AC',
-      // Dark, per the supplied reference photographs.
-      hair: '#2B1D26',
-      hairLo: '#53394A',
-      // Lifted out of near-black: a black-on-black heel is invisible under
-      // warehouse lighting, and the player has to read her instantly.
-      main: '#45304F',
-      alt: '#5E3F6B',
+      /*
+       * A blonde bouffant over a dark under-layer, per the reference shots.
+       * This was near-black for most of development off a misread of the
+       * photographs: the hair is a two-tone wig, yellow on top and dark
+       * underneath and through the fringe, and the yellow is most of what makes
+       * her recognisable at a glance.
+       */
+      hair: '#F2C33C',
+      hairLo: '#3A2418',
+      /*
+       * Black patent. It was lifted to a dark purple because a black costume
+       * vanished against a dim stage — but that was before the ink outline and
+       * the rim light, and the line is what separates her from the background
+       * now. The reference is black latex and it can be black latex.
+       */
+      main: '#17101E',
+      alt: '#332438',
       accent: C.pink,
       trim: '#F261A9',
-      boot: '#20172C',
+      boot: '#1A1220',
       eye: '#120A14',
     },
-    head: { kind: 'glam', wig: 'bob', lashes: true, lips: true },
-    costume: { top: 'leotard', puffSleeves: true, gloves: true, beltBuckle: true },
+    head: { kind: 'glam', wig: 'bouffant', lashes: true, lips: true },
+    costume: {
+      top: 'leotard', puffSleeves: true, gloves: true, beltBuckle: true,
+      // The pink jacket runs to the wrist, and there is a black tie over a
+      // pink collar down the front of the bodysuit.
+      longSleeves: true, tie: true,
+    },
     extras: { hipProp: 'brickphone', shoulderPads: false },
   },
 };
