@@ -1,10 +1,11 @@
 import './ui/ui.css';
+import './ui/actionArcade.css';
 import { App } from './app/App';
 import { registerSW } from './app/pwa';
 
 /**
- * Entry point. Boots the Babylon stage into #stage and the HTML UI into #ui.
- * Everything visible above the 3D scene is DOM, at real device pixels.
+ * Entry point. Boots the 2.5D match stage into #stage and the HTML UI into #ui.
+ * Everything visible above the match is DOM, at real device pixels.
  */
 const canvas = document.getElementById('stage') as HTMLCanvasElement | null;
 const ui = document.getElementById('ui');
