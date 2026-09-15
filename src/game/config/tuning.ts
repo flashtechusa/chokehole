@@ -121,11 +121,16 @@ export const TUNING = {
      * times a minute against four dealt; each one costs about a second and a
      * half with no control, so thirteen of them IS the match. It applies to
      * whoever just got up, so it cuts both ways.
+     *
+     * 2600 was not enough. It permits a knockdown every 2.6 seconds -- 23 a
+     * minute -- and the harness was still measuring 13 to 15 taken against 4
+     * dealt, which at a second and a half each is most of the match on its own.
+     * A bound only helps if it binds.
      */
-    downImmunityMs: 2600,
+    downImmunityMs: 4200,
 
-    downMs: 640,
-    getUpMs: 320,
+    downMs: 480,
+    getUpMs: 260,
     getUpInvulnMs: 750,
     /** Mashing while down shortens it by this much per press. */
     downMashReduction: 115,
