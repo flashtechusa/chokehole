@@ -6,14 +6,17 @@ interface Shard { x: number; y: number; vx: number; vy: number; s: number; life:
 interface Burst { x: number; y: number; life: number; max: number; s: number; tone: string; spin: number }
 interface Streamer { x: number; y: number; vx: number; vy: number; life: number; max: number; tone: string; phase: number; spin: number }
 interface PhoneFx { x: number; y: number; life: number; max: number; dir: number }
+interface NoticeFx { x: number; y: number; life: number; max: number; dir: number }
+interface BottleFx { x: number; y: number; life: number; max: number; dir: number }
 
 /**
  * Impact effects, flat. Starbursts and paper debris -- the same vocabulary as
  * the deck, which is a collage and never had a particle in it.
  *
- * Two special gags deliberately live here too: Jassy's giant telephone squash
- * and RAID's Silly String spray are based on documented CHOKE HOLE stage spots.
- * They are presentation only; the combat simulation remains renderer-free.
+ * Performer-specific gags live here too. The giant phone, eviction notice,
+ * Silly String and insecticide bottle are all rooted in documented CHOKE HOLE
+ * performance imagery. Their game timing/choreography is an adaptation, not a
+ * claim that these exact animations happened on stage.
  */
 export class FX2D {
   private rng = new Rng(0x5eed42);
@@ -21,6 +24,8 @@ export class FX2D {
   private bursts: Burst[] = [];
   private streamers: Streamer[] = [];
   private phones: PhoneFx[] = [];
+  private notices: NoticeFx[] = [];
+  private bottles: BottleFx[] = [];
   private reduceFlash = false;
 
   setReduceFlash(v: boolean): void { this.reduceFlash = v; }
@@ -69,10 +74,7 @@ export class FX2D {
     }
   }
 
-  /**
-   * RAID's documented Silly String gag. Long thin pieces travel horizontally
-   * and wobble rather than falling immediately like impact debris.
-   */
+  /** RAID's documented Silly String gag. */
   sillyString(x: number, y: number, dir: number, count = 34): void {
     const tones = [C.pink, C.acid, C.squelsh, C.blue, C.bone];
     for (let i = 0; i < count; i++) {
@@ -90,14 +92,30 @@ export class FX2D {
     }
   }
 
-  /**
-   * Jassy's giant telephone. It drops into the frame, squashes at mat height,
-   * hangs for the impact read, then rockets back out. The real stage prop is a
-   * verified CHOKE HOLE image/spot; this animation is a game adaptation.
-   */
+  /** Jassy's documented jumbo telephone, adapted into a squash gag. */
   giantPhone(x: number, y: number, dir = 1): void {
     this.phones.push({ x, y, dir, life: 0, max: 1250 });
     this.burst(x, y + 0.18, 1.65, '#E8B33A');
+  }
+
+  /** Jassy's giant eviction notice spot, adapted into a paper-board collision. */
+  evictionNotice(x: number, y: number, dir = 1): void {
+    this.notices.push({ x, y, dir, life: 0, max: 1050 });
+    this.burst(x, y + 0.72, 1.25, C.pink);
+    for (let i = 0; i < 24; i++) {
+      this.shards.push({
+        x: x + this.rng.range(-0.7, 0.7), y: y + this.rng.range(0.25, 1.25),
+        vx: this.rng.range(-2.8, 2.8), vy: this.rng.range(1.0, 4.0),
+        s: this.rng.range(0.035, 0.08), life: 0, max: this.rng.range(520, 1050),
+        tone: this.rng.next() < 0.55 ? C.bone : C.pink,
+      });
+    }
+  }
+
+  /** RAID's verified insecticide-bottle smash, adapted into a signature beat. */
+  insecticideBottle(x: number, y: number, dir = 1): void {
+    this.bottles.push({ x, y, dir, life: 0, max: 900 });
+    this.burst(x, y + 0.9, 1.35, C.squelsh);
   }
 
   update(dt: number): void {
@@ -130,6 +148,16 @@ export class FX2D {
       p.life += dt;
       if (p.life >= p.max) this.phones.splice(i, 1);
     }
+    for (let i = this.notices.length - 1; i >= 0; i--) {
+      const n = this.notices[i]!;
+      n.life += dt;
+      if (n.life >= n.max) this.notices.splice(i, 1);
+    }
+    for (let i = this.bottles.length - 1; i >= 0; i--) {
+      const b = this.bottles[i]!;
+      b.life += dt;
+      if (b.life >= b.max) this.bottles.splice(i, 1);
+    }
   }
 
   draw(g: Ctx, ink: number, cap: number): void {
@@ -157,6 +185,44 @@ export class FX2D {
     }
     lay.flush(g, null);
 
+    for (const e of this.notices) {
+      const f = e.life / e.max;
+      const arrive = Math.min(1, f / 0.22);
+      const leave = f > 0.72 ? (f - 0.72) / 0.28 : 0;
+      const x = e.x + e.dir * ((1 - arrive) * 3.0 + leave * 2.5);
+      const y = e.y + 0.75 + Math.sin(f * Math.PI) * 0.18;
+      g.save();
+      g.translate(x, y);
+      g.rotate(-e.dir * (0.22 - arrive * 0.12));
+      g.fillStyle = '#F4E6C3';
+      g.strokeStyle = C.ink;
+      g.lineWidth = ink * 1.3;
+      g.fillRect(-0.88, -0.48, 1.76, 0.96);
+      g.strokeRect(-0.88, -0.48, 1.76, 0.96);
+      g.fillStyle = C.blood;
+      g.fillRect(-0.78, -0.36, 1.56, 0.18);
+      g.fillStyle = C.ink;
+      g.font = '900 0.20px sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText('EVICTION', 0, 0.03);
+      g.font = '900 0.13px monospace';
+      g.fillText('NOTICE', 0, 0.27);
+      g.restore();
+    }
+
+    for (const b of this.bottles) {
+      const f = b.life / b.max;
+      const swing = Math.sin(Math.min(1, f / 0.46) * Math.PI) * 1.6;
+      const bx = b.x - b.dir * 0.56 + b.dir * f * 0.68;
+      const by = b.y + 1.1 + Math.sin(f * Math.PI) * 0.48;
+      const bt = new Layer(C.ink, ink * 1.15);
+      bt.add(slab(bx, by, 0.28, 0.72, 0.06, b.dir * (-0.55 + swing)), '#B9FF45');
+      bt.add(slab(bx + b.dir * 0.04, by + 0.43, 0.15, 0.18, 0.04, b.dir * (-0.55 + swing)), C.bone);
+      bt.add(ellipse(bx, by - 0.08, 0.10, 0.10), C.blood, { noInk: true });
+      bt.flush(g, null);
+    }
+
     // The phone is drawn last so it reads like the huge stage gag it is.
     for (const p of this.phones) {
       const f = p.life / p.max;
@@ -172,6 +238,6 @@ export class FX2D {
       ph.flush(g, null);
     }
 
-    void ellipse; void poly;
+    void poly;
   }
 }
