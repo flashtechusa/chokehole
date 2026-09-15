@@ -29,6 +29,14 @@ straight into the simulation and the ad-hoc tests patched `stickToWorld`; none o
 them ever pressed a button. A harness that does not go through the same door the
 player does will always tell you the room is fine.
 
+It measures responsiveness directly, not through a proxy: every press is
+timestamped and matched against the moment the fighter next acts, split by
+whether they could act when the press was made. Free presses are gated hard
+(p90 260ms); held presses are reported only, because being unable to swing while
+face down is the genre, and `theirControl` already bounds how much of a match
+that is. On the current build free presses answer in 16ms median, 33ms at the
+p90 — one frame, two at the tail.
+
 **Run it more than once.** Three consecutive runs of the same build read 35%,
 28% and 50% of the match under the opponent's control. An average inside the
 threshold is not the same as a game that is always playable, and the 50% run is

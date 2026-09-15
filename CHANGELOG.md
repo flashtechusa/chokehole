@@ -1,5 +1,46 @@
 # Changelog
 
+## v5.3 — measuring the actual complaint
+
+The game was reported unplayable. Every fix since has been aimed through a
+proxy — how much of the match the opponent controls, how long the windows
+between are — because the thing people actually mean by unplayable, *I press a
+button and nothing happens*, was never measured.
+
+It is now. Every press the harness makes is timestamped and matched against the
+moment the fighter next acts. The first version of that gated all presses at the
+90th percentile and failed at ~1200ms, which sent me looking for a
+responsiveness bug that does not exist: those were presses made **while face
+down**, where a knockdown costs 740ms before anything can happen by
+construction. The gate was punishing the game for having knockdowns, and
+measuring what `theirControl` already bounds, in different units, against a
+threshold that ignored the floor.
+
+Presses are tagged now by whether the fighter could act when they were made.
+Split apart, the two populations are not close:
+
+    free presses    median 16ms    p90 33ms     one frame, two at the tail
+    held presses    median ~500ms  p90 ~1030ms  the cost of being on the mat
+
+**When you can act, this game answers in two frames.** Whatever made it feel
+horrible, it was not input latency, and four commits of tuning had been aimed at
+a target that was never there.
+
+What the tuning did fix is real and stands: `theirControl` 37% on the reported
+build, 23-31% now, with knockdowns even or in the player's favour where they
+were 13 taken against 4.
+
+### The free-window gate came out
+It could not tell two situations apart. The unplayable build measured a 555ms
+median window at 37% opponent control; a later build measured 575ms — the same
+number — at 26% control with the player dealing thirteen knockdowns to six. One
+is being held down, one is a fast exchange. It is still reported, and still
+fails below 450ms, but it no longer decides anything on its own.
+
+Second time this session a harness measured the wrong thing with complete
+confidence — `framing.mjs` did it with skinned bounding boxes — so both now
+carry the reasoning, not just the number.
+
 ## v5.2 — ceilings, not tendencies
 
 Three runs of `npm run agency` on the same build read 35%, 28% and **50%** of
