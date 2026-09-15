@@ -56,8 +56,14 @@ export const TUNING = {
     autoHeavyOnCombo: 3,
     /** An attack on a stunned opponent is also a heavy. */
     heavyOnStunned: true,
-    /** A pressed button survives this long looking for an opening. */
-    bufferMs: 190,
+    /**
+     * A pressed button survives this long looking for an opening.
+     *
+     * At 190 a tap made a fifth of a second before you came free was simply
+     * gone, and since most of a match was spent locked, most taps were. The
+     * agency harness counted 261 presses into a locked state in sixty seconds.
+     */
+    bufferMs: 320,
     /** Grace after a rope bounce during which the stick cannot cancel the run. */
     reboundGraceMs: 420,
 
@@ -80,11 +86,25 @@ export const TUNING = {
     /** Held fighter escapes after this many taps. */
     grappleEscapeTaps: 5,
 
-    downMs: 1120,
+    /*
+     * Knockdown timing, and the single biggest lever on whether this is a game
+     * or a cutscene.
+     *
+     * It was 1120ms face down plus 320ms getting up, with 300ms of protection
+     * that expired the instant you stood. `npm run agency` measured what that
+     * feels like from the player's side: a median of 555ms of control between
+     * stretches of being knocked around, and 3.5 seconds at worst.
+     *
+     * Down time is roughly halved, mashing out of it is worth more, and you now
+     * stand up with enough protection to actually do something with the turn.
+     * Wake-up protection is not a concession, it is how every game in this genre
+     * stops a knockdown from becoming the whole match.
+     */
+    downMs: 640,
     getUpMs: 320,
-    getUpInvulnMs: 300,
+    getUpInvulnMs: 750,
     /** Mashing while down shortens it by this much per press. */
-    downMashReduction: 70,
+    downMashReduction: 115,
 
     /**
      * Catching someone as they come back off the ropes. This is the payoff the

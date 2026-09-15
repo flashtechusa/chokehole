@@ -33,6 +33,9 @@ export class AIController {
   private mashTimer = 0;
   private tapTimer = 0;
   private pinAttemptDone = false;
+  /** Counts down while the AI is playing to the crowd over a downed opponent. */
+  private respect = 0;
+  private foeWasUp = true;
   private can: Spot | null = null;
   private prop: Spot | null = null;
 
@@ -52,6 +55,19 @@ export class AIController {
     this.planTime += dt;
     this.mashTimer -= dt;
     this.tapTimer -= dt;
+    this.respect -= dt;
+
+    /*
+     * Put someone on the mat and you have to let them up.
+     *
+     * The window starts when they go down and outlasts their get-up, so the
+     * player stands into a turn of their own rather than into the next strike.
+     * Everything theatrical stays legal during it -- taunting, climbing,
+     * covering for the pin -- so the AI is milking the moment, not idling.
+     */
+    const foeUp = !foe.isDown && foe.state !== FS.THROWN;
+    if (this.foeWasUp && !foeUp) this.respect = this.profile.respectMs;
+    this.foeWasUp = foeUp;
 
     // One axis. The fight is on a line, so "toward the opponent" is a sign.
     const dx = foe.x - me.x;
@@ -265,6 +281,7 @@ export class AIController {
 
   private choosePlan(me: Fighter, foe: Fighter, dist: number): Plan {
     const p = this.profile;
+    const respecting = this.respect > 0;
 
     // Carrying something: use it, but a downed and pinnable opponent still
     // matters more than another swing.
@@ -288,7 +305,19 @@ export class AIController {
       // A downed opponent is the best time to climb, and to gloat.
       if (this.rng.chance(p.spectacle * 0.7)) return 'CLIMB';
       if (this.rng.chance(p.tauntChance * 2.5)) return 'TAUNT';
+      if (respecting) return this.rng.chance(0.4) ? 'TAUNT' : 'SPACE';
       if (dist < me.cfg.moves.ground.reach && this.rng.chance(0.55)) return 'STRIKE';
+      return 'SPACE';
+    }
+
+    // They are back on their feet but the window has not run out: keep showing
+    // off rather than jumping straight back on them.
+    if (respecting) {
+      if ((me.canFinish || me.canSignature) && this.rng.chance(p.specialEagerness * 0.5)) {
+        return 'SPECIAL';
+      }
+      if (this.rng.chance(p.spectacle * 0.6)) return 'ROPES';
+      if (this.rng.chance(0.3)) return 'TAUNT';
       return 'SPACE';
     }
 

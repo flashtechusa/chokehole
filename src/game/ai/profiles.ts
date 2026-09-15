@@ -31,6 +31,16 @@ export interface AIProfile {
   pinSkill: number;
   /** Probability of mashing out of a grapple on any given opportunity. */
   mashRate: number;
+  /**
+   * How long the AI plays to the crowd after putting someone on the mat,
+   * instead of standing over them and hitting them again.
+   *
+   * This is a playability control wearing a character costume. Without it the
+   * AI re-engages the instant the player stands, and `npm run agency` measured
+   * what that does from the player's side of the screen: a median of half a
+   * second of control between knockdowns. It is also just what a heel does.
+   */
+  respectMs: number;
 }
 
 /**
@@ -46,7 +56,7 @@ export const AI_PROFILES: Record<Difficulty, AIProfile> = {
     grabChance: 0.20, aggression: 0.52, specialEagerness: 0.35,
     pinEagerness: 0.5, tauntChance: 0.20, canChance: 0.35,
     propChance: 0.4, flankChance: 0.10, spectacle: 0.22,
-    pinSkill: 0.3, mashRate: 0.3,
+    pinSkill: 0.3, mashRate: 0.3, respectMs: 2300,
   },
   NORMAL: {
     id: 'NORMAL', label: 'CARD MATCH',
@@ -55,7 +65,7 @@ export const AI_PROFILES: Record<Difficulty, AIProfile> = {
     grabChance: 0.34, aggression: 0.68, specialEagerness: 0.66,
     pinEagerness: 0.8, tauntChance: 0.12, canChance: 0.6,
     propChance: 0.6, flankChance: 0.20, spectacle: 0.38,
-    pinSkill: 0.58, mashRate: 0.55,
+    pinSkill: 0.58, mashRate: 0.55, respectMs: 1750,
   },
   BRUTAL: {
     id: 'BRUTAL', label: 'MAIN EVENT',
@@ -64,6 +74,6 @@ export const AI_PROFILES: Record<Difficulty, AIProfile> = {
     grabChance: 0.48, aggression: 0.82, specialEagerness: 0.92,
     pinEagerness: 0.95, tauntChance: 0.04, canChance: 0.85,
     propChance: 0.85, flankChance: 0.34, spectacle: 0.52,
-    pinSkill: 0.85, mashRate: 0.85,
+    pinSkill: 0.85, mashRate: 0.85, respectMs: 1050,
   },
 };

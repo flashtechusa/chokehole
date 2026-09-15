@@ -7,6 +7,7 @@ npm run build     # typecheck + vite build into dist/
 npm run preview   # serve dist/ locally
 npm run smoke     # end-to-end test against the preview server
 npm run framing   # camera framing check, in screen pixels
+npm run agency    # player agency check, through the real touch controls
 npm run pace      # headless match pacing harness
 ```
 
@@ -17,6 +18,20 @@ mode. It exists because "it looks 2.5D" was once checked by eye and was wrong:
 every verification screenshot had been taken a second after the bell, inside the
 ENTRANCE camera's wide establishing shot — the one mode that is meant to be
 wide. Screenshots of gameplay must wait out the entrance.
+
+`npm run agency` drives the game through its OWN touch controls — real pointer
+events on the stick zone and the three buttons — and measures how much of a live
+match the player is allowed to do anything: what fraction of it they spend in a
+state the OPPONENT put them in, the longest unbroken such stretch, and the median
+window of freedom between them. It exists because the game shipped unplayable
+while every other harness reported a healthy match. `pace.mjs` feeds intents
+straight into the simulation and the ad-hoc tests patched `stickToWorld`; none of
+them ever pressed a button. A harness that does not go through the same door the
+player does will always tell you the room is fine.
+
+It reports `actionable` but deliberately does not judge it. Time spent in your
+own attack animation is time you chose to spend, and a bot that mashes will drive
+that number to the floor in a game that plays perfectly well.
 
 It has since needed the same lesson applied to itself. A wrestler is one skinned
 mesh now, and a skinned mesh's bounding box is its REST pose unless the skeleton

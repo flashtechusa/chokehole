@@ -1,5 +1,69 @@
 # Changelog
 
+## v4.2 — the game was unplayable, and every harness said it was fine
+
+Reported as unplayable. It was, and none of the existing checks could see it,
+because every one of them bypassed the input layer: `pace.mjs` feeds intents
+straight into the simulation, and every ad-hoc test patched `stickToWorld`.
+They all measured a healthy match. The player was never in any of them.
+
+### What it actually felt like
+`scripts/agency.mjs` is new. It drives the game through its OWN touch controls
+— real pointer events on the stick zone and the three buttons — and measures how
+much of a live match the player is allowed to do anything. On the build that was
+reported:
+
+    opponent controls the player   37% of the match
+    longest unbroken stretch       3477 ms
+    median window of freedom        555 ms
+    shortest window                  42 ms
+    presses made while locked        261
+
+Half a second of control, then back on the mat. That is the whole report.
+
+### Wake-up
+Knockdown was 1120 ms face down, 320 ms getting up, and 300 ms of protection
+that expired the instant you stood — so the opponent standing over you landed
+the next one immediately. Down time is 640 ms now, mashing out of it is worth
+115 ms a press instead of 70, and you stand up with 750 ms of protection.
+Wake-up protection is not a concession; it is how every game in this genre stops
+one knockdown from becoming the match.
+
+The input buffer went from 190 ms to 320 ms. At 190, a tap made a fifth of a
+second before you came free was simply gone — and since most of the match was
+spent locked, most taps were.
+
+### The AI has to let you up
+Halving the down time on its own made the numbers WORSE — 44% — because a
+shorter knockdown just handed the opponent more turns. The missing rule is that
+it never stopped.
+
+`respectMs` is a new profile field: after putting someone on the mat, the AI
+plays to the crowd instead of standing over them. The window starts when they go
+down and outlasts their get-up, so the player stands into a turn of their own
+rather than into the next strike. Everything theatrical stays legal during it —
+taunting, climbing, covering for the pin — so it is milking the moment, not
+idling. 2300 ms on ROOKIE, 1750 on CARD MATCH, 1050 on MAIN EVENT.
+
+It is a playability control wearing a character costume, and it is also just
+what a heel does.
+
+### After
+Three runs:
+
+    opponent control   28% / 25% / 22%   (was 37%)
+    median window      995 / 1021 / 2506 ms   (was 555 ms)
+    worst stretch      2434 / 3310 / 2477 ms  (was 3477 ms)
+    knocked down       7 / 5 / 3 against 7 / 10 / 11 dealt
+
+Matches run longer for it — about 143 s against 100 s — because the opponent now
+stops to gloat. Pace still finishes on a pin at rating 5.
+
+### The lesson, for the third time in this project
+A harness that does not go through the same door the player does will tell you
+the room is fine. `framing.mjs` measured standing bodies in a pin camera;
+`pace.mjs` measured a match with no player in it. Both reported success.
+
 ## v4.1 — the arena
 
 The room got the things a wrestling arena has and this one did not, and two
