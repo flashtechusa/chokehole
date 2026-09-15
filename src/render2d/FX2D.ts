@@ -4,15 +4,23 @@ import { Layer, ellipse, poly, slab, starburst, type Ctx } from './Paint';
 
 interface Shard { x: number; y: number; vx: number; vy: number; s: number; life: number; max: number; tone: string }
 interface Burst { x: number; y: number; life: number; max: number; s: number; tone: string; spin: number }
+interface Streamer { x: number; y: number; vx: number; vy: number; life: number; max: number; tone: string; phase: number; spin: number }
+interface PhoneFx { x: number; y: number; life: number; max: number; dir: number }
 
 /**
  * Impact effects, flat. Starbursts and paper debris -- the same vocabulary as
  * the deck, which is a collage and never had a particle in it.
+ *
+ * Two special gags deliberately live here too: Jassy's giant telephone squash
+ * and RAID's Silly String spray are based on documented CHOKE HOLE stage spots.
+ * They are presentation only; the combat simulation remains renderer-free.
  */
 export class FX2D {
   private rng = new Rng(0x5eed42);
   private shards: Shard[] = [];
   private bursts: Burst[] = [];
+  private streamers: Streamer[] = [];
+  private phones: PhoneFx[] = [];
   private reduceFlash = false;
 
   setReduceFlash(v: boolean): void { this.reduceFlash = v; }
@@ -61,6 +69,37 @@ export class FX2D {
     }
   }
 
+  /**
+   * RAID's documented Silly String gag. Long thin pieces travel horizontally
+   * and wobble rather than falling immediately like impact debris.
+   */
+  sillyString(x: number, y: number, dir: number, count = 34): void {
+    const tones = [C.pink, C.acid, C.squelsh, C.blue, C.bone];
+    for (let i = 0; i < count; i++) {
+      this.streamers.push({
+        x: x + this.rng.range(-0.08, 0.08),
+        y: y + this.rng.range(-0.15, 0.18),
+        vx: dir * this.rng.range(3.8, 7.8),
+        vy: this.rng.range(-0.35, 0.9),
+        life: -this.rng.range(0, 180),
+        max: this.rng.range(680, 1180),
+        tone: tones[Math.floor(this.rng.next() * tones.length)]!,
+        phase: this.rng.range(0, Math.PI * 2),
+        spin: this.rng.range(-1.2, 1.2),
+      });
+    }
+  }
+
+  /**
+   * Jassy's giant telephone. It drops into the frame, squashes at mat height,
+   * hangs for the impact read, then rockets back out. The real stage prop is a
+   * verified CHOKE HOLE image/spot; this animation is a game adaptation.
+   */
+  giantPhone(x: number, y: number, dir = 1): void {
+    this.phones.push({ x, y, dir, life: 0, max: 1250 });
+    this.burst(x, y + 0.18, 1.65, '#E8B33A');
+  }
+
   update(dt: number): void {
     const s = dt / 1000;
     for (let i = this.shards.length - 1; i >= 0; i--) {
@@ -75,6 +114,21 @@ export class FX2D {
       const b = this.bursts[i]!;
       b.life += dt;
       if (b.life >= b.max) this.bursts.splice(i, 1);
+    }
+    for (let i = this.streamers.length - 1; i >= 0; i--) {
+      const st = this.streamers[i]!;
+      st.life += dt;
+      if (st.life < 0) continue;
+      st.x += st.vx * s;
+      st.y += st.vy * s + Math.sin(st.life / 70 + st.phase) * 0.003;
+      st.vx *= Math.pow(0.985, dt / 16.67);
+      st.vy -= 0.65 * s;
+      if (st.life >= st.max) this.streamers.splice(i, 1);
+    }
+    for (let i = this.phones.length - 1; i >= 0; i--) {
+      const p = this.phones[i]!;
+      p.life += dt;
+      if (p.life >= p.max) this.phones.splice(i, 1);
     }
   }
 
@@ -92,7 +146,32 @@ export class FX2D {
       if (n++ > cap) break;
       lay.add(slab(sh.x, sh.y, sh.s, sh.s * 0.7, 0.01, sh.life / 90), sh.tone, { noInk: true });
     }
+    for (const st of this.streamers) {
+      if (st.life < 0 || n++ > cap) continue;
+      const fade = Math.max(0, 1 - st.life / st.max);
+      lay.add(slab(
+        st.x, st.y,
+        0.25 * fade + 0.08, 0.025,
+        0.008, st.spin + Math.sin(st.life / 80 + st.phase) * 0.55,
+      ), st.tone, { noInk: true });
+    }
     lay.flush(g, null);
+
+    // The phone is drawn last so it reads like the huge stage gag it is.
+    for (const p of this.phones) {
+      const f = p.life / p.max;
+      const drop = f < 0.30 ? 1 - Math.pow(1 - f / 0.30, 3) : 1;
+      const exit = f > 0.76 ? (f - 0.76) / 0.24 : 0;
+      const py = p.y + (1 - drop) * 3.8 + exit * 4.4;
+      const squash = f > 0.28 && f < 0.58 ? 1.12 : 1;
+      const ph = new Layer(C.ink, ink * 1.25);
+      ph.add(slab(p.x, py + 0.28, 1.45 * squash, 0.34, 0.08, p.dir * -0.06), '#E8B33A');
+      ph.add(slab(p.x - 0.64, py + 0.30, 0.34, 0.62, 0.08, -0.12), '#C88A22');
+      ph.add(slab(p.x + 0.64, py + 0.30, 0.34, 0.62, 0.08, 0.12), '#C88A22');
+      ph.add(slab(p.x, py - 0.05, 1.08, 0.42, 0.06), '#2A2018');
+      ph.flush(g, null);
+    }
+
     void ellipse; void poly;
   }
 }
