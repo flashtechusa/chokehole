@@ -122,7 +122,7 @@ export const JASSY_2D: Figure2D = {
     mouth: '#8E1E4A',
   },
   photo: {
-    src: 'assets/cast/jassy-top.png',
+    src: 'assets/cast/jassy-top.webp',
     pivot: [121.5, 402],
     scale: 1.02 / 402,
     baked: 0,
@@ -162,7 +162,7 @@ export const RAID_2D: Figure2D = {
     mouth: '#E8318C',                         // magenta maw
   },
   photo: {
-    src: 'assets/cast/raid-top.png',
+    src: 'assets/cast/raid-top.webp',
     pivot: [161.7, 391],
     scale: 1.09 / 391,
     baked: 0.12,

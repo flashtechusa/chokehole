@@ -133,6 +133,27 @@ export class Fighter {
 
   // --- misc ---
   invuln = 0;
+  /**
+   * Hits taken since this fighter was last able to do anything.
+   *
+   * A chain of stuns is the other half of the unplayable problem, and the half
+   * that wake-up protection does not touch: you are never knocked down, you are
+   * simply never free. Past TUNING.combat.chainBreak the next hit hands back a
+   * short window instead of another stun, so there is a hard ceiling on how
+   * long anyone can be held. It resets the moment you can act.
+   */
+  private chainHits = 0;
+  /**
+   * Counts down after a knockdown. While it runs, a move that would put this
+   * fighter on the mat only staggers them.
+   *
+   * Diminishing returns on knockdowns, and the thing that actually fixed the
+   * match playing itself. `npm run agency` kept reporting the player knocked
+   * down thirteen times a minute against four dealt: each one costs about a
+   * second and a half of no control, so thirteen of them IS the match. Stun
+   * chains were the smaller half.
+   */
+  private downCooldown = 0;
   hitFlash = 0;
   exhausted = false;
   /**
@@ -246,6 +267,7 @@ export class Fighter {
   }
 
   knockDown(launch = 3.2): void {
+    this.downCooldown = TUNING.combat.downImmunityMs;
     this.action = null;
     this.partner = null;
     this.comboIndex = 0;
@@ -339,8 +361,35 @@ export class Fighter {
       this.knockDown(move.launch ?? 2.6);
       return dmg;
     }
-    if (move.knockdown) this.knockDown(move.launch ?? 3.0);
-    else this.stun(move.hitstunMs);
+    this.chainHits += 1;
+    if (move.knockdown) {
+      // A finisher or a signature always puts you down. They are the match's
+      // dramatic beats and the pin's setup; diminishing returns on those would
+      // cost the game its endings to protect its middles.
+      const unstoppable = move.kind === 'finisher' || move.kind === 'signature';
+      if (this.downCooldown > 0 && !unstoppable) {
+        // Already been down recently: this one staggers instead. Symmetric --
+        // it applies to whoever just got up, player or opponent.
+        this.chainHits = 0;
+        this.invuln = Math.max(this.invuln, TUNING.combat.chainBreakInvulnMs * 0.5);
+        this.stun(move.hitstunMs);
+        return dmg;
+      }
+      this.knockDown(move.launch ?? 3.0);
+      return dmg;
+    }
+    if (this.chainHits >= TUNING.combat.chainBreak) {
+      /*
+       * The chain breaker. Still hurts, still knocks you back, but you come out
+       * of it on your feet with a moment to use -- otherwise a fast opponent
+       * can hold a stun indefinitely and the match plays itself.
+       */
+      this.chainHits = 0;
+      this.invuln = Math.max(this.invuln, TUNING.combat.chainBreakInvulnMs);
+      this.stun(Math.min(move.hitstunMs, 120));
+      return dmg;
+    }
+    this.stun(move.hitstunMs);
     return dmg;
   }
 
@@ -350,6 +399,8 @@ export class Fighter {
 
   update(dt: number, intent: Intent, opponent: Fighter, heat01: number): void {
     this.stateTime += dt;
+    if (ACTIONABLE.has(this.state)) this.chainHits = 0;
+    this.downCooldown = Math.max(0, this.downCooldown - dt);
     this.hitFlash = Math.max(0, this.hitFlash - dt / 180);
     this.invuln = Math.max(0, this.invuln - dt);
     this.reversalLockout = Math.max(0, this.reversalLockout - dt);

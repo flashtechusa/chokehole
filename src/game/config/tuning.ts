@@ -100,6 +100,30 @@ export const TUNING = {
      * Wake-up protection is not a concession, it is how every game in this genre
      * stops a knockdown from becoming the whole match.
      */
+    /**
+     * Hits you can take without a turn before the next one hands you one back.
+     *
+     * Wake-up protection fixed knockdown chains; this fixes stun chains, which
+     * is the other way `npm run agency` found a match playing itself. Three
+     * runs of that harness read 35%, 28% and 50% of the match under the
+     * opponent's control -- the last one a median window of 700ms -- and an
+     * average inside the threshold is not the same as a game that is always
+     * playable.
+     */
+    chainBreak: 4,
+    chainBreakInvulnMs: 620,
+    /**
+     * After a knockdown, the next move that would knock this fighter down only
+     * staggers them, for this long.
+     *
+     * Diminishing returns, and the change that actually fixed the match playing
+     * itself. The agency harness kept reporting the player knocked down thirteen
+     * times a minute against four dealt; each one costs about a second and a
+     * half with no control, so thirteen of them IS the match. It applies to
+     * whoever just got up, so it cuts both ways.
+     */
+    downImmunityMs: 2600,
+
     downMs: 640,
     getUpMs: 320,
     getUpInvulnMs: 750,

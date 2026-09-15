@@ -29,6 +29,12 @@ straight into the simulation and the ad-hoc tests patched `stickToWorld`; none o
 them ever pressed a button. A harness that does not go through the same door the
 player does will always tell you the room is fine.
 
+**Run it more than once.** Three consecutive runs of the same build read 35%,
+28% and 50% of the match under the opponent's control. An average inside the
+threshold is not the same as a game that is always playable, and the 50% run is
+the one a player would have had. That third sample is what `chainBreak` exists
+for: a ceiling on how long anyone can be held, rather than a tendency.
+
 It reports `actionable` but deliberately does not judge it. Time spent in your
 own attack animation is time you chose to spend, and a bot that mashes will drive
 that number to the floor in a game that plays perfectly well.

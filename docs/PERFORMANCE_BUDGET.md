@@ -6,13 +6,15 @@ stay correct when quality drops.
 ## Measured
 
     frame rate     60 fps          headless, every stage of `npm run smoke`
-    bundle         171 KiB         precached, the whole game
+    bundle         242 KiB         precached, the whole game including the cast
     draw calls     n/a             it is a 2D canvas
 
 Still **not measured on real hardware**, and that has not changed. But the floor
 moved a long way: the same headless harness that reported 19–24 fps on the 3D
 build reports a flat 60 on this one, and the shipped bundle went from 1,784 KiB
-to 171 after Babylon.js was removed. On a phone, a tenth of the download and a
+to 242 after Babylon.js was removed and the two performer cut-outs added. Those
+cut-outs are WebP rather than PNG, which is the difference between 72 KiB and
+410 KiB for the same two images with the same alpha. On a phone, a tenth of the download and a
 canvas instead of a WebGL scene graph is the difference between "might hold 30"
 and "should not be the bottleneck".
 
@@ -20,7 +22,8 @@ and "should not be the bottleneck".
 
 | Item | Budget | Actual |
 | --- | --- | --- |
-| Wrestlers | 2 | ~40 filled paths each, 6 ink layers |
+| Wrestlers | 2 | one photographic cut-out each + ~12 drawn leg paths |
+| Cast images | ≤ 2 | WebP with alpha, 25 KiB and 46 KiB (as PNG: 158 and 252) |
 | Crowd | flat | ~120 slabs and ellipses, no ink line |
 | Ring | flat | apron, mat, 4 posts, 6 ropes |
 | Crowd signs | 9 | slabs, swayed on the update tick |

@@ -1,5 +1,30 @@
 # Changelog
 
+## v5.2 — ceilings, not tendencies
+
+Three runs of `npm run agency` on the same build read 35%, 28% and **50%** of
+the match under the opponent's control, the last with a median window of freedom
+of 700ms. An average inside the threshold is not the same as a game that is
+always playable, and the 50% run is the one a player would have had. Wake-up
+protection and an AI that backs off made it usually fine. Usually is not a
+property you can ship.
+
+**`chainBreak`.** Past four hits taken without a turn, the next one hands a turn
+back instead of another stun — still damage, still knockback, but you come out of
+it on your feet with 620ms to use. Resets the moment you can act.
+
+That fixed the smaller half. The harness then said plainly what the bigger half
+was: **the player knocked down thirteen times a minute against four dealt.**
+Each knockdown costs about a second and a half with no control, so thirteen of
+them *is* the match, and no amount of protection afterwards changes that.
+
+**`downImmunityMs`.** For 2.6 seconds after a knockdown, a move that would put
+you down again only staggers you. Diminishing returns, applied to whoever just
+got up, so it cuts both ways.
+
+Both are ceilings rather than tendencies, which is the point: the failing run was
+not an unlucky average, it was the absence of a bound.
+
 ## v5.1 — the real performers
 
 "2D with real photos." The deck is a collage of the actual cast, so the cast is
