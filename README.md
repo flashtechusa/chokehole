@@ -1,10 +1,20 @@
 # CHOKE HOLE: NO HOLES BARRED
 
-**EXTREME DRAG WRESTLING** — a stylised full-3D, mobile-first arcade wrestling
-game that runs from a URL on a phone.
+**EXTREME DRAG WRESTLING** — a mobile-first 2.5D arcade wrestling game built around the real CHOKE HOLE performers, their stage language, and the I.B.S. universe.
 
-Built to the *CHOKE HOLE Game Master Design Bible v2.0*, whose primary canon
-source is the CHOKE HOLE 10.3 Pitch Deck.
+## Product direction
+
+The visual/gameplay target is now deliberately closer to **action-arcade wrestling** than to a free-camera 3D wrestling simulation:
+
+- large, recognisable performers
+- left/right facing and a readable side-on wrestling camera
+- contextual ATTACK / GRAB / IT controls
+- paired wrestling choreography rather than physics knockback pretending to be a throw
+- exaggerated comic-book impacts and impossible specials
+- lightweight 2D crowd/venue layers so phone performance goes to the wrestlers
+- real CHOKE HOLE moves, taunts, props and gags tagged separately from game-original material
+
+This is **not** a clone of Action Arcade Wrestling and contains none of its code or assets. It is an independent implementation using common arcade-wrestling design ideas.
 
 ## Run it
 
@@ -17,52 +27,70 @@ npm run smoke      # end-to-end browser test at phone size
 npm run typecheck
 ```
 
-## What exists
+## Current vertical slice
 
-The first vertical slice only: **JASSY vs RAID** in a stylised composite of the
-2018 New Orleans origin warehouse. No World Tour, no roster, no story mode —
-the Bible is explicit that none of that ships before the fight is fun.
+Only one match matters until it is genuinely fun:
 
-## Stack
+**JASSY vs RAID — The Original New Orleans Warehouse**
 
-Babylon.js 8 · TypeScript · Vite · PWA. The HUD, menus, prompts and touch
-controls are an HTML/CSS overlay at real device pixels, not canvas text.
+The simulation already supports contextual strikes, front/rear grapples, directional throws, Irish whips, rope running and rebounds, corner/perch states, dives, ground moves, pins, reversals, taunts, IT Factor, Squelsh and props.
+
+The renderer is intentionally flat/2.5D. Performer likeness is more important than rendering complexity. Current Jassy and RAID artwork uses approved/reference-derived photographic upper-body cut-outs over a lightweight articulated 2D rig; the long-term pipeline is pose/animation atlases so the performer stays recognisable during every wrestling action.
+
+## CHOKE HOLE-specific presentation now in the renderer
+
+- event-driven 2D crowd reactions instead of expensive crowd AI
+- crowd arms, signs and camera flashes that escalate for big spots, near falls and finishers
+- Jassy giant-telephone finisher gag
+- RAID Silly String stage-gag effect
+- comic impact bursts, halftone, confetti and I.B.S. broadcast overlays
+
+The telephone and Silly String presentation are based on publicly documented CHOKE HOLE appearances; the exact game choreography remains a game adaptation until approved by the performers.
 
 ## Architecture
 
-```
-src/game/      simulation. imports no renderer, and is stepped by the headless
-               pacing harness at a fixed timestep
-  combat/      Fighter, CombatResolver, GrappleSystem-in-Fighter, PinSystem,
+```text
+src/game/      renderer-independent wrestling simulation
+  combat/      Fighter, CombatResolver, paired grapples/throws, PinSystem,
                ReversalSystem, MeterSystem, MatchSim, ring geometry
-  characters/  wrestler configs: stats, ~20 contextual moves, taunts, prop
-  arenas/      arena configs with REAL-history and GAME-FICTION fields kept apart
-  ai/          same Intent surface as the player; difficulty is timing only
-  audio/       WebAudio synthesis. no audio files ship
-  input/       the Intent type
+  characters/  wrestler configs, contextual moves, taunts and props
+  arenas/      real-history and game-fiction fields kept separate
+  ai/          same Intent surface as the player
+  audio/       lightweight WebAudio synthesis
+  input/       Intent surface used by touch, keyboard and AI
   save/        versioned localStorage behind a StorageAdapter
-src/render/    Babylon: ring, warehouse, procedural character rigs, camera, FX
-src/ui/        HTML/CSS HUD, touch pad, screens, I.B.S. broadcast layer
+
+src/render2d/  2.5D/flat arcade renderer, articulated performers, arena,
+               lightweight crowd and CHOKE HOLE-specific effects
+src/ui/        HUD, touch controls, I.B.S. broadcast and comic overlays
 ```
 
-Game rules never touch a Babylon object. That is what lets the pacing harness
-measure a match without a GPU.
+Game rules never import the renderer. That is intentional: we can replace or improve character art without rewriting wrestling logic.
+
+## Character-likeness rule
+
+The priority order is:
+
+1. performer likeness
+2. fun/responsive wrestling
+3. authentic CHOKE HOLE moves / taunts / props
+4. readable animation
+5. venue identity
+6. crowd spectacle
+7. rendering complexity
+
+A technically impressive arena with generic wrestlers is a failed build.
 
 ## Documentation
 
-- `docs/GAME_DESIGN.md` — systems and why they are tuned the way they are
-- `docs/CANON_REFERENCE.md` — pitch-deck canon vs. game-original invention
-- `docs/ADDING_A_CHARACTER.md`, `docs/ADDING_AN_ARENA.md`
-- `docs/3D_ASSET_PIPELINE.md`, `docs/AUDIO_ASSETS.md`
-- `docs/PERFORMANCE_BUDGET.md`, `docs/RESEARCH_NOTES.md`, `docs/DEPLOYMENT.md`
+- `docs/GAME_DESIGN.md`
+- `docs/CANON_REFERENCE.md`
+- `docs/ADDING_A_CHARACTER.md`
+- `docs/ADDING_AN_ARENA.md`
+- `docs/AUDIO_ASSETS.md`
+- `docs/PERFORMANCE_BUDGET.md`
+- `docs/RESEARCH_NOTES.md`
+- `docs/DEPLOYMENT.md`
 - `CHANGELOG.md`
 
-## Placeholders
-
-All character and arena art is procedural placeholder geometry. No performer
-photographs are used anywhere. Move names, taunts and props are labelled
-`GAME_ORIGINAL` or `GAME_ADAPTATION` in the data until the team supplies
-`REAL_VERIFIED` ones. See `docs/CANON_REFERENCE.md`.
-
-The rejected 2D/Phaser prototype is preserved on the
-`archive/2d-phaser-prototype` branch.
+The old full-3D and earlier Phaser work remain recoverable in git history/archived branches; they are references, not the current product direction.

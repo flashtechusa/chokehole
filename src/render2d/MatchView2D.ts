@@ -23,10 +23,9 @@ const MAT_FRAC = 0.70;
 /**
  * Draws a MatchSim, flat.
  *
- * Same contract the 3D view had -- handleEvents, update, project -- because the
- * simulation never knew about either of them. The camera is two numbers now:
- * where to centre and how far to zoom out, both driven by where the wrestlers
- * are, with a punch on impact.
+ * The match is mechanically 2.5D/arcade: the simulation owns wrestling rules,
+ * facing and paired choreography while this renderer keeps the camera readable,
+ * the characters large, and the crowd/effects cheap enough for a phone.
  */
 export class MatchView2D {
   readonly fx: FX2D;
@@ -74,26 +73,75 @@ export class MatchView2D {
         case 'reversal':
           this.punchCamera(0.95);
           this.fx.burst(e.by.x, e.by.y + 0.9, 0.9, e.by.cfg.accent);
+          this.arena.react('big');
           break;
-        case 'squelshTaken':
-          this.sideOf(e.who).rig.setTint(e.who.cfg.squelsh.tint);
-          this.fx.burst(e.who.x, e.who.y + 1.2, 0.8, e.who.cfg.squelsh.tint);
+        case 'pinStart':
+          this.arena.react('cheer');
+          break;
+        case 'pinCount':
+          if (e.count >= 2) this.arena.react('big');
           break;
         case 'pinEscape':
           if (e.nearFall) {
             this.punchCamera(1.5);
             this.fx.confetti((this.sim.pinned ?? this.sim.p1).x, 26);
+            this.arena.react('nearFall');
+          } else {
+            this.arena.react('cheer');
           }
           break;
         case 'finish': {
           const w = e.result.playerWon ? this.sim.p1 : this.sim.p2;
           this.fx.confetti(w.x, 90);
+          this.arena.react('victory');
           break;
         }
-        case 'spot': this.punchCamera(e.kind === 'finisher' ? 1.6 : 0.9); break;
+        case 'spot': {
+          this.punchCamera(e.kind === 'finisher' ? 1.6 : 0.9);
+          this.arena.react(e.kind === 'finisher' ? 'finisher' : 'big');
+
+          /*
+           * Documented CHOKE HOLE stage language, rendered as cheap 2D gags:
+           * Jassy has squashed RAID with a giant telephone; RAID has used a
+           * Silly String-shooting prop on Jassy. The simulation only knows that
+           * a signature/finisher happened -- the renderer supplies the stage
+           * gag without coupling combat rules to performer-specific art.
+           */
+          const other = e.who === this.sim.p1 ? this.sim.p2 : this.sim.p1;
+          if (e.who.cfg.id === 'jassy' && e.kind === 'finisher') {
+            this.fx.giantPhone(other.x, RING_MAT_Y + 0.08, e.who.dir);
+          }
+          if (e.who.cfg.id === 'raid') {
+            this.fx.sillyString(
+              e.who.x + e.who.dir * 0.42,
+              e.who.y + 1.05,
+              e.who.dir,
+              e.kind === 'finisher' ? 56 : 34,
+            );
+          }
+          break;
+        }
         case 'fighter':
-          if (e.event.type === 'rebound' || e.event.type === 'getUp') {
-            this.fx.dust(e.who.x, 0.3);
+          switch (e.event.type) {
+            case 'rebound':
+              this.fx.dust(e.who.x, 0.3);
+              this.arena.react('cheer');
+              break;
+            case 'getUp':
+              this.fx.dust(e.who.x, 0.3);
+              break;
+            case 'taunt':
+              this.arena.react(e.event.taunt.kind === 'big' ? 'big' : 'cheer');
+              break;
+            case 'perch':
+              this.arena.react('big');
+              break;
+            case 'propTaken':
+              this.arena.react('big');
+              break;
+            case 'propBroke':
+              this.arena.react('big');
+              break;
           }
           break;
       }
@@ -106,6 +154,16 @@ export class MatchView2D {
     this.punchCamera((r.move.cameraPunch ?? 0.3) + power * 0.6);
     this.sideOf(r.defender).rig.setFlash(1);
     if (r.move.knockdown) this.fx.dust(r.defender.x, power);
+
+    switch (r.move.kind) {
+      case 'finisher': this.arena.react('finisher'); break;
+      case 'signature': case 'aerial': case 'dive': case 'prop': case 'rebound':
+        this.arena.react('big');
+        break;
+      case 'throw': case 'heavy':
+        this.arena.react('cheer');
+        break;
+    }
   }
 
   private punchCamera(v: number): void {
@@ -146,12 +204,6 @@ export class MatchView2D {
     const b = this.sides[1].fighter;
     const mid = (a.x + b.x) / 2;
     const sep = Math.abs(a.x - b.x);
-    /*
-     * Barely any pan. The screen already shows about eleven world units and the
-     * ring is six and a half wide, so the whole thing fits -- panning to follow
-     * the midpoint only slid the ring off to one side and pushed whoever was
-     * near a rope out of frame.
-     */
     const wantX = clamp(mid * 0.55, -1.9, 1.9);
     this.camX += (wantX - this.camX) * Math.min(1, dt / 260);
     const want = 1 / (1 + Math.max(0, sep - 2.2) * 0.075);
@@ -171,15 +223,8 @@ export class MatchView2D {
     g.fillRect(0, 0, W, H);
 
     /*
-     * World to screen. One transform, set once: +Y up, the mat a fixed
-     * fraction down the frame, and a scale that keeps a wrestler a little under
-     * half the screen's height at rest.
-     */
-    /*
-     * Framed on the RING, not on the two bodies. A wrestler comes out a bit
-     * over a third of the screen high, which puts their head clear of the HUD's
-     * top quarter and the ring's own width inside the frame -- so you can see
-     * the thing you are fighting inside.
+     * World to screen. Characters stay deliberately large: recognisable faces,
+     * costume silhouettes and taunts matter more than showing unused room.
      */
     const base = (H * 0.37) / 1.95;
     const S = base * this.camScale * (1 + this.punch * 0.035);
@@ -211,7 +256,6 @@ export class MatchView2D {
     g.scale(face, 1);
     drawFigure(g, s.rig.fig, s.rig.solution, ink, this.dots, s.photo);
     if (s.rig.flash > 0) {
-      // The hit flash is a flat wash, because everything here is flat.
       g.save();
       g.globalAlpha = Math.min(0.75, s.rig.flash * 0.75);
       g.globalCompositeOperation = 'lighter';

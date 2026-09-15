@@ -1,0 +1,50 @@
+name: Deploy CHOKE HOLE Live
+
+on:
+  push:
+    branches:
+      - chatgpt/action-arcade-2.5d
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: chokehole-live
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout game source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Production build
+        run: npm run build
+
+      - name: Disable Jekyll
+        run: touch dist/.nojekyll
+
+      - name: Publish live build to main
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: main
+          publish_dir: ./dist
+          force_orphan: true
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          commit_message: "Live build: ${{ github.sha }}"
