@@ -24,7 +24,7 @@
  *   medianWindowMs      >= 900ms  of freedom between those stretches
  *   knockdowns taken    within about 2x of knockdowns dealt
  *   answeredPct         >= 92%    of presses eventually produce an action
- *   pressToActP90Ms     <= 900ms  for nine presses in ten
+ *   freeP90Ms           <= 260ms  for a press made while you CAN act
  *
  * The last two are the direct measure of "I press a button and nothing
  * happens", which is the complaint every other number here only circles.
@@ -119,14 +119,15 @@ const out = await page.evaluate(async (seconds) => {
     ev(zone, 'pointermove', ox + dirX * 60, oy);
   };
   const release = () => { if (stickDown) { ev(zone, 'pointerup', ox, oy); stickDown = false; } };
-  const presses = [];      // { t, answered }
-  const latencies = [];
+  const presses = [];      // { t, answered, free }
+  const latencies = [];    // presses made while the fighter COULD act
+  const heldLatencies = [];// presses made while the opponent had them
   let unanswered = 0;
   const tap = (cls) => {
     const b = btn(cls); const r = b.getBoundingClientRect();
     const x = r.x + r.width / 2, y = r.y + r.height / 2;
     ev(b, 'pointerdown', x, y); ev(b, 'pointerup', x, y);
-    presses.push({ t: performance.now(), answered: false });
+    presses.push({ t: performance.now(), answered: false, free: ACTIONABLE.has(String(p.state)) });
   };
 
   const hist = {};
@@ -156,7 +157,10 @@ const out = await page.evaluate(async (seconds) => {
     // give up on any that have been waiting two full seconds.
     if (ACTING.has(st)) {
       const hit = presses.find((q) => !q.answered);
-      if (hit) { hit.answered = true; latencies.push(now - hit.t); }
+      if (hit) {
+        hit.answered = true;
+        (hit.free ? latencies : heldLatencies).push(now - hit.t);
+      }
     }
     for (const q of presses) {
       if (!q.answered && now - q.t > 2000) { q.answered = true; unanswered++; }
@@ -201,13 +205,21 @@ const out = await page.evaluate(async (seconds) => {
     .map(([k, n]) => `${k} ${pct(n)}%`);
   windows.sort((a, b) => a - b);
   latencies.sort((a, b) => a - b);
-  const pick = (f) => (latencies.length ? Math.round(latencies[Math.floor(latencies.length * f)] ?? 0) : null);
+  heldLatencies.sort((a, b) => a - b);
+  const at = (arr, f) => (arr.length ? Math.round(arr[Math.floor(arr.length * f)] ?? 0) : null);
   return {
     presses: presses.length,
+    freePresses: latencies.length,
     answeredPct: presses.length
       ? Math.round(((presses.length - unanswered) / presses.length) * 100) : null,
-    pressToActMedianMs: pick(0.5),
-    pressToActP90Ms: pick(0.9),
+    /* Presses made while the fighter could act: pure responsiveness. */
+    freeMedianMs: at(latencies, 0.5),
+    freeP90Ms: at(latencies, 0.9),
+    /* Presses made while the opponent had them: reported, not gated -- being
+       unable to swing while face down is the game, not a fault, and
+       theirControl already bounds how much of the match that is. */
+    heldMedianMs: at(heldLatencies, 0.5),
+    heldP90Ms: at(heldLatencies, 0.9),
     seconds, frames, fps: Math.round(frames / seconds),
     actionable: pct(actionableFrames),
     theirControl: pct(theirsFrames),
@@ -256,8 +268,18 @@ if (out.medianWindowMs !== null && out.medianWindowMs < 450) {
 if (out.answeredPct !== null && out.answeredPct < 92) {
   bad.push(`only ${out.answeredPct}% of presses ever produced an action (want >= 92%)`);
 }
-if (out.pressToActP90Ms !== null && out.pressToActP90Ms > 900) {
-  bad.push(`9 presses in 10 answered within ${out.pressToActP90Ms}ms (want <= 900ms)`);
+/*
+ * Gated on presses made while the fighter COULD act, and only those.
+ *
+ * The first version gated every press at the 90th percentile and failed at
+ * ~1200ms -- which turned out to be presses made while face down, where a
+ * knockdown costs 740ms before anything can happen by construction. That is
+ * the game working, and theirControl already bounds how much of a match it
+ * takes up. Measuring it twice, in two units, with a threshold that ignored
+ * the floor, was not a second opinion.
+ */
+if (out.freeP90Ms !== null && out.freeP90Ms > 260) {
+  bad.push(`a free press took ${out.freeP90Ms}ms to answer at the 90th percentile (want <= 260ms)`);
 }
 if (out.downsTaken > out.downsDealt * 2 + 2) {
   bad.push(`knocked down ${out.downsTaken}x against ${out.downsDealt}x dealt`);
