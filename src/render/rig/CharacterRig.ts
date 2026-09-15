@@ -3,7 +3,9 @@ import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { buildSkeleton, type Bones, type RigSpec } from './Skeleton';
+import { buildBoneSkeleton, buildSkeleton, type Bones, type RigSpec } from './Skeleton';
+import type { Skeleton } from '@babylonjs/core/Bones/skeleton';
+import type { Bone } from '@babylonjs/core/Bones/bone';
 import { buildBody } from './buildBody';
 import '@babylonjs/core/Rendering/outlineRenderer';
 import { applyCel } from './CelShading';
@@ -44,6 +46,8 @@ export class CharacterRig {
   readonly root: TransformNode;
   readonly bones: Bones;
   readonly meshes: Mesh[];
+  private readonly skeleton: Skeleton;
+  private readonly bonePairs: [TransformNode, Bone][];
   private material: StandardMaterial;
   private baseEmissive: Color3;
   private clips: Record<string, Clip>;
@@ -68,7 +72,15 @@ export class CharacterRig {
     this.bones = buildSkeleton(scene, spec.proportions, name);
     this.root = new TransformNode(`${name}_holder`, scene);
     this.bones.root.parent = this.root;
-    this.meshes = buildBody(scene, this.bones, spec, name);
+    /*
+     * A real skeleton, linked bone-for-node to the hierarchy the clips already
+     * drive. The body is one skinned mesh instead of twenty rigid chunks, so
+     * elbows and knees bend rather than hinge.
+     */
+    const rig = buildBoneSkeleton(scene, this.bones, name);
+    this.skeleton = rig.skeleton;
+    this.bonePairs = rig.pairs;
+    this.meshes = buildBody(scene, this.bones, spec, name, this.skeleton);
     /*
      * Ink outlines. This is the single biggest thing separating a stylised
      * wrestling game from a pile of primitives: a black line around the
@@ -157,6 +169,7 @@ export class CharacterRig {
     }
 
     applyPose(this.bones, this.pose, this.bias, { y: 0 });
+    this.syncBones();
 
     // hit flash and Squelsh corruption both ride the shared material
     const e = this.baseEmissive;
@@ -173,8 +186,21 @@ export class CharacterRig {
     }
   }
 
+  /**
+   * Copies the posed TransformNodes onto the skeleton. See buildBoneSkeleton:
+   * Babylon's own node/bone link does not fire, so this does it by hand.
+   */
+  private syncBones(): void {
+    for (const [node, bone] of this.bonePairs) {
+      bone.setPosition(node.position);
+      bone.setRotation(node.rotation);
+      bone.setScale(node.scaling);
+    }
+  }
+
   dispose(): void {
     for (const m of this.meshes) m.dispose();
+    this.skeleton.dispose();
     this.root.dispose(false, true);
   }
 }

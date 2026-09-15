@@ -1,5 +1,6 @@
 import type { Scene } from '@babylonjs/core/scene';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
+import type { Skeleton } from '@babylonjs/core/Bones/skeleton';
 import { BodyBuilder, type Bones, type RigSpec } from './Skeleton';
 
 /**
@@ -13,7 +14,9 @@ import { BodyBuilder, type Bones, type RigSpec } from './Skeleton';
  * They are true 3D and swap out for approved GLB assets without touching
  * gameplay (Bible s23).
  */
-export function buildBody(scene: Scene, bones: Bones, spec: RigSpec, name: string): Mesh[] {
+export function buildBody(
+  scene: Scene, bones: Bones, spec: RigSpec, name: string, skeleton: Skeleton,
+): Mesh[] {
   const b = new BodyBuilder(scene, name);
   const p = spec.proportions;
   const c = spec.palette;
@@ -27,7 +30,7 @@ export function buildBody(scene: Scene, bones: Bones, spec: RigSpec, name: strin
   buildExtras(b, bones, spec, K);
 
   void c; void p;
-  return b.finish();
+  return b.finish(bones.root, skeleton);
 }
 
 /* ------------------------------------------------------------------ */

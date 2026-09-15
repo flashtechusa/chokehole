@@ -106,10 +106,10 @@ empty aisle for the same reason. Culling it roughly doubled the frame rate.
 
 ### Lighting and shading
 
-The wrestlers are procedural rigs: primitives merged per bone, baked vertex
-colours, one material each. At the distance the game actually plays at, what
-makes them read is light and silhouette, not polygon count — so that is where
-the work went.
+The wrestlers are procedural rigs: primitives authored per bone, merged into
+**one skinned mesh** each, baked vertex colours, one material each. At the
+distance the game actually plays at, what makes them read is light and
+silhouette, not polygon count — so that is where the work went.
 
 - **A cast shadow.** One blurred exponential map on the key light, at 512 on
   MEDIUM and 1024 on HIGH, with the light's bounds pulled tight around the ring
@@ -130,9 +130,10 @@ the work went.
   ×12 over a 16-unit range, which reached the crowd and the walls — switching UP
   a quality tier flooded the warehouse pink and made the picture worse than the
   tier below it. Now ×5 over 8.5, hung lower and tighter.
-- **Joint balls.** The rig is rigid, not skinned, so a bent elbow or knee opened
-  a visible wedge between two tube ends. A sphere the width of the tube fills it
-  at any angle, and merges into the same draw call.
+- **Joint balls.** Held over from when the rig was rigid, where a bent elbow or
+  knee opened a visible wedge between two tube ends. Skinning closes that wedge
+  now, but the ball still rounds the joint's silhouette, and it costs nothing:
+  it merges into the same mesh.
 
 ### Cel shading and ink outlines
 
@@ -175,11 +176,15 @@ under the line. The remaining gains are:
 
 1. **A rig pass**: better proportions, real hands, tapering, a neck, a face.
    Pure code, no assets, and survives being thrown away if models arrive later.
-2. **Skinning**: the rig is rigid, so limbs pivot rather than bend. This is the
-   biggest single "these are characters, not toys" change left, and it rewrites
-   the pose pipeline.
-3. **Authored GLB models**, which `3D_ASSET_PIPELINE.md` already covers swapping
+2. **Authored GLB models**, which `3D_ASSET_PIPELINE.md` already covers swapping
    in. Best result, needs assets this project cannot generate for itself.
+
+Skinning used to head that list. It is done: each wrestler is a single mesh
+bound to a 26-bone skeleton, and limbs bend instead of hinging. See
+`Skeleton.ts` for the two things that are easy to get wrong — a bone's rest
+matrix must be **local**, not world, and `Bone.linkTransformNode` does not
+actually propagate, so `CharacterRig.syncBones()` copies node to bone by hand
+every frame.
 
 ### The ring is square again
 

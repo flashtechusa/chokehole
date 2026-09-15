@@ -437,6 +437,16 @@ export class App {
       startMatch: () => this.startMatch(),
       showTitle: () => this.showTitle(),
       presets: PRESETS,
+      /**
+       * Forces a quality tier. The headless harnesses render on SwiftShader,
+       * which always detects LOW -- the one tier with outlines, shadows, glow
+       * and rim light switched off -- so without this no automated shot can
+       * ever show what a real phone shows.
+       */
+      setQuality: (q: Quality) => {
+        this.stage.setQuality(q);
+        this.view?.applyQuality(q);
+      },
       canon: CANON,
       tuning: TUNING,
       neutral: neutralIntent,

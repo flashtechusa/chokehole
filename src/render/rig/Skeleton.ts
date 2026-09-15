@@ -2,7 +2,10 @@ import type { Scene } from '@babylonjs/core/scene';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Skeleton } from '@babylonjs/core/Bones/skeleton';
+import { Bone } from '@babylonjs/core/Bones/bone';
+import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { CreateSphere } from '@babylonjs/core/Meshes/Builders/sphereBuilder';
@@ -176,9 +179,65 @@ export function buildSkeleton(scene: Scene, p: Proportions, name: string): Bones
   return bones;
 }
 
+/**
+ * Mirrors the TransformNode hierarchy as a real Babylon skeleton and links each
+ * bone to its node.
+ *
+ * The rig is posed by writing rotations onto TransformNodes, and every clip in
+ * the game addresses them by name, so the nodes stay: props parent to hand
+ * bones, the camera reads positions off them, and the whole clip library is
+ * written against them.
+ *
+ * Babylon's `linkTransformNode` is meant to make a bone follow a node
+ * automatically and it did not work here — `Skeleton.prepare()` left the bone's
+ * local rotation at identity however the node was posed. Driving the bones
+ * directly does work (verified: rotating a bone visibly bends the skin), so
+ * `CharacterRig` copies node to bone itself once a frame, right after the pose
+ * is applied. Twenty-six copies per wrestler per frame is nothing next to
+ * having a skeleton that actually deforms.
+ */
+export interface BoneRig {
+  skeleton: Skeleton;
+  /** Node/bone pairs, in hierarchy order, for the per-frame copy. */
+  pairs: [TransformNode, Bone][];
+}
+
+export function buildBoneSkeleton(scene: Scene, bones: Bones, name: string): BoneRig {
+  const skeleton = new Skeleton(`${name}_skel`, `${name}_skel`, scene);
+  const made = new Map<TransformNode, Bone>();
+
+  for (const b of BONES) bones[b].computeWorldMatrix(true);
+
+  for (const b of BONES) {
+    const node = bones[b];
+    const parentNode = node.parent as TransformNode | null;
+    const parentBone = parentNode ? made.get(parentNode) ?? null : null;
+    /*
+     * A bone's rest matrix is LOCAL to its parent, not world. Handing it the
+     * world matrix makes every bone carry its ancestors' transforms a second
+     * time, which folds the whole figure in on itself.
+     */
+    const local = parentBone && parentNode
+      ? node.getWorldMatrix().multiply(Matrix.Invert(parentNode.getWorldMatrix()))
+      : node.getWorldMatrix().clone();
+    const bone = new Bone(`${name}_${b}`, skeleton, parentBone, local);
+    made.set(node, bone);
+  }
+  skeleton.returnToRest();
+  const pairs: [TransformNode, Bone][] = BONES.map((b) => [bones[b], made.get(bones[b])!]);
+  return { skeleton, pairs };
+}
+
 /* ------------------------------------------------------------------ *
  * geometry helpers
  * ------------------------------------------------------------------ */
+
+/**
+ * How far from a joint the skin blends between a bone and its parent, in ring
+ * units. Wide enough that an elbow rounds instead of creasing to a point,
+ * narrow enough that a forearm does not drag the upper arm with it.
+ */
+const JOINT_BLEND = 0.06;
 
 export interface PartOpts {
   /** Local offset from the bone. */
@@ -240,38 +299,122 @@ export class BodyBuilder {
     this.cyl(bone, hex, len, top, bottom, { pos: [0, -len / 2, 0] });
   }
 
-  /** Merges each bucket, parents the result to its bone, returns the meshes. */
-  finish(): Mesh[] {
-    const out: Mesh[] = [];
+  /**
+   * Merges everything into ONE skinned mesh.
+   *
+   * It used to merge per bone and parent each chunk to its TransformNode, which
+   * meant a limb was a rigid tube pivoting at a hard point: an elbow could not
+   * bend, it could only hinge, and no amount of extra geometry fixes that. Now
+   * every primitive is baked into the rig's own space and carries skin weights,
+   * so the mesh deforms with the skeleton and joints actually bend.
+   *
+   * Each vertex is weighted to the bone whose bucket it came from, blended
+   * toward that bone's PARENT across a short zone around the joint. The bucket
+   * already tells us which bone a vertex belongs to, and the vertex's local Y
+   * tells us how close to the joint it sits, so the weights fall out of the
+   * existing structure without an authored skin.
+   *
+   * It also collapses ~20 draw calls per wrestler to one, which matters twice
+   * over: the ink outline redraws every mesh, so it goes from 20 extra draws
+   * per wrestler to one.
+   */
+  finish(rootBone: TransformNode, skeleton: Skeleton): Mesh[] {
     const mat = new StandardMaterial(`${this.name}_mat`, this.scene);
     mat.diffuseColor = new Color3(1, 1, 1);
     /*
-     * A real highlight, and much less self-light.
-     *
-     * At 0.34 emissive, a third of every pixel on a body was flat unlit colour,
-     * so an arm and the torso behind it were the same brightness and the whole
-     * figure read as a paper cut-out. Dropping it to 0.13 lets the key and rim
-     * lights actually shade a limb; the specular gives the highlight that tells
-     * you a shoulder is round. The floor is still high enough that a near-black
-     * costume does not disappear on a dim stage.
+     * A real highlight, and much less self-light. At 0.34 emissive a third of
+     * every pixel on a body was flat unlit colour, so an arm and the torso
+     * behind it were the same brightness and the figure read as a cut-out.
      */
     mat.specularColor = new Color3(0.30, 0.30, 0.34);
     mat.specularPower = 26;
     mat.emissiveColor = new Color3(0.13, 0.13, 0.15);
+
+    const boneIndex = new Map<string, number>();
+    skeleton.bones.forEach((b, i) => boneIndex.set(b.name, i));
+
+    rootBone.computeWorldMatrix(true);
+    const toRig = Matrix.Invert(rootBone.getWorldMatrix());
+
+    const positions: number[] = [];
+    const normals: number[] = [];
+    const colors: number[] = [];
+    const indices: number[] = [];
+    const mIdx: number[] = [];
+    const mWt: number[] = [];
+
     for (const [bone, list] of this.buckets) {
       const merged = list.length === 1
         ? list[0]!
         : Mesh.MergeMeshes(list, true, true, undefined, false, false);
       if (!merged) continue;
-      merged.name = `${this.name}_${bone.name}_body`;
-      merged.material = mat;
-      merged.useVertexColors = true;
-      merged.parent = bone;
-      merged.isPickable = false;
-      merged.alwaysSelectAsActiveMesh = true;
-      out.push(merged);
+
+      const pos = merged.getVerticesData(VertexBuffer.PositionKind);
+      const nrm = merged.getVerticesData(VertexBuffer.NormalKind);
+      const col = merged.getVerticesData(VertexBuffer.ColorKind);
+      const idx = merged.getIndices();
+      if (!pos || !idx) { merged.dispose(); continue; }
+
+      const self = boneIndex.get(bone.name) ?? 0;
+      const parentNode = bone.parent as TransformNode | null;
+      const parent = parentNode ? boneIndex.get(parentNode.name) ?? self : self;
+
+      bone.computeWorldMatrix(true);
+      const toLocalRig = bone.getWorldMatrix().multiply(toRig);
+      const rot = toLocalRig.getRotationMatrix();
+
+      const base = positions.length / 3;
+      for (let v = 0; v < pos.length; v += 3) {
+        const local = new Vector3(pos[v]!, pos[v + 1]!, pos[v + 2]!);
+        const world = Vector3.TransformCoordinates(local, toLocalRig);
+        positions.push(world.x, world.y, world.z);
+
+        if (nrm) {
+          const n = Vector3.TransformNormal(
+            new Vector3(nrm[v]!, nrm[v + 1]!, nrm[v + 2]!), rot,
+          ).normalize();
+          normals.push(n.x, n.y, n.z);
+        }
+
+        /*
+         * Local Y is distance from the joint: a bone's geometry hangs from 0
+         * down to -len, and the joint itself sits at 0. Only vertices actually
+         * NEAR that plane share with the parent, and never more than a third.
+         *
+         * Weighting by sign instead — everything at or above the joint going
+         * half to the parent — put 96% of the body in the blend zone, which
+         * makes a torso slosh when a neck turns. Distance from the joint, hard
+         * cut-off, is what wants to happen here.
+         */
+        const dist = Math.abs(local.y);
+        const toParent = dist < JOINT_BLEND
+          ? 0.34 * (1 - dist / JOINT_BLEND)
+          : 0;
+        mIdx.push(self, parent, 0, 0);
+        mWt.push(1 - toParent, toParent, 0, 0);
+      }
+      if (col) for (const c of col) colors.push(c);
+      for (const i of idx) indices.push(base + i);
+      merged.dispose();
     }
-    return out;
+
+    const mesh = new Mesh(`${this.name}_body`, this.scene);
+    const data = new VertexData();
+    data.positions = positions;
+    data.indices = indices;
+    if (normals.length) data.normals = normals;
+    if (colors.length === (positions.length / 3) * 4) data.colors = colors;
+    data.matricesIndices = mIdx;
+    data.matricesWeights = mWt;
+    data.applyToMesh(mesh);
+
+    mesh.material = mat;
+    mesh.useVertexColors = colors.length > 0;
+    mesh.skeleton = skeleton;
+    mesh.parent = rootBone.parent as TransformNode;
+    mesh.isPickable = false;
+    mesh.alwaysSelectAsActiveMesh = true;
+    return [mesh];
   }
 }
 

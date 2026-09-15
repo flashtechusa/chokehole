@@ -17,12 +17,12 @@ instances sharing five source meshes and five materials.
 
 | Item | Budget | Actual |
 | --- | --- | --- |
-| Wrestlers | 2 high-detail | 2, ~20 merged meshes each, 1 material each |
+| Wrestlers | 2 high-detail | 2, **1 skinned mesh each** (26 bones, 9,334 verts), 1 material each |
 | Crowd | instanced | ~110 instances, 5 sources (camera side culled) |
 | Real-time shadows | ≤ 1 map | 1 blurred map on the key light, MEDIUM+ only |
 | Lights | ≤ 5 | hemispheric + key + rim + up to 2 point |
 | Post-processing | ≤ 1 pass | glow layer, MEDIUM+ only |
-| Ink outlines | MEDIUM+ | ~50 extra draws, MEDIUM+ only |
+| Ink outlines | MEDIUM+ | 1 extra draw per inked mesh: 2 wrestlers + ring furniture, MEDIUM+ only |
 | Particles | pooled | pooled boxes/planes, no particle system |
 | Textures | generated | canvas-drawn at runtime, no files |
 

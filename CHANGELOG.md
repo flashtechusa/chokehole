@@ -1,5 +1,47 @@
 # Changelog
 
+## v3.7 — skinned wrestlers
+
+Until now each wrestler was about twenty rigid chunks, one per bone, merged and
+drawn separately. A bent elbow was two boxes hinging past each other: the join
+opened as a visible notch, and every limb read as a doll's, not a body's.
+
+Both wrestlers are now **one skinned mesh** driven by a real Babylon skeleton.
+
+- `buildBoneSkeleton()` builds a 26-bone `Skeleton` mirroring the TransformNode
+  hierarchy the clip player already animates. Rest matrices are **local** —
+  `node.world * invert(parent.world)` — which is what Babylon wants; passing
+  world matrices collapsed every figure into a heap at the origin.
+- `BodyBuilder.finish()` now merges every primitive into a single mesh,
+  transforms its vertices into rig space, and generates `matricesIndices` /
+  `matricesWeights` from bucket membership blended by **distance from the
+  joint**. The first attempt keyed the blend on the sign of `local.y`, which
+  blended 96% of the vertices and smeared the whole figure; the blend band is
+  now 0.06 world units, about a knuckle.
+- `CharacterRig.syncBones()` copies the posed nodes onto the bones every frame,
+  immediately after `applyPose()`. Babylon's own `Bone.linkTransformNode` does
+  **not** propagate — verified directly: 26 bones linked, node rotated to -2 rad,
+  bone matrix unmoved. So the sync is done by hand.
+
+Verified through the real pose pipeline, not a side door: with the idle pose
+biasing the forearm to +0.62 rad the bone's local matrix reads
+`cos 0.814 / sin 0.581`; forced to -2.0 rad it reads `-0.416 / -0.909`, the
+final matrix follows, and the geometry bends on screen. Ink outlines, cel
+banding, cast shadows and glow all track the deformed mesh — the inverted hull
+is skinned too, so there is no rest-pose ghost.
+
+Draw calls per wrestler: **~20 to 1**. 9,334 vertices, 26 bones.
+
+### Also
+- `debug().setQuality(q)` forces a quality tier and drives the view's outline
+  switch with it. The headless harnesses render on SwiftShader, which always
+  detects LOW — the one tier with outlines, shadows, glow and rim light all off
+  so without this no automated screenshot could ever show what a phone shows.
+
+### What this does not fix
+The limbs bend, but they are still built from boxes and capsules with no hands,
+no neck taper and a flat face. That is the anatomy pass, next but one.
+
 ## v3.6 — the wrestlers, corrected against the reference photographs
 
 Re-read the five supplied photographs — two studio shots of Jassy, the event
