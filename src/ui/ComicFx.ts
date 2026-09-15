@@ -125,7 +125,10 @@ export class ComicFx {
     // and bottom edges so the noise never lands under the health bars or the
     // buttons.
     const cx = clamp01(nx, 0.2, 0.8) * window.innerWidth;
-    const cy = clamp01(ny - 0.12, 0.26, 0.7) * window.innerHeight;
+    // Well clear of the action. The card is aimed at the contact point, which
+    // is exactly where both wrestlers are, so a small lift still landed it on
+    // top of them; it lives in the empty band between the HUD and the top rope.
+    const cy = clamp01(ny - 0.30, 0.21, 0.42) * window.innerHeight;
     const at = (k: number): string =>
       `translate(calc(-50% + ${cx.toFixed(0)}px), calc(-50% + ${(cy - k).toFixed(0)}px))`;
     const tilt = (i === 0 ? 1 : -1) * (3 + s * 4);

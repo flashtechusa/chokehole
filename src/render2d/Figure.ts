@@ -17,6 +17,7 @@ import { Layer, capsule, ellipse, poly, slab, type Ctx } from './Paint';
  */
 export function drawFigure(
   g: Ctx, fig: Figure2D, sol: Solution, inkWidth: number, dots: CanvasPattern | null,
+  photo?: HTMLImageElement | null,
 ): void {
   const p = fig.proportions;
   const c = fig.palette;
@@ -87,8 +88,8 @@ export function drawFigure(
     const [ax0, ay0] = end(`shin${side}` as keyof Solution, shinLen);
     const kx = kx0 + sx; const ky = ky0 + sy * 0.4;
     const ax = ax0 + sx; const ay = ay0 + sy * 0.4;
-    const bare = fig.costume.fishnets ? '#3A2B3F' : c.skin;
-    const bareFar = fig.costume.fishnets ? '#2A1F2E' : c.skinShade;
+    const bare = fig.costume.fishnets ? '#8E6B72' : c.skin;
+    const bareFar = fig.costume.fishnets ? '#6E5058' : c.skinShade;
     const tone = near ? bare : bareFar;
 
     lay.add(capsule(th.x, th.y, 0.135 * K, kx, ky, 0.092 * K), tone,
@@ -328,6 +329,34 @@ export function drawFigure(
   const nearIsL = sol.shoulderL.depth < 0;
   const far = nearIsL ? 'R' : 'L';
   const near = nearIsL ? 'L' : 'R';
+
+  /*
+   * With a photograph in play the drawn body above the waist is replaced
+   * wholesale: legs first so the trunks cover their tops, then the cut-out,
+   * turning on the waist with the spine.
+   */
+  if (fig.photo && photo && photo.complete && photo.naturalWidth) {
+    leg(far, false);
+    leg(near, true);
+    /*
+     * Positioned at the HIPS and rotated by the SPINE. The pivot marked on each
+     * cut-out is the performer's waist, so pinning it to the spine joint -- a
+     * fifth of a unit higher up -- stood the photograph on stilts and left the
+     * drawn legs stubby underneath it.
+     */
+    const hp = sol.hips;
+    const sp = sol.spine;
+    const ph = fig.photo;
+    g.save();
+    g.translate(hp.x, hp.y);
+    g.rotate(sp.a - ph.baked);
+    // The canvas is in a Y-up frame; an image is Y-down, so flip it back for
+    // the blit and lay it out in image pixels scaled to world units.
+    g.scale(ph.scale, -ph.scale);
+    g.drawImage(photo, -ph.pivot[0], -ph.pivot[1]);
+    g.restore();
+    return;
+  }
 
   extras();
   arm(far, false);

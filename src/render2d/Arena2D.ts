@@ -171,7 +171,9 @@ export class Arena2D {
       if (which === 'upper' && i === 0) continue;
       if (which === 'bottom' && i !== 0) continue;
       const y = MAT_Y + lift + 0.62 + i * 0.62;
-      lay.add(slab(0, y, (half - depth) * 2, 0.075, 0.03), cols[i]!);
+      // Thin. With photographic performers in the ring a fat rope across a
+      // face costs more than the depth cue is worth.
+      lay.add(slab(0, y, (half - depth) * 2, 0.05, 0.02), cols[i]!);
     }
     lay.flush(g, dots);
   }

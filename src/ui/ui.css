@@ -917,8 +917,8 @@ body.portrait #rotate { display: flex; }
   position: absolute;
   left: 0;
   top: 0;
-  width: 40vmin;
-  height: 40vmin;
+  width: 29vmin;
+  height: 29vmin;
   display: grid;
   place-items: center;
   opacity: 0;
@@ -945,7 +945,7 @@ body.portrait #rotate { display: flex; }
      KRAKATHOOM and POW both fill the star instead of one overflowing it and
      the other rattling around inside. Never below the 24px readability floor
      (Bible s21.4), whatever the word. */
-  font-size: clamp(24px, calc(78vmin / var(--len, 6)), 58px);
+  font-size: clamp(22px, calc(56vmin / var(--len, 6)), 40px);
   line-height: 1;
   letter-spacing: 0.01em;
   white-space: nowrap;

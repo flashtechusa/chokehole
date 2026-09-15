@@ -1,5 +1,51 @@
 # Changelog
 
+## v5.1 — the real performers
+
+"2D with real photos." The deck is a collage of the actual cast, so the cast is
+in the ring now: their own cut-outs, lifted out of the PDF with their alpha
+intact, pinned to the skeleton.
+
+### One cut per character, not eleven
+The obvious move was to cut each photo into limbs and pin them bone by bone.
+It is also the wrong move, and worth writing down why: the source poses are
+extreme — RAID's only full-body cut-out is mid-leap with one arm over his head —
+and the foreshortening is baked into the pixels. Re-pinning that arm to a
+lowered arm bone puts a photograph of a raised arm where a lowered one belongs,
+at an angle the photo never had. Joint estimates off a printed page are ±20px
+on top of that.
+
+So each performer is ONE untouched cut-out from the waist up, turning on the
+waist with the spine, with the legs drawn underneath in the flat style. The
+faces stay perfect, which is the entire point of using their photographs, and
+the legs — which are what actually reads as movement — still animate.
+
+### What it cost to get right
+- The cut-out is pinned at the **hips** and rotated by the **spine**. Pinning it
+  to the spine joint, a fifth of a unit higher, stood each performer on stilts
+  with stubby drawn legs underneath.
+- RAID's photograph leans 0.12 rad in the frame; that is cancelled before the
+  pose is applied, or he fights permanently tilted.
+- Jassy's legs were fishnet-dark against a dark room and vanished. They are a
+  lifted tone now.
+- The impact card is aimed at the contact point, which is exactly where both
+  wrestlers are — so it landed on top of the fight every time. It lives in the
+  empty band between the HUD and the top rope now, and is a third smaller.
+- Ropes went thin. With photographic faces in the ring a fat rope across one
+  costs more than the depth cue is worth.
+
+### The honest limitation
+Each performer has exactly one pose, because the deck contains exactly one
+usable full cut-out of each. Their upper bodies lean, turn, lunge and get thrown,
+but the arms in the photograph never move. More photographs — a strike, a
+grapple, a cover — would each become another cut-out and the rig would swap
+between them by state, which is how the clip player already works.
+
+Jassy's legs are drawn rather than photographed for the same reason: both of her
+cut-outs stop at the thigh.
+
+Smoke clean at 60 fps, framing clean, agency OK.
+
 ## v5.0 — the renderer was the problem
 
 Told to abandon the direction. That was the right call and this is what it

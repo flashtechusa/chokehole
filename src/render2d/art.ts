@@ -30,8 +30,31 @@ export interface Palette2D {
   mouth: string;
 }
 
+/**
+ * A photographic cut-out pinned to the skeleton.
+ *
+ * The deck is a collage of real performers, so this is the deck: the whole
+ * upper body is one untouched cut-out that leans and turns on the waist, with
+ * the legs drawn under it. Cutting the photos into individual limbs was the
+ * obvious move and the wrong one -- the source poses are extreme (RAID is
+ * mid-leap with one arm over his head) and the foreshortening is baked in, so
+ * re-pinning a limb puts a photograph of a raised arm where a lowered arm
+ * should be. One clean cut per character, and the faces stay perfect.
+ */
+export interface PhotoTop {
+  src: string;
+  /** The waist, in image pixels: what the sprite turns about. */
+  pivot: [number, number];
+  /** World units per image pixel. */
+  scale: number;
+  /** The lean already in the photograph, cancelled before the pose is added. */
+  baked: number;
+}
+
 export interface Figure2D {
   id: string;
+  /** When present, the body above the waist is a photograph. */
+  photo?: PhotoTop;
   proportions: Proportions;
   palette: Palette2D;
   head: 'glam' | 'insect';
@@ -98,6 +121,12 @@ export const JASSY_2D: Figure2D = {
     eye: '#140E1A',
     mouth: '#8E1E4A',
   },
+  photo: {
+    src: 'assets/cast/jassy-top.png',
+    pivot: [121.5, 402],
+    scale: 1.02 / 402,
+    baked: 0,
+  },
   head: 'glam',
   hair: 'bob',
   costume: {
@@ -131,6 +160,12 @@ export const RAID_2D: Figure2D = {
     ink: '#0E1A06',
     eye: '#16260C',
     mouth: '#E8318C',                         // magenta maw
+  },
+  photo: {
+    src: 'assets/cast/raid-top.png',
+    pivot: [161.7, 391],
+    scale: 1.09 / 391,
+    baked: 0.12,
   },
   head: 'insect',
   hair: 'none',

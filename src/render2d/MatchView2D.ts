@@ -15,10 +15,10 @@ import { dotPattern, type Ctx } from './Paint';
 import { FX2D } from './FX2D';
 import type { Stage2D } from './Engine2D';
 
-interface Side { fighter: Fighter; rig: Rig2D }
+interface Side { fighter: Fighter; rig: Rig2D; photo: HTMLImageElement | null }
 
 /** Where the mat sits down the frame. Everything else hangs off this. */
-const MAT_FRAC = 0.72;
+const MAT_FRAC = 0.70;
 
 /**
  * Draws a MatchSim, flat.
@@ -45,9 +45,16 @@ export class MatchView2D {
 
   constructor(private stage: Stage2D, private sim: MatchSim) {
     this.fx = new FX2D();
+    const load = (src?: string): HTMLImageElement | null => {
+      if (!src) return null;
+      const im = new Image();
+      // Relative, because Pages serves this from a project subpath.
+      im.src = src;
+      return im;
+    };
     this.sides = [
-      { fighter: sim.p1, rig: new Rig2D(JASSY_2D, STYLE_POISED) },
-      { fighter: sim.p2, rig: new Rig2D(RAID_2D, STYLE_BRUTE) },
+      { fighter: sim.p1, rig: new Rig2D(JASSY_2D, STYLE_POISED), photo: load(JASSY_2D.photo?.src) },
+      { fighter: sim.p2, rig: new Rig2D(RAID_2D, STYLE_BRUTE), photo: load(RAID_2D.photo?.src) },
     ];
   }
 
@@ -145,7 +152,7 @@ export class MatchView2D {
      * the midpoint only slid the ring off to one side and pushed whoever was
      * near a rope out of frame.
      */
-    const wantX = clamp(mid * 0.32, -1.1, 1.1);
+    const wantX = clamp(mid * 0.55, -1.9, 1.9);
     this.camX += (wantX - this.camX) * Math.min(1, dt / 260);
     const want = 1 / (1 + Math.max(0, sep - 2.2) * 0.075);
     this.camScale += (want - this.camScale) * Math.min(1, dt / 320);
@@ -174,7 +181,7 @@ export class MatchView2D {
      * top quarter and the ring's own width inside the frame -- so you can see
      * the thing you are fighting inside.
      */
-    const base = (H * 0.33) / 1.95;
+    const base = (H * 0.37) / 1.95;
     const S = base * this.camScale * (1 + this.punch * 0.035);
     const shakeX = this.shake * 5 * Math.sin(performance.now() / 11);
     const shakeY = this.shake * 4 * Math.sin(performance.now() / 7 + 1.3);
@@ -202,7 +209,7 @@ export class MatchView2D {
     g.save();
     g.translate(f.x, f.y);
     g.scale(face, 1);
-    drawFigure(g, s.rig.fig, s.rig.solution, ink, this.dots);
+    drawFigure(g, s.rig.fig, s.rig.solution, ink, this.dots, s.photo);
     if (s.rig.flash > 0) {
       // The hit flash is a flat wash, because everything here is flat.
       g.save();
@@ -219,7 +226,7 @@ export class MatchView2D {
   project(x: number, y: number): { x: number; y: number } | null {
     const W = this.stage.width;
     const H = this.stage.height;
-    const base = (H * 0.33) / 1.95;
+    const base = (H * 0.37) / 1.95;
     const S = base * this.camScale * (1 + this.punch * 0.035);
     const sx = W / 2 + (x - this.camX) * S;
     const sy = H * MAT_FRAC - (y - RING_MAT_Y) * S;

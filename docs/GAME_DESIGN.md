@@ -98,6 +98,30 @@ faces. The crowd's back rows are drawn higher and smaller rather than further
 away. And near limbs are nudged forward and down, far limbs back and up, so a
 pure side view does not bury one arm inside the chest.
 
+### The performers are photographs
+
+The deck is a collage of the real cast, so the cast is in the ring: their own
+cut-outs, with the alpha they already had, pinned to the skeleton from the waist
+up and turning with the spine. The legs are drawn underneath.
+
+**One cut per character, not eleven.** Cutting each photo into limbs and pinning
+them bone by bone is the obvious move and the wrong one. The source poses are
+extreme — RAID's only full-body cut-out is mid-leap with an arm over his head —
+and foreshortening is baked into the pixels, so re-pinning that arm to a lowered
+arm bone puts a photograph of a raised arm at an angle it never had. The faces
+are the whole reason to use photographs at all, and one clean cut keeps them
+perfect.
+
+Each cut-out carries three numbers: the waist pivot in image pixels, world units
+per pixel, and the lean already present in the photograph, which is cancelled
+before the pose is added.
+
+**The limitation is honest and fixable.** Each performer has one pose, because
+the deck contains one usable cut-out of each. Their bodies lean, turn, lunge and
+get thrown, but the arms in the photograph do not move. More photographs — a
+strike, a grapple, a cover — would each become another cut-out, swapped by
+fighter state exactly as the clip player already swaps animations.
+
 ### The animation library outlived the renderer
 
 Every clip rotates about one axis, because the fight has been on a line since
