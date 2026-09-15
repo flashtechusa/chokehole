@@ -43,6 +43,10 @@ git reset -q --hard "origin/$PAGES_BRANCH"
 git ls-files -z | grep -zv '^\.nojekyll$' | grep -zv '^\.gitignore$' | xargs -0 rm -f --
 cp -r "$STAGE/." .
 
+# -u stages the removals above and any changed file, and by definition only
+# touches paths git already tracks -- so it cannot sweep in node_modules the
+# way `git add -A` would. New files are then added by name.
+git add -u
 git add .nojekyll .gitignore 2>/dev/null || true
 (cd "$STAGE" && find . -type f | sed 's|^\./||') | while read -r f; do git add -- "$f"; done
 
