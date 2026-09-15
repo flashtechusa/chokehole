@@ -1,0 +1,178 @@
+/*
+ * Action-arcade visual pass.
+ *
+ * This deliberately sits AFTER ui.css so it can push the existing interface
+ * toward the bright, chunky, comic-book readability of classic arcade
+ * wrestling without rewriting the DOM. CHOKE HOLE's own pitch-deck palette and
+ * collage language remain the identity; the external genre reference is only
+ * the readability / impact philosophy.
+ */
+
+#app::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 42%, transparent 0 50%, rgba(8,2,14,.18) 78%, rgba(8,2,14,.48) 100%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 4px);
+  mix-blend-mode: normal;
+}
+
+#ui::after {
+  content: 'I.B.S.  //  ILLEGAL BROADCAST';
+  position: absolute;
+  left: calc(var(--safe-l) + 12px);
+  bottom: calc(var(--safe-b) + 8px);
+  z-index: -1;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  color: rgba(255,245,232,.22);
+  transform: skew(-9deg);
+}
+
+.hud-top {
+  filter: drop-shadow(0 5px 0 rgba(14,8,24,.78));
+}
+
+.fighter-block {
+  position: relative;
+  padding: 6px 9px 7px;
+  background: linear-gradient(110deg, rgba(14,8,24,.88), rgba(52,14,55,.65));
+  border: 3px solid rgba(255,245,232,.72);
+  clip-path: polygon(0 0, 96% 0, 100% 18%, 100% 100%, 4% 100%, 0 82%);
+}
+
+.fighter-block.right {
+  clip-path: polygon(4% 0, 100% 0, 100% 82%, 96% 100%, 0 100%, 0 18%);
+}
+
+.fighter-name {
+  font-size: clamp(23px, 3.4vw, 34px);
+  letter-spacing: -.055em;
+  font-style: italic;
+  text-shadow:
+    2px 2px 0 #120A1A,
+    -2px 2px 0 #120A1A,
+    2px -2px 0 #120A1A,
+    -2px -2px 0 #120A1A,
+    5px 5px 0 rgba(227,39,143,.35);
+}
+
+.bar {
+  height: 22px;
+  transform: skew(-7deg);
+  border: 3px solid #120A1A;
+  box-shadow: 0 0 0 2px rgba(255,245,232,.55);
+}
+
+.bar-fill,
+.it-fill {
+  image-rendering: pixelated;
+}
+
+.it-bar {
+  height: 14px;
+  border-width: 2px;
+  transform: skew(-7deg);
+}
+
+.hud-centre {
+  padding: 5px 10px 6px;
+  background: rgba(14,8,24,.85);
+  border: 3px solid var(--bone);
+  transform: rotate(-1.5deg);
+  box-shadow: 5px 5px 0 rgba(227,39,143,.42);
+}
+
+.clock {
+  color: var(--acid);
+  text-shadow: 2px 2px 0 #120A1A;
+}
+
+.buttons {
+  width: 230px;
+  height: 190px;
+}
+
+.btn {
+  box-shadow:
+    0 7px 0 rgba(6,3,11,.75),
+    0 0 0 3px rgba(14,8,24,.72),
+    inset 0 0 22px rgba(255,255,255,.08);
+  backdrop-filter: blur(2px);
+}
+
+.btn .lbl {
+  font-size: 19px;
+  font-style: italic;
+  letter-spacing: -.04em;
+  text-shadow: 2px 2px 0 #120A1A;
+}
+
+.btn:active,
+.btn.down {
+  transform: translateY(5px) scale(.95);
+  box-shadow: 0 2px 0 rgba(6,3,11,.8), 0 0 0 3px rgba(14,8,24,.72);
+}
+
+.btn-special.fin .lbl {
+  color: #120A1A;
+  text-shadow: none;
+}
+
+.cue {
+  font-style: italic;
+  transform: translate(-50%, -50%) rotate(-3deg) scale(.68);
+  clip-path: polygon(5% 14%, 20% 0, 37% 11%, 52% 0, 68% 13%, 86% 3%, 95% 22%, 100% 42%, 93% 58%, 100% 78%, 82% 88%, 67% 100%, 51% 90%, 34% 100%, 18% 87%, 3% 91%, 8% 68%, 0 48%);
+}
+
+.cue.show {
+  transform: translate(-50%, -50%) rotate(-3deg) scale(1);
+}
+
+.callout {
+  transform: rotate(-1.5deg) skew(-4deg);
+  transform-origin: left bottom;
+}
+
+.callout .title {
+  font-size: clamp(22px, 4vw, 46px);
+  font-style: italic;
+  letter-spacing: -.045em;
+  text-shadow:
+    2px 2px 0 #120A1A,
+    -2px 2px 0 #120A1A,
+    2px -2px 0 #120A1A,
+    -2px -2px 0 #120A1A;
+}
+
+.callout.show {
+  animation: arcadeCallout 165ms cubic-bezier(.2,1.5,.35,1);
+}
+
+@keyframes arcadeCallout {
+  from { transform: rotate(-8deg) skew(-8deg) translateX(-26px) scale(.72); opacity: 0; }
+  to { transform: rotate(-1.5deg) skew(-4deg) translateX(0) scale(1); opacity: 1; }
+}
+
+.pin-panel {
+  border: 5px solid #120A1A;
+  box-shadow: 0 0 0 4px var(--acid), 8px 9px 0 rgba(14,8,24,.72);
+  transform: translate(-50%, -50%) rotate(-1deg);
+}
+
+.pin-count {
+  font-style: italic;
+  text-shadow: 4px 4px 0 #120A1A;
+}
+
+@media (max-height: 430px) {
+  .fighter-tag { display: none; }
+  .fighter-block { padding-top: 4px; padding-bottom: 5px; }
+  .fighter-name { font-size: 22px; }
+  .buttons { transform: scale(.9); transform-origin: right bottom; }
+}
