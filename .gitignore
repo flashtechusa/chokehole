@@ -4,3 +4,4 @@ dist-single/
 *.tmp.mjs
 *.tmp.py
 .DS_Store
+.vite/
