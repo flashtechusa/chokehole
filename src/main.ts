@@ -1,6 +1,7 @@
 import './ui/ui.css';
 import './ui/actionArcade.css';
 import { App } from './app/App';
+import { installShowDirector } from './app/ShowDirector';
 import { registerSW } from './app/pwa';
 
 /**
@@ -23,6 +24,7 @@ document.addEventListener('touchmove', (e) => {
 }, { passive: false });
 
 const app = new App(canvas, ui);
+installShowDirector(app);
 
 // Test hook for the smoke test and the headless pacing harness.
 (window as unknown as { __CHOKEHOLE__: unknown }).__CHOKEHOLE__ = app;
